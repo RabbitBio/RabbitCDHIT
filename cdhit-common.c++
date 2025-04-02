@@ -36,6 +36,7 @@
 #include<omp.h>
 
 #define WITH_OPENMP " (+OpenMP)"
+#define WITH_OPEMMP_AND_MPI " (+OpenMP and MPI)"
 
 #else
 
@@ -324,27 +325,34 @@ bool Options::SetOptions(int argc, char* argv[], bool twod, bool est)
 	char date[100];
 	strcpy(date, __DATE__);
 	n = strlen(date);
+
+	int my_rank = 0;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
 	for (i = 1; i < n; i++) if (date[i - 1] == ' ' and date[i] == ' ') date[i] = '0';
-	printf("================================================================\n");
-	printf("Program: CD-HIT, V" CDHIT_VERSION WITH_OPENMP ", %s, " __TIME__ "\n", date);
-	printf("Command:");
-	n = 9;
-	for (i = 0; i < argc; i++) {
-		n += strlen(argv[i]) + 1;
-		if (n >= 64) {
-			printf("\n         %s", argv[i]);
-			n = strlen(argv[i]) + 9;
+
+	if (my_rank == 0) {
+		printf("================================================================\n");
+		printf("Program: Rabbit CD-HIT, V" CDHIT_VERSION WITH_OPEMMP_AND_MPI ", %s, " __TIME__ "\n", date);
+		printf("Command:");
+		n = 9;
+		for (i = 0; i < argc; i++) {
+			n += strlen(argv[i]) + 1;
+			if (n >= 64) {
+				printf("\n         %s", argv[i]);
+				n = strlen(argv[i]) + 9;
+			}
+			else {
+				printf(" %s", argv[i]);
+			}
 		}
-		else {
-			printf(" %s", argv[i]);
-		}
+		printf("\n");
+		time_t tm = time(NULL);
+		printf("Started: %s", ctime(&tm));
+		printf("================================================================\n");
+		printf("                            Output                              \n");
+		printf("----------------------------------------------------------------\n");
 	}
-	printf("\n\n");
-	time_t tm = time(NULL);
-	printf("Started: %s", ctime(&tm));
-	printf("================================================================\n");
-	printf("                            Output                              \n");
-	printf("----------------------------------------------------------------\n");
 	has2D = twod;
 	isEST = est;
 	for (i = 1; i + 1 < argc; i += 2) if (SetOption(argv[i], argv[i + 1]) == 0) return false;
@@ -2417,9 +2425,13 @@ void SequenceDB::SortDivide(Options& options, bool sort)
 		bomb_warning("Some seqs are too long, please rebuild the program with make parameter "
 			"MAX_SEQ=new-maximum-length (e.g. make MAX_SEQ=10000000)");
 
-	cout << "longest and shortest : " << max_len << " and " << min_len << endl;
-	cout << "Total letters: " << total_letter << endl;
-	// END change all the NR_seq to iseq
+	int my_rank = 0;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	if (my_rank == 0) {
+		cout << "longest and shortest : " << max_len << " and " << min_len << endl;
+		cout << "Total letters: " << total_letter << endl;
+		// END change all the NR_seq to iseq
+	}
 
 	len_n50 = (max_len + min_len) / 2; // will be properly set, if sort is true;
 	// 这里用了一个桶排序，由于蛋白质氨基酸序列的长度比较短，现阶段最长的氨基酸序列大约为2000位
@@ -2465,7 +2477,8 @@ void SequenceDB::SortDivide(Options& options, bool sort)
 			}
 		}
 	#endif
-		cout << "Sequences have been sorted" << endl;
+		if(my_rank == 0)
+			cout << "Sequences have been sorted" << endl;
 		// END sort them from long to short
 	}
 }// END sort_seqs_divide_segs

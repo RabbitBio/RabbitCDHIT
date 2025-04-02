@@ -36,6 +36,7 @@
 #include<time.h>
 
 #include <chrono>
+#include <mpi.h>
 
 #include "input_sequence.h"
 

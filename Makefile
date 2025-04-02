@@ -3,7 +3,7 @@ CC = g++ -pg
 CC = mpiicpx
 # CC = gcc
 
-#mpirun -np 8 ./cdhit -i -o -T 
+#mpirun -np 8 ./cdhit -i -o -T -c
 
 # default with OpenMP
 # with OpenMP
