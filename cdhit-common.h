@@ -559,6 +559,9 @@ public:
 	size_t min_len;
 	size_t len_n50;
 
+	vector<pair<int, int>> chunks;
+	vector<int> chunks_id;
+
 	void Clear() {
 		for (int i = 0; i < sequences.size(); i++) delete sequences[i];
 		sequences.clear(); rep_seqs.clear();
@@ -618,7 +621,7 @@ public:
 	int  CheckOneEST(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
 	int  CheckOneAA(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
 
-	void DoClustering_MPI(const Options& options);
+	void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 
 };
 

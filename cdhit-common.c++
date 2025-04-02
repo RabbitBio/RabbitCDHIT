@@ -3264,7 +3264,7 @@ void Options::ComputeTableLimits(int min_len, int max_len, int typical_len, size
 	printf("Max number of word counting entries: %zu\n\n", max_entries);
 }
 
-void SequenceDB::DoClustering_MPI(const Options& options) {
+void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank) {
 	
 }
 
