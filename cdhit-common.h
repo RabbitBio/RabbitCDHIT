@@ -255,6 +255,7 @@ public:
 		NVector<IndexCount>& lookCounts, NVector<uint32_t>& indexMapping,
 		bool est = false, int min = 0);
 	void PrintAll();
+	void PrintAll(const std::string& filename = "");
 }; // END class INDEX_TBL
 struct Options
 {
@@ -623,9 +624,13 @@ public:
 
 	void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 
-	void encode_WordTable(WordTable& table, int start, int end, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size,long& prefix_size);
+	void encode_WordTable(WordTable& table, long*& info_buf, int chunk_id, int start, int end,
+		long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf,
+		long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
 
-	void decode_WordTable(WordTable& table, int start, int end, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size,long& prefix_size);
+	void prepare_to_decode(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf,long long*& prefix_buf, long long& indexCount_buf_size);
+
+	void decode_WordTable(WordTable& table, long*& info_buf, int& chunk_id, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
 
 };
 
