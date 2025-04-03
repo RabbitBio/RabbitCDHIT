@@ -3307,7 +3307,9 @@ void Polled_Output() {
 
 void SequenceDB::encode_WordTable(WordTable& table, int start, int end,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size){
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size)
+{
+	int T = options.threads;
 	int len = end - start;
 	suffix_buf = new long[len + 1];
 	cluster_id_buf = new long[len + 1];
@@ -3320,26 +3322,23 @@ void SequenceDB::encode_WordTable(WordTable& table, int start, int end,
 	}
 
 	// Record size of each line 
-	indexCount_buf_size = table.indexCounts.size() + table.size * 2;
+	indexCount_buf_size = table.size * 2;
 	prefix_size = table.indexCounts.size();
-	prefix_buf = new long long[table.indexCounts.size()];
+	prefix_buf = new long long[prefix_size];
 	indexCount_buf = new long[indexCount_buf_size];
 	long long index = 0;
-	int T = options.threads;
 #pragma omp parallel for num_threads(T)
-	for (int i = 0;i < table.indexCounts.size();i++) {
-		indexCount_buf[i] = table.indexCounts[i].Size();
+	for (int i = 0;i < prefix_size;i++) {
 		prefix_buf[i]=table.indexCounts[i].Size();
 	}
-	for (int i = 1;i < table.indexCounts.size();i++)
+	for (int i = 1;i < prefix_size;i++)
 		prefix_buf[i] += prefix_buf[i - 1];
-	int offset = table.indexCounts.size();
 
 	// FIXME: The parallelism can be omitted here.
 	// 		We can of course also place in parallel in the inner loop.
 #pragma omp parallel for num_threads(T)
-	for (int i = 0;i < table.indexCounts.size();i++) {
-		long long index = (i == 0 ? 0 : prefix_buf[i - 1]) * 2 + offset;
+	for (int i = 0;i < prefix_size;i++) {
+		long long index = (i == 0 ? 0 : prefix_buf[i - 1]) * 2;
 		for (int j = 0;j < table.indexCounts[i].Size();j++) {
 			indexCount_buf[index++] = table.indexCounts[i][j].index;
 			indexCount_buf[index++] = table.indexCounts[i][j].count;
@@ -3364,12 +3363,14 @@ void SequenceDB::decode_WordTable(WordTable& table, int start, int end,
 		table.sequences[i] = seq;
 	}
 	// rebuilt the 'table.indexCounts'
-	long offset = prefix_size;
+
+	table.indexCounts.resize(prefix_size);
 #pragma omp parallel for num_threads(T)
 	for (int i = 0;i < prefix_size;i++) {
-		long long idx = (i == 0 ? 0 : prefix_buf[i - 1]) * 2 + offset;
-		table.indexCounts[i].Resize(indexCount_buf[i]);
-		for (int j = 0;j < indexCount_buf[i];j++) {
+		long long idx = (i == 0 ? 0 : prefix_buf[i - 1]) * 2;
+		int size = (i == 0) ? prefix_buf[0] : prefix_buf[i] - prefix_buf[i - 1];
+		table.indexCounts[i].Resize(size);
+		for (int j = 0;j < size;j++) {
 			int idx_val = indexCount_buf[idx++];
 			int cnt_val = indexCount_buf[idx++];
 			table.indexCounts[i][j] = IndexCount(idx_val, cnt_val);
