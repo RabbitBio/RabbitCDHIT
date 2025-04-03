@@ -3346,6 +3346,17 @@ void SequenceDB::encode_WordTable(WordTable& table, int start, int end,
 	}
 }
 
+
+// TODO:
+/*
+In decode we will inevitably read the sequence information of the corresponding chunk, so in the code below:
+Sequence* seq = sequences[suffix_buf[index]];
+This sentence can be rewritten arbitrarily to correspond to the form of taking out the corresponding sequences,
+	it can be written to read directly from the file individually according to the subscript or index,
+	but this may not be very efficient.
+I thought about the point that each worker must get the chunk information of the corresponding word_table
+	when getting the word table, is it possible to read the data of the corresponding chunk before decoding the word table.
+*/
 void SequenceDB::decode_WordTable(WordTable& table, int start, int end,
 	long*& cluster_id_buf, long*& suffix_buf,
 	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size) {
