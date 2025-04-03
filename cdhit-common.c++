@@ -2477,7 +2477,7 @@ void SequenceDB::SortDivide(Options& options, bool sort)
 			}
 		}
 	#endif
-		if(my_rank == 0)
+		if (my_rank == 0)
 			cout << "Sequences have been sorted" << endl;
 		// END sort them from long to short
 	}
@@ -3190,37 +3190,45 @@ void SequenceDB::ClusterOne(Sequence* seq, int id, WordTable& table,
 #include<assert.h>
 size_t SequenceDB::MinimalMemory(int frag_no, int bsize, int T, const Options& options, size_t extra)
 {
+	int my_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	bool master = (my_rank == 0);
+	// master = true;
+
 	int N = sequences.size();
+	// N = 700000000;
+	// total_desc = total_desc / 167015 * N;
+	// total_letter = total_letter/ 167015 * N
 	int F = frag_no < MAX_TABLE_SEQ ? frag_no : MAX_TABLE_SEQ;
 	size_t mem_need = 0;
 	size_t mem, mega = 1000000;
 	int table = T > 1 ? 2 : 1;
 
-	printf("\nApproximated minimal memory consumption:\n");
+	if (master) printf("\nApproximated minimal memory consumption:\n");
 	mem = N * sizeof(Sequence) + total_desc + N + extra;
 	if (options.store_disk == false) mem += total_letter + N;
-	printf("%-16s: %zuM\n", "Sequence", mem / mega);
+	if (master) printf("%-16s: %zuM\n", "Sequence", mem / mega);
 	mem_need += mem;
 
 	mem = bsize;
-	printf("%-16s: %i X %zuM = %zuM\n", "Buffer", T, mem / mega, T * mem / mega);
+	if (master) printf("%-16s: %i X %zuM = %zuM\n", "Buffer", T, mem / mega, T * mem / mega);
 	mem_need += T * mem;
 
 	mem = F * (sizeof(Sequence*) + sizeof(IndexCount)) + NAAN * sizeof(NVector<IndexCount>);
-	printf("%-16s: %i X %zuM = %zuM\n", "Table", table, mem / mega, table * mem / mega);
+	if (master) printf("%-16s: %i X %zuM = %zuM\n", "Table", table, mem / mega, table * mem / mega);
 	mem_need += table * mem;
 
 	mem = sequences.capacity() * sizeof(Sequence*) + N * sizeof(int);
 	mem += Comp_AAN_idx.size() * sizeof(int);
-	printf("%-16s: %zuM\n", "Miscellaneous", mem / mega);
+	if (master) printf("%-16s: %zuM\n", "Miscellaneous", mem / mega);
 	mem_need += mem;
 
-	printf("%-16s: %zuM\n\n", "Total", mem_need / mega);
+	if (master) printf("%-16s: %zuM\n\n", "Total", mem_need / mega);
 
 	if (options.max_memory and options.max_memory < mem_need + 50 * table) {
 		char msg[200];
-		sprintf(msg, "not enough memory, please set -M option greater than %zu\n",
-			50 * table + mem_need / mega);
+		sprintf(msg, "Node %d not enough memory, please set -M option greater than %zu\n",
+			my_rank, 50 * table + mem_need / mega);
 		bomb_error(msg);
 	}
 	return mem_need;
@@ -3249,6 +3257,10 @@ void Options::ComputeTableLimits(int min_len, int max_len, int typical_len, size
 	//T=32 scale=0.104
 	//T=64 scale=0.0703
 
+	int my_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	bool master = (my_rank == 0);
+
 	double scale = 0.5 / threads + 0.5 / sqrt(threads);
 	max_sequences = (size_t)(scale * MAX_TABLE_SEQ);
 	max_entries = (size_t)(scale * (500 * max_len + 500000 * typical_len + 50000000));
@@ -3259,13 +3271,255 @@ void Options::ComputeTableLimits(int min_len, int max_len, int typical_len, size
 		if (max_sequences < MAX_TABLE_SEQ / 100) max_sequences = MAX_TABLE_SEQ / 100;
 		if (max_sequences > MAX_TABLE_SEQ) max_sequences = MAX_TABLE_SEQ;
 	}
-	printf("Table limit with the given memory limit:\n");
-	printf("Max number of representatives: %zu\n", max_sequences);
-	printf("Max number of word counting entries: %zu\n\n", max_entries);
+	if (master) {
+		printf("Table limit with the given memory limit:\n");
+		printf("Max number of representatives: %zu\n", max_sequences);
+		printf("Max number of word counting entries: %zu\n\n", max_entries);
+	}
+}
+
+void Polled_Output() {
+	int my_rank, rank_size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
+
+	if (my_rank == 0) {
+		cout << "==============================" << endl;
+		cout << "Check Point" << endl;
+		cout << "------------------------------" << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	for (int p = 0;p < rank_size;p++) {
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (my_rank == p) {
+			if (p == 0) {
+				cout << "Master is Working!" << endl;
+			}
+			else cout << "Worker " << my_rank - 1 << " is Working!" << endl;
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
+	if (my_rank == 0) {
+		cout << "==============================" << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+}
+
+void SequenceDB::encode_WordTable(WordTable& table, int start, int end,
+	long*& cluster_id_buf, long*& suffix_buf,
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size){
+	int len = end - start;
+	suffix_buf = new long[len + 1];
+	cluster_id_buf = new long[len + 1];
+	suffix_buf[0] = len;
+	cluster_id_buf[0] = len;
+	for (int i = start;i < end;i++) {
+		int index = i - start + 1;
+		suffix_buf[index] = rep_seqs[i];
+		cluster_id_buf[index] = sequences[rep_seqs[i]]->cluster_id;
+	}
+
+	// Record size of each line 
+	indexCount_buf_size = table.indexCounts.size() + table.size * 2;
+	prefix_size = table.indexCounts.size();
+	prefix_buf = new long long[table.indexCounts.size()];
+	indexCount_buf = new long[indexCount_buf_size];
+	long long index = 0;
+	int T = options.threads;
+#pragma omp parallel for num_threads(T)
+	for (int i = 0;i < table.indexCounts.size();i++) {
+		indexCount_buf[i] = table.indexCounts[i].Size();
+		prefix_buf[i]=table.indexCounts[i].Size();
+	}
+	for (int i = 1;i < table.indexCounts.size();i++)
+		prefix_buf[i] += prefix_buf[i - 1];
+	int offset = table.indexCounts.size();
+
+	// FIXME: The parallelism can be omitted here.
+	// 		We can of course also place in parallel in the inner loop.
+#pragma omp parallel for num_threads(T)
+	for (int i = 0;i < table.indexCounts.size();i++) {
+		long long index = (i == 0 ? 0 : prefix_buf[i - 1]) * 2 + offset;
+		for (int j = 0;j < table.indexCounts[i].Size();j++) {
+			indexCount_buf[index++] = table.indexCounts[i][j].index;
+			indexCount_buf[index++] = table.indexCounts[i][j].count;
+		}
+	}
+}
+
+void SequenceDB::decode_WordTable(WordTable& table, int start, int end,
+	long*& cluster_id_buf, long*& suffix_buf,
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size) {
+	int T = options.threads;
+	int len = suffix_buf[0];
+	table.sequences.resize(len);
+	// rebuilt the 'table.sequences'
+#pragma omp parallel for num_threads(T)
+	for (int i = 0;i < len;i++) {
+		int index = i + 1;
+		Sequence* seq = sequences[suffix_buf[index]];
+		seq->cluster_id = cluster_id_buf[index];
+		seq->identity = 0;
+		seq->state |= IS_REP;
+		table.sequences[i] = seq;
+	}
+	// rebuilt the 'table.indexCounts'
+	long offset = prefix_size;
+#pragma omp parallel for num_threads(T)
+	for (int i = 0;i < prefix_size;i++) {
+		long long idx = (i == 0 ? 0 : prefix_buf[i - 1]) * 2 + offset;
+		table.indexCounts[i].Resize(indexCount_buf[i]);
+		for (int j = 0;j < indexCount_buf[i];j++) {
+			int idx_val = indexCount_buf[idx++];
+			int cnt_val = indexCount_buf[idx++];
+			table.indexCounts[i][j] = IndexCount(idx_val, cnt_val);
+		}
+	}
+	table.size = prefix_buf[prefix_size - 1];
 }
 
 void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank) {
-	
+
+	int rank_size;
+	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
+	int source = 0;
+
+	int i, j, k;
+	int T = options.threads;
+	int NAA = options.NAA;
+	double aa1_cutoff = options.cluster_thd;
+	double aas_cutoff = 1 - (1 - options.cluster_thd) * 4;
+	double aan_cutoff = 1 - (1 - options.cluster_thd) * options.NAA;
+	int seq_no = sequences.size();
+	int frag_no = seq_no;
+	int frag_size = options.frag_size;
+	int len, len_bound;
+	int flag;
+	if (frag_size) {
+		frag_no = 0;
+		if (master) {
+			for (i = 0; i < seq_no; i++)
+				frag_no += (sequences[i]->size - NAA) / frag_size + 1;
+		}
+		MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
+		MPI_Barrier(MPI_COMM_WORLD);
+	}
+
+	if (not options.isEST)
+		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+	Vector<WorkingParam> params(T);
+	Vector<WorkingBuffer> buffers(T);
+	for (i = 0; i < T; i++) {
+		params[i].Set(aa1_cutoff, aas_cutoff, aan_cutoff);
+		buffers[i].Set(frag_no, max_len, options);
+	}
+	WordTable word_table(options.NAA, NAAN);
+	WordTable last_table(options.NAA, NAAN);
+	int N = 0;
+	if (master)
+		N = sequences.size();
+	MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// Polled_Output();
+	// int K = N - 100 * T;
+
+	// FIXME:
+	// The estimation of memory usage here still relies heavily on the original estimation version, 
+	//		which will certainly be modified later.
+	size_t mem_need = MinimalMemory(frag_no, buffers[0].total_bytes, T, options);
+	size_t mem_limit = MemoryLimit(mem_need, options);
+	size_t mem, mega = 1000000;
+	size_t tabsize = 0;
+	int remaining = 0;
+	Options opts(options);
+	opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
+	size_t max_items = opts.max_entries;
+	size_t max_seqs = opts.max_sequences;
+
+	long* cluster_id_buf;
+	long* seqs_suffix_buf;
+	long* indexCount_buf;
+	long long* prefix_buf;
+	long long indexCount_buf_size;
+	long long prefix_size;
+
+	if (master) {
+		if (rank_size <= 1) {
+			cerr << "no workers found" << endl;
+			exit(0);
+		}
+		for (i = 0;i < chunks.size();i++) {
+			if (i > 0) break;
+			cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
+			int start_rep_suffix = rep_seqs.size();
+			if (i == 0) {
+				for (j = chunks[i].first;j < chunks[i].second;j++) {
+					Sequence* seq = sequences[j];
+					if (options.store_disk) seq->SwapIn();
+					if (seq->state & IS_REDUNDANT) continue;
+					ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+				}
+			}
+			cout << "\n";
+			int end_rep_suffix = rep_seqs.size();
+			// cout << end_rep_suffix - start_rep_suffix << " " << word_table.sequences.size() << endl;
+			encode_WordTable(word_table,
+				start_rep_suffix,
+				end_rep_suffix,
+				cluster_id_buf,
+				seqs_suffix_buf,
+				indexCount_buf,
+				prefix_buf,
+				indexCount_buf_size,
+				prefix_size);
+			// cout << word_table.size << endl;
+			// int word_table_seqs = word_table.seqs_suffix.size();
+			// MPI_Bcast(&word_table_seqs, 1, MPI_INT, source, MPI_COMM_WORLD);
+			// // cout << "\n>>> successful!" << endl;
+			// MPI_Bcast(word_table.seqs_suffix.data(), word_table_seqs, MPI_INT, source, MPI_COMM_WORLD);
+			cout << ">>> Done for Chunk " << i << endl;
+		}
+	}
+	if (worker) {
+		int start = 0;
+		for (int round = 0;round < chunks.size();round++) {
+			if (round > 0) break;
+		// 	int word_table_seqs;
+		// 	MPI_Bcast(&word_table_seqs, 1, MPI_INT, source, MPI_COMM_WORLD);
+		// 	// cout << ">>> " << word_table_seqs << endl;
+		// 	word_table.seqs_suffix.resize(word_table_seqs, 0);
+		// 	word_table.sequences.resize(word_table_seqs);
+		// 	MPI_Bcast(word_table.seqs_suffix.data(), word_table_seqs, MPI_INT, source, MPI_COMM_WORLD);
+		// 	if (worker_rank == 0) {
+		// 		cout << "Bcast Successfully!" << endl;
+		// 	}
+		// #pragma omp parallel num_threads(T)
+		// 	for (int p = 0;p < word_table.seqs_suffix.size();p++) {
+		// 		int id = word_table.seqs_suffix[p];
+		// 		Sequence* seq = sequences[id];
+		// 		word_table.sequences[p] = seq;
+		// 	}
+			// if (worker_rank == 0) {
+			// 	cout << "Filled 'world_table.sequences' Successfully!" << endl;
+			// }
+			for (i = start;i < chunks.size();i++) {
+			// #pragma omp parallel num_threads(T)
+			// 	for (j = chunks[i].first;j < chunks[i].second;j++) {
+			// 	}
+			}
+		}
+	}
+
+	// if (master) {
+	// 	cout << "Master is Finished" << endl;
+	// }
+	// if (worker) {
+	// 	cout << "Worker " << worker_rank << " is Finished" << endl;
+	// }
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
 }
 
 void SequenceDB::DoClustering(int T, const Options& options)
@@ -3652,13 +3906,13 @@ int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param,
 		由于序列之间的匹配情况可能因数据集特性而有所不同，采用静态阈值往往难以兼顾所有情况。
 		通过调用 update_aax_cutoff，可以使得阈值随着聚类过程的进行而自适应调整，
 		从而在初期允许较宽松的匹配，后期逐渐收紧标准，保证最终聚类的准确性和一致性。
-		
+
 		提升后续序列与已有代表序列比对时的门槛；
 		降低因匹配质量不高而错误归类的风险；
 		保证只有匹配度更高的序列才能“通过”筛选，被归入已有簇中。
 
 		通过不断优化匹配阈值，使得整个聚类过程既能快速过滤掉不相似的序列，又能确保聚类内序列间具有足够高的相似性。
-		
+
 		*/
 		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
 			options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);

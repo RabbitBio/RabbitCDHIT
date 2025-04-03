@@ -623,6 +623,10 @@ public:
 
 	void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 
+	void encode_WordTable(WordTable& table, int start, int end, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size,long& prefix_size);
+
+	void decode_WordTable(WordTable& table, int start, int end, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size,long& prefix_size);
+
 };
 
 
