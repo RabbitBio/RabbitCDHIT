@@ -34,7 +34,20 @@
 #include<ctype.h>
 #include<stdint.h>
 #include<time.h>
-
+#include <queue>
+#include <sys/stat.h> 
+#include <sys/types.h>
+#include <atomic>   
+#include <mutex>      
+#include <thread> 
+#include <vector>
+#include <string>
+#include <queue>
+#include <cstdio>
+#include <map>
+#include <memory>
+#include <cassert>
+#include <cstring>
 #ifdef WITH_ZLIB
 #include<zlib.h>
 #endif
@@ -71,7 +84,7 @@
 
 #define max(a,b) (((a)>(b))?(a):(b))
 #define min(a,b) (((a)<(b))?(a):(b))
-
+constexpr size_t DEFAULT_CHUNK_SIZE = 1000;
 typedef unsigned int UINT4;
 typedef unsigned short UINT2;
 
@@ -228,10 +241,10 @@ class WordTable
 	public:
 		Vector<NVector<IndexCount> > indexCounts; // hold index and word counts of seqs
 		Vector<Sequence*>            sequences;
-		int     NAA;                // length of word
-		int     NAAN;               // rows of table
-		char    is_aa;              // aa is for prot
-		size_t  size;
+		int     NAA;                // length of word  k-mer 的长度（word size）
+		int     NAAN;               // rows of table 表的行数（通常为 4^k 或 20^k）
+		char    is_aa;              // aa is for prot 是否是氨基酸序列
+		size_t  size;				//表中 word 总数
 		int     frag_count;
 
 	public:
@@ -371,6 +384,31 @@ struct Options
 
 void bomb_error(const char *message);
 
+struct SequenceMeta {
+    int size;
+    long des_begin;
+	string identifier;
+
+};
+
+struct FastaRecord {
+	std::string desc;
+	std::string seq;
+	size_t file_id;
+	
+	bool operator<(const FastaRecord& other) const {
+		// 最大堆：按序列长度降序排列
+		return seq.size() < other.seq.size();
+	}
+};
+
+struct FileContext {
+	FILE* fp = nullptr;
+	std::unique_ptr<char[]> buffer;
+	size_t buffer_pos = 0;
+	size_t buffer_size = 0;
+	bool eof = false;
+};
 struct Sequence
 {
 	// real sequence, if it is not stored swap file:
@@ -443,15 +481,15 @@ struct WorkingParam
 		aa1_cutoff = a1;
 		aas_cutoff = a2;
 		aan_cutoff = an;
-		len_upper_bound = 0;
+		len_upper_bound = 0;  
 		len_lower_bound = 0;
 	}
 
-	int len_eff;
+	int len_eff; 
 	int aln_cover_flag;
 	int min_aln_lenS;
 	int min_aln_lenL;
-	int required_aa1;
+	int required_aa1; 
 	int required_aas; /* or aa2 */
 	int required_aan;
 
@@ -475,7 +513,7 @@ struct WorkingBuffer
 	Vector<INTs> aap_begin;
 	//Vector<IndexCount>  indexCounts;
 	NVector<IndexCount>  lookCounts;
-	NVector<uint32_t>    indexMapping;
+	NVector<uint32_t>    indexMapping;    
 	MatrixInt64  score_mat;
 	MatrixInt    back_mat;
 	Vector<int>  diag_score;
@@ -563,14 +601,29 @@ class SequenceDB
 		~SequenceDB(){ Clear(); }
 
 		void Read( const char *file, const Options & options );
+		//add new :元数据读取
+		void Read(const char *file, const Options & options,vector<SequenceMeta>&meta_table);
+		//add new :元数据桶排
+		void SortDivideMetaTable(std::vector<SequenceMeta> &meta_table, Options &options);
+		//随机访存并行
+		void GenerateSortedRuns(const char *file, const std::vector<SequenceMeta> &meta_table,size_t chunk_size_bytes, std::vector<std::string> &run_files);
+		//顺序合并
+		void MergeRuns_Sequential(const std::vector<std::string> &run_files, const std::string &output_file);
+
 		void Readgz( const char *file, const Options & options );
 
 		void Read( const char *file, const char *file2, const Options & options );
 		void Readgz( const char *file, const char *file2, const Options & options );
+		
+	
+		//外排序先读后写
+		void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,Options &options);
+		//归并
+		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
 		void WriteClusters( const char *db, const char *newdb, const Options & options );
 		void WriteClustersgz( const char *db, const char *newdb, const Options & options );
-
+		
 		void WriteClusters( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
 		void WriteClustersgz( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
 
