@@ -1,6 +1,6 @@
 CC = g++ -Wall -ggdb
 CC = g++ -pg
-CC = g++
+CC = mpiicpx
 
 # default with OpenMP
 # with OpenMP

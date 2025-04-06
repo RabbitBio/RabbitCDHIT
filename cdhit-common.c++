@@ -34,6 +34,7 @@
 #ifndef NO_OPENMP
 
 #include<omp.h>
+// #include<mpi.h>
 
 #define WITH_OPENMP " (+OpenMP)"
 
@@ -1318,6 +1319,7 @@ int WordTable::AddWordCountsFrag( NVector<IndexCount> & counts, int frag, int fr
 {
 	return 0;
 }
+//建立索引表
 int WordTable::AddWordCounts(int aan_no, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no, int idx, bool skipN)
 {
 	int i, j, k;
@@ -1781,6 +1783,8 @@ void SequenceDB::Readgz( const char *file, const Options & options )
 // change des_begin, des_length, des_length2, dat_length => des_begin, tot_length
 // where des_begin is the FILE pointer of sequence record start
 //       tot_length is the total bytes of sequence record 
+
+//非压缩文件的读取入口
 void SequenceDB::Read( const char *file, const Options & options )
 {
     int f_len = strlen(file);
@@ -1878,8 +1882,659 @@ void SequenceDB::Read( const char *file, const Options & options )
 }
 
 
-// by liwz gzip version 2019-02
-// PE reads liwz, disable swap option
+//元数据读取
+void SequenceDB::Read(const char *file, const Options & options,vector<SequenceMeta>&meta_table)
+{
+    int f_len = strlen(file);
+    if (strcmp(file + f_len - 3, ".gz") == 0) {
+        Readgz(file, options);
+        return;
+    }
+
+    Sequence one;
+    Sequence des;
+    FILE *fin = fopen(file, "rb");
+    char *buffer = nullptr;
+    char *res = nullptr;
+    int option_l = options.min_length;
+    if (fin == nullptr) bomb_error("Failed to open the database file");
+    Clear();
+    buffer = new char[MAX_LINE_SIZE + 1];
+
+    // gyj: 构建元数据表
+    meta_table.clear();
+
+    while (!feof(fin) || one.size) {
+        buffer[0] = '>';
+        if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr && one.size == 0) break;
+
+        if (buffer[0] == '+' || buffer[0] == '@') {
+            int len = strlen(buffer);
+            int len2 = len;
+            while (len2 && buffer[len2 - 1] != '\n') {
+                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+                len2 = strlen(buffer);
+                len += len2;
+            }
+            one.tot_length += len;
+
+            if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+                bomb_error("Cannot read quality score after + line");
+
+            len = strlen(buffer);
+            len2 = len;
+            while (len2 && buffer[len2 - 1] != '\n') {
+                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+                len2 = strlen(buffer);
+                len += len2;
+            }
+            one.tot_length += len;
+        } else if (buffer[0] == '>' || buffer[0] == '@' || (res == nullptr && one.size)) {
+            if (one.size) {
+                if (one.identifier == nullptr || one.Format()) {
+                    printf("Warning: from file \"%s\",\n", file);
+                    printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+                    if (one.identifier) printf("%s\n", one.identifier);
+                    printf("%s\n", one.data);
+                    one.size = 0;
+                }
+				
+                if (one.size > option_l) {
+                    SequenceMeta meta;
+                    meta.size = one.size;
+                    meta.des_begin = one.des_begin;
+                    meta.identifier = std::string(one.identifier);
+                    meta_table.push_back(meta);
+					if(one.size==35808){
+						std::cout<<one.des_begin<<endl;
+					}
+                }
+            }
+
+            one.size = 0;
+            one.tot_length = 0;
+
+            int len = strlen(buffer);
+            int len2 = len;
+            des.size = 0;
+            des += buffer;
+            while (len2 && buffer[len2 - 1] != '\n') {
+                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+                des += buffer;
+                len2 = strlen(buffer);
+                len += len2;
+            }
+
+            size_t offset = ftell(fin);
+            one.des_begin = offset - len;
+            one.tot_length += len;
+
+            int i = 0;
+            if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i++;
+            if (des.data[i] == ' ' || des.data[i] == '\t') i++;
+            if (options.des_len && options.des_len < des.size) des.size = options.des_len;
+            while (i < des.size && !isspace(des.data[i])) i++;
+            des.data[i] = 0;
+            one.identifier = des.data;
+        } else {
+            one.tot_length += strlen(buffer);
+            one += buffer;
+        }
+    }
+
+    one.identifier = nullptr;
+    delete[] buffer;
+    fclose(fin);
+}
+//元数据桶排
+void SequenceDB::SortDivideMetaTable(std::vector<SequenceMeta> &meta_table, Options &options)
+{
+    int N = meta_table.size();
+    total_letter = 0;
+    total_desc = 0;
+    max_len = 0;
+    min_len = (size_t)-1;
+
+    for (int i = 0; i < N; ++i) {
+        int len = meta_table[i].size;
+        total_letter += len;
+        if (len > max_len) max_len = len;
+        if (len < min_len) min_len = len;
+        total_desc += meta_table[i].identifier.length();
+    }
+
+    options.max_entries = max_len * MAX_TABLE_SEQ;
+    if (max_len >= 65536 && sizeof(INTs) <= 2)
+        bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
+    if (max_len > MAX_SEQ)
+        bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
+
+    std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
+    std::cout << "Total letters: " << total_letter << std::endl;
+
+    // ========================== 桶排序
+    len_n50 = (max_len + min_len) / 2;
+    long long sum = 0;
+    int M = max_len - min_len + 1;
+    Vector<int> count(M, 0);
+    Vector<int> accum(M, 0);
+    Vector<int> offset(M, 0);
+    std::vector<SequenceMeta> sorted(N);
+
+    for (int i = 0; i < N; ++i)
+        count[max_len - meta_table[i].size]++;
+
+    for (int i = 1; i < M; ++i)
+        accum[i] = accum[i - 1] + count[i - 1];
+
+    for (int i = 0; i < M; ++i) {
+        sum += (max_len - i) * count[i];
+        if (sum >= (total_letter >> 1)) {
+            len_n50 = max_len - i;
+            break;
+        }
+    }
+
+    for (int i = 0; i < N; ++i) {
+        int len = max_len - meta_table[i].size;
+        int id = accum[len] + offset[len];
+        sorted[id] = meta_table[i];
+        offset[len]++;
+    }
+
+    meta_table = std::move(sorted);
+	// std::cout << meta_table[0].size << std::endl;
+	// std::cout << meta_table[0].des_begin << std::endl;
+
+    std::cout << "MetaTable have been sorted" << std::endl;
+}
+
+//随机访存并行
+void SequenceDB::GenerateSortedRuns(const char *file, const std::vector<SequenceMeta> &meta_table, size_t chunk_size_bytes, std::vector<std::string> &run_files)
+{
+    mkdir("tmp_runs", 0755); // 创建 tmp_runs 目录
+
+    size_t num_threads = omp_get_max_threads();
+    std::vector<std::pair<size_t, size_t>> chunk_ranges;
+    size_t i = 0, N = meta_table.size();
+    while (i < N)
+    {
+        size_t chunk_total_size = 0;
+        size_t start = i;
+        while (i < N && chunk_total_size + meta_table[i].size <= chunk_size_bytes)
+        {
+            chunk_total_size += meta_table[i].size;
+            ++i;
+        }
+        if (start == i) ++i;  // 如果单个序列过大
+        chunk_ranges.emplace_back(start, i);
+    }
+
+    size_t total_chunks = chunk_ranges.size();
+    run_files.resize(total_chunks);
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int run_id = 0; run_id < (int)total_chunks; ++run_id)
+    {	FILE *fin = fopen(file, "rb");
+        const auto &[start, end] = chunk_ranges[run_id];
+        std::vector<SequenceMeta> chunk(meta_table.begin() + start, meta_table.begin() + end);
+		// std::sort(chunk.begin(), chunk.end(), [](const SequenceMeta &a, const SequenceMeta &b) {
+		// 	return a.size > b.size;  
+		// });		
+        std::string run_file = "tmp_runs/run_" + std::to_string(run_id) + ".fa";
+        run_files[run_id] = run_file;
+
+        FILE *fout = fopen(run_file.c_str(), "w");
+        
+        if (!fout || !fin) continue;
+
+        char buffer[MAX_LINE_SIZE + 1];
+        for (const auto &meta : chunk)
+        {
+            fseek(fin, meta.des_begin, SEEK_SET);
+            if (fgets(buffer, MAX_LINE_SIZE, fin))
+                fprintf(fout, "%s", buffer);
+
+            int total_read = 0;
+            while (total_read < meta.size)
+            {
+                if (!fgets(buffer, MAX_LINE_SIZE, fin)) break;
+                int len = strlen(buffer);
+                if (len > 0 && buffer[0] == '>') break;
+                fprintf(fout, "%s", buffer);
+                total_read += len;
+            }
+        }
+
+        fclose(fout);
+        fclose(fin);
+    }
+}
+//顺序合并
+void SequenceDB::MergeRuns_Sequential(const std::vector<std::string> &run_files, const std::string &output_file) {
+    FILE *fout = fopen(output_file.c_str(), "w");
+    if (!fout) {
+        std::cerr << "Failed to open output file: " << output_file << std::endl;
+        return;
+    }
+
+    char buffer[MAX_LINE_SIZE + 1];
+    for (const auto &run_file : run_files) {
+        FILE *fin = fopen(run_file.c_str(), "r");
+        if (!fin) {
+            std::cerr << "Failed to open run file: " << run_file << std::endl;
+            continue;
+        }
+
+        while (fgets(buffer, MAX_LINE_SIZE, fin)) {
+            fputs(buffer, fout);
+        }
+
+        fclose(fin);
+        std::remove(run_file.c_str()); // 自动删除
+    }
+
+    fclose(fout);
+    std::cout << "[Merge Complete] Output: " << output_file << std::endl;
+}
+
+
+//外排序先读后写
+void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
+{
+	int option_l = options.min_length;
+	total_letter = 0;
+	total_desc = 0;
+	max_len = 0;
+	min_len = (size_t)-1;
+	vector<vector<pair<string, string>>> chunks;
+	vector<pair<string, string>> current_chunk;
+	vector<size_t>all_lengths;
+	size_t current_chunk_size = 0;
+	mkdir("tmp_runs", 0755);
+	int f_len = strlen(file);
+	if (strcmp(file + f_len - 3, ".gz") == 0)
+	{
+		Readgz(file, options);
+		return;
+	}
+
+	Sequence one;
+	Sequence des;
+	FILE *fin = fopen(file, "rb");
+	char *buffer = nullptr;
+	char *res = nullptr;
+	if (fin == nullptr)
+		bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
+
+
+	while (!feof(fin) || one.size)
+	{
+		buffer[0] = '>';
+		if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr && one.size == 0)
+			break;
+
+		if (buffer[0] == '+' || buffer[0] == '@')
+		{
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n')
+			{
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+					break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
+
+			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+				bomb_error("Cannot read quality score after + line");
+
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n')
+			{
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+					break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == nullptr && one.size))
+		{
+			if (one.size)
+			{
+				if (one.identifier == nullptr || one.Format())
+				{
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier)
+						printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0;
+				}
+
+				if (one.size > option_l)
+				{
+					current_chunk.emplace_back(std::string(one.identifier), one.data);
+					total_letter += one.size;
+					total_desc += std::string(one.identifier).size();
+					all_lengths.push_back(one.size);
+					if (one.size > max_len)
+						max_len = one.size;
+					if (one.size < min_len)
+						min_len = one.size;
+					current_chunk_size += std::string(one.identifier).size() + one.size;
+				}
+				if (current_chunk_size >= chunk_size_bytes)
+				{
+					chunks.push_back(std::move(current_chunk));
+					current_chunk.clear();
+					current_chunk_size = 0;
+				}
+			}
+
+			one.size = 0;
+			one.tot_length = 0;
+
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n')
+			{
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+					break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+
+			size_t offset = ftell(fin);
+			one.des_begin = offset - len;
+			one.tot_length += len;
+
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+')
+				i++;
+			if (des.data[i] == ' ' || des.data[i] == '\t')
+				i++;
+			if (options.des_len && options.des_len < des.size)
+				des.size = options.des_len;
+			while (i < des.size && !isspace(des.data[i]))
+				i++;
+			des.data[i] = 0;
+			one.identifier = des.data;
+		}
+		else
+		{
+			one.tot_length += strlen(buffer);
+			one += buffer;
+		}
+	}
+
+	one.identifier = nullptr;
+	delete[] buffer;
+	fclose(fin);
+	options.max_entries = max_len * MAX_TABLE_SEQ;
+	if (max_len >= 65536 && sizeof(INTs) <= 2)
+		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
+	if (max_len > MAX_SEQ)
+		bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
+	//计算N50
+	sort(all_lengths.begin(),all_lengths.end(),std::greater<>());
+	long long cumulative =0;
+	for(size_t len :all_lengths){
+		cumulative += len;
+		if (cumulative >= total_letter / 2) {
+		len_n50 =len;
+		break;
+		}
+	}
+
+	std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
+	std::cout << "Total letters: " << total_letter << std::endl;
+	std::cout << "N50 length: " << len_n50 << std::endl;
+	run_files.resize(chunks.size());
+// 并行处理chunk;
+#pragma omp parallel for schedule(dynamic)
+	for (int i = 0; i < (int)chunks.size(); ++i)
+	{
+		auto &chunk = chunks[i];
+		sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
+			 { return a.second.size() > b.second.size(); });
+		string run_file = "tmp_runs/run_" + to_string(i) + ".fa";
+		run_files[i] = run_file;
+
+		FILE *fout = fopen(run_file.c_str(), "w");
+		if (!fout)
+			continue;
+		for (const auto &p : chunk)
+		{
+			if (p.first.back() != '\n') {
+				fprintf(fout, "%s\n", p.first.c_str());
+			} else {
+				fprintf(fout, "%s", p.first.c_str());
+			}
+			
+			// 确保序列数据以换行符结尾
+			if (!p.second.empty() && p.second.back() != '\n') {
+				fprintf(fout, "%s\n", p.second.c_str());
+			} else {
+				fprintf(fout, "%s", p.second.c_str());
+			}
+		}
+		fclose(fout);
+	}
+}
+//归并
+void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
+									  const std::string &output_prefix,
+									  int num_procs,
+									  size_t chunk_size)
+{
+	// 验证输入参数
+	if (run_files.empty())
+		return;
+	if (num_procs <= 0)
+		num_procs = 1;
+
+	// 初始化文件上下文
+	std::vector<FileContext> file_ctxs(run_files.size());
+	std::priority_queue<FastaRecord> pq;
+
+	// 初始化文件读取
+	for (size_t i = 0; i < run_files.size(); ++i)
+	{
+		auto &ctx = file_ctxs[i];
+		ctx.fp = fopen(run_files[i].c_str(), "rb");
+		if (!ctx.fp)
+		{
+			fprintf(stderr, "Failed to open run file: %s\n", run_files[i].c_str());
+			continue;
+		}
+
+		ctx.buffer = std::make_unique<char[]>(MAX_LINE_SIZE * 2);
+		ctx.buffer_size = fread(ctx.buffer.get(), 1, MAX_LINE_SIZE * 2, ctx.fp);
+		ctx.eof = (ctx.buffer_size == 0);
+
+		// 读取第一条记录
+		if (!ctx.eof)
+		{
+			FastaRecord rec;
+			rec.file_id = i;
+
+			// 读取描述行
+			char *desc_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '\n', ctx.buffer_size - ctx.buffer_pos));
+			if (!desc_end)
+			{
+				fclose(ctx.fp);
+				continue;
+			}
+			rec.desc.assign(ctx.buffer.get() + ctx.buffer_pos, desc_end - (ctx.buffer.get() + ctx.buffer_pos) + 1);
+			ctx.buffer_pos = desc_end - ctx.buffer.get() + 1;
+
+			// 读取序列行
+			char *seq_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '>', ctx.buffer_size - ctx.buffer_pos));
+			if (!seq_end)
+			{
+				seq_end = ctx.buffer.get() + ctx.buffer_size;
+			}
+			rec.seq.assign(ctx.buffer.get() + ctx.buffer_pos, seq_end - (ctx.buffer.get() + ctx.buffer_pos));
+			ctx.buffer_pos = seq_end - ctx.buffer.get();
+
+			pq.push(rec);
+		}
+	}
+
+	// 初始化进程文件
+	struct ProcFile
+	{
+		FILE *fp;
+	};
+
+	std::vector<ProcFile> proc_files(num_procs);
+	for (int i = 0; i < num_procs; ++i)
+	{
+		// std::string filename = output_prefix + "_proc" + std::to_string(i) + ".fa";
+		// proc_files[i].fp = fopen(filename.c_str(), "w+b");
+		// assert(proc_files[i].fp);
+		// fprintf(proc_files[i].fp, "##ProcessID=%d ChunkSize=%zu\n", i, chunk_size);
+		std::string filename = output_prefix + "_proc" + std::to_string(i) + ".fa";
+		proc_files[i].fp = fopen(filename.c_str(), "w+b");
+		if (!proc_files[i].fp)
+		{
+			fprintf(stderr, "FATAL: Failed to create output file %s (%s)\n",
+					filename.c_str(), strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	// 合并状态跟踪
+	size_t global_chunk_id = 0;
+	size_t current_chunk_size = 0;
+	int current_proc = -1;
+
+	auto rotate_chunk = [&]
+	{
+		if (current_proc != -1)
+		{
+			// 写入当前chunk元数据
+			ProcFile &pf = proc_files[current_proc];
+			fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n",
+					global_chunk_id, current_chunk_size);
+			fflush(pf.fp);
+		}
+
+		// 切换到新的chunk
+		global_chunk_id++;
+		current_proc = (global_chunk_id - 1) % num_procs;
+		current_chunk_size = 0;
+
+		ProcFile &pf = proc_files[current_proc];
+		fprintf(pf.fp, "\n#CHUNK_START ID=%zu\n", global_chunk_id);
+	};
+
+	rotate_chunk(); // 初始化第一个chunk
+
+	// 主合并循环
+	while (!pq.empty())
+	{
+		FastaRecord rec = pq.top();
+		pq.pop();
+
+		// 写入当前chunk
+		ProcFile &pf = proc_files[current_proc];
+		fwrite(rec.desc.data(), 1, rec.desc.size(), pf.fp);
+		fwrite(rec.seq.data(), 1, rec.seq.size(), pf.fp);
+		current_chunk_size++;
+
+		// 从原始文件读取下一条记录
+		FileContext &ctx = file_ctxs[rec.file_id];
+		if (ctx.eof)
+			continue;
+
+		// 处理缓冲区刷新
+		if (ctx.buffer_pos >= ctx.buffer_size)
+		{
+			if (ctx.buffer_size < MAX_LINE_SIZE * 2)
+			{
+				ctx.eof = true;
+			}
+			else
+			{
+				size_t remaining = ctx.buffer_size - ctx.buffer_pos;
+				memmove(ctx.buffer.get(), ctx.buffer.get() + ctx.buffer_pos, remaining);
+				ctx.buffer_size = remaining + fread(ctx.buffer.get() + remaining, 1,
+													MAX_LINE_SIZE * 2 - remaining, ctx.fp);
+				ctx.buffer_pos = 0;
+				if (ctx.buffer_size == remaining)
+					ctx.eof = true;
+			}
+		}
+
+		if (!ctx.eof)
+		{
+			FastaRecord new_rec;
+			new_rec.file_id = rec.file_id;
+
+			// 读取描述行
+			char *desc_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '\n',
+														ctx.buffer_size - ctx.buffer_pos));
+			if (!desc_end)
+			{
+				ctx.eof = true;
+				continue;
+			}
+			new_rec.desc.assign(ctx.buffer.get() + ctx.buffer_pos, desc_end - (ctx.buffer.get() + ctx.buffer_pos) + 1);
+			ctx.buffer_pos = desc_end - ctx.buffer.get() + 1;
+
+			// 读取序列行
+			char *seq_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '>',
+													   ctx.buffer_size - ctx.buffer_pos));
+			if (!seq_end)
+			{
+				seq_end = ctx.buffer.get() + ctx.buffer_size;
+			}
+			new_rec.seq.assign(ctx.buffer.get() + ctx.buffer_pos, seq_end - (ctx.buffer.get() + ctx.buffer_pos));
+			ctx.buffer_pos = seq_end - ctx.buffer.get();
+
+			pq.push(new_rec);
+		}
+
+		// 检查是否需要切换chunk
+		if (current_chunk_size >= chunk_size)
+		{
+			rotate_chunk();
+		}
+	}
+
+	// 最终处理
+	rotate_chunk(); // 关闭最后一个chunk
+
+	//清理资源
+	for (auto &pf : proc_files)
+	{
+
+		fclose(pf.fp);
+	}
+
+	// 清理输入文件
+	for (auto &ctx : file_ctxs)
+	{
+		if (ctx.fp)
+			fclose(ctx.fp);
+	}
+	for (const auto &fname : run_files)
+	{
+		remove(fname.c_str());
+	}
+}
+
+//压缩文件的读取入口
 void SequenceDB::Readgz( const char *file, const char *file2, const Options & options )
 {
 #ifdef WITH_ZLIB
@@ -2033,6 +2688,7 @@ void SequenceDB::Readgz( const char *file, const char *file2, const Options & op
 }
 
 // PE reads liwz, disable swap option
+//非压缩读取
 void SequenceDB::Read( const char *file, const char *file2, const Options & options )
 {
     int f_len = strlen(file);
@@ -2225,6 +2881,7 @@ void SequenceDB::Sort( int first, int last )
 	if( upper+1 < last ) Sort( upper+1, last );
 }
 #endif
+//排序和预处理
 void SequenceDB::SortDivide( Options & options, bool sort )
 {
 	int i, j, k, len;
@@ -2298,6 +2955,7 @@ void SequenceDB::SortDivide( Options & options, bool sort )
 		// END sort them from long to short
 	}
 }// END sort_seqs_divide_segs
+
 
 void SequenceDB::DivideSave( const char *db, const char *newdb, int n, const Options & options )
 {
@@ -2768,7 +3426,7 @@ void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutof
 	if (aan_t > aan_cutoff) aan_cutoff = aan_t;
 	return;  
 } // END update_aax_cutoff
-
+// 聚类参数初始化
 void WorkingParam::ComputeRequiredBases( int NAA, int ss, const Options & option )
 {
 	// d: distance, fraction of errors;
@@ -2833,6 +3491,7 @@ void WorkingParam::ComputeRequiredBases( int NAA, int ss, const Options & option
 	required_aas = (int)(fnew*required_aas + fold*aas_old);
 	required_aan = (int)(fnew*required_aan + fold*aan_old);
 }
+//编码 k-mer NAA-kmer 5
 int WorkingBuffer::EncodeWords( Sequence *seq, int NAA, bool est )
 {
 	char *seqi = seq->data;
@@ -2871,6 +3530,7 @@ int WorkingBuffer::EncodeWords( Sequence *seq, int NAA, bool est )
 	return skip;
 	// END check_word_encodes
 }
+
 void WorkingBuffer::ComputeAAP( const char *seqi, int size )
 {
 	int len1 = size - 1;
@@ -3028,11 +3688,12 @@ void Options::ComputeTableLimits( int min_len, int max_len, int typical_len, siz
 	printf( "Max number of representatives: %zu\n", max_sequences );
 	printf( "Max number of word counting entries: %zu\n\n", max_entries );
 }
+//执行聚类
 void SequenceDB::DoClustering( int T, const Options & options )
 {
 	int i, j, k;
 	int NAA = options.NAA;
-	double aa1_cutoff = options.cluster_thd;
+	double aa1_cutoff = options.cluster_thd;//aa1：单个相同字符数的最小比例
 	double aas_cutoff = 1 - (1-options.cluster_thd)*4;
 	double aan_cutoff = 1 - (1-options.cluster_thd)*options.NAA;
 	int seq_no = sequences.size();
