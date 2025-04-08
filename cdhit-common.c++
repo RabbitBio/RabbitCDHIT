@@ -2143,13 +2143,17 @@ void SequenceDB::MergeRuns_Sequential(const std::vector<std::string> &run_files,
 void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
 {
 	int option_l = options.min_length;
+	long long total_num = 0;
+	long long total_num_divede = 0;
+	string max_name="";
+	string min_name="";
 	total_letter = 0;
 	total_desc = 0;
 	max_len = 0;
 	min_len = (size_t)-1;
 	vector<vector<pair<string, string>>> chunks;
 	vector<pair<string, string>> current_chunk;
-	vector<size_t>all_lengths;
+	vector<size_t> all_lengths;
 	size_t current_chunk_size = 0;
 	mkdir("tmp_runs", 0755);
 	int f_len = strlen(file);
@@ -2168,7 +2172,6 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		bomb_error("Failed to open the database file");
 	Clear();
 	buffer = new char[MAX_LINE_SIZE + 1];
-
 
 	while (!feof(fin) || one.size)
 	{
@@ -2219,21 +2222,32 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 
 				if (one.size > option_l)
 				{
+					total_num++;
+					// std::cout << std::string(one.identifier) << std::endl;
+					// std::cout <<one.data << std::endl;
 					current_chunk.emplace_back(std::string(one.identifier), one.data);
 					total_letter += one.size;
 					total_desc += std::string(one.identifier).size();
 					all_lengths.push_back(one.size);
-					if (one.size > max_len)
+					if (one.size > max_len){
 						max_len = one.size;
-					if (one.size < min_len)
+						max_name=one.identifier;
+					}
+						
+					
+					if (one.size < min_len){
 						min_len = one.size;
+						min_name=one.identifier;
+					}
+						
 					current_chunk_size += std::string(one.identifier).size() + one.size;
-				}
-				if (current_chunk_size >= chunk_size_bytes)
-				{
-					chunks.push_back(std::move(current_chunk));
-					current_chunk.clear();
-					current_chunk_size = 0;
+					if (current_chunk_size >= chunk_size_bytes)
+					{
+						total_num_divede += current_chunk.size();
+						chunks.push_back(std::move(current_chunk));
+						current_chunk.clear();
+						current_chunk_size = 0;
+					}
 				}
 			}
 
@@ -2275,7 +2289,13 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			one += buffer;
 		}
 	}
-
+	if (current_chunk_size > 0)
+	{
+		total_num_divede += current_chunk.size();
+		chunks.push_back(std::move(current_chunk));
+		current_chunk.clear();
+		current_chunk_size = 0;
+	}
 	one.identifier = nullptr;
 	delete[] buffer;
 	fclose(fin);
@@ -2284,21 +2304,27 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
 	if (max_len > MAX_SEQ)
 		bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
-	//计算N50
-	sort(all_lengths.begin(),all_lengths.end(),std::greater<>());
-	long long cumulative =0;
-	for(size_t len :all_lengths){
+	// 计算N50
+	sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
+	long long cumulative = 0;
+	for (size_t len : all_lengths)
+	{
 		cumulative += len;
-		if (cumulative >= total_letter / 2) {
-		len_n50 =len;
-		break;
+		if (cumulative >= total_letter / 2)
+		{
+			len_n50 = len;
+			break;
 		}
 	}
-
+	std::cout << "longest and shortest : " << max_name << " and " << min_name << std::endl;
 	std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
 	std::cout << "Total letters: " << total_letter << std::endl;
+	std::cout << "total_num_divede: " << total_num_divede << std::endl;
+	std::cout << "Total number: " << total_num << std::endl;
 	std::cout << "N50 length: " << len_n50 << std::endl;
 	run_files.resize(chunks.size());
+	long long chunk_total_num = 0;
+
 // 并行处理chunk;
 #pragma omp parallel for schedule(dynamic)
 	for (int i = 0; i < (int)chunks.size(); ++i)
@@ -2314,83 +2340,95 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			continue;
 		for (const auto &p : chunk)
 		{
-			if (p.first.back() != '\n') {
+			chunk_total_num++;
+			if (p.first.back() != '\n')
+			{
 				fprintf(fout, "%s\n", p.first.c_str());
-			} else {
+			}
+			else
+			{
 				fprintf(fout, "%s", p.first.c_str());
 			}
-			
+
 			// 确保序列数据以换行符结尾
-			if (!p.second.empty() && p.second.back() != '\n') {
+			if (!p.second.empty() && p.second.back() != '\n')
+			{
 				fprintf(fout, "%s\n", p.second.c_str());
-			} else {
+			}
+			else
+			{
 				fprintf(fout, "%s", p.second.c_str());
 			}
 		}
 		fclose(fout);
 	}
+	std::cout << "Total number: " << chunk_total_num << std::endl;
 }
-//归并
+// 辅助函数：在缓冲区中查找字符，若未找到则读取更多数据
+char* SequenceDB::FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos)
+{
+    while (true) {
+        // 在当前缓冲区中查找目标字符
+        char* start = ctx.buffer.get() + buffer_pos;
+        size_t search_len = ctx.buffer_size - buffer_pos;
+        char* found = static_cast<char*>(memchr(start, target, search_len));
+        
+        if (found) return found;
+
+        // 未找到且文件已结束，返回剩余数据指针
+        if (ctx.eof) return (search_len > 0) ? (start + search_len) : nullptr;
+
+        // 移动剩余数据到缓冲区头部
+        size_t remaining = ctx.buffer_size - buffer_pos;
+        if (remaining > 0)
+            memmove(ctx.buffer.get(), start, remaining);
+
+        // 读取新数据到缓冲区尾部
+        size_t read_size = fread(ctx.buffer.get() + remaining, 1, 
+                               MAX_LINE_SIZE*100 - remaining, ctx.fp);
+        
+        // 更新缓冲区状态
+        buffer_pos = 0;
+        ctx.buffer_size = remaining + read_size;
+        ctx.eof = (read_size == 0);
+    }
+}
+// 归并
 void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 									  const std::string &output_prefix,
 									  int num_procs,
 									  size_t chunk_size)
 {
-	// 验证输入参数
 	if (run_files.empty())
 		return;
-	if (num_procs <= 0)
-		num_procs = 1;
-
-	// 初始化文件上下文
-	std::vector<FileContext> file_ctxs(run_files.size());
 	std::priority_queue<FastaRecord> pq;
+	std::vector<FILE *> fps(run_files.size(), nullptr);
+	long long total_num = 0;
 
-	// 初始化文件读取
+	// 打开所有 run 文件，读取首条记录
 	for (size_t i = 0; i < run_files.size(); ++i)
 	{
-		auto &ctx = file_ctxs[i];
-		ctx.fp = fopen(run_files[i].c_str(), "rb");
-		if (!ctx.fp)
+		FILE *fp = fopen(run_files[i].c_str(), "r");
+		if (!fp)
 		{
-			fprintf(stderr, "Failed to open run file: %s\n", run_files[i].c_str());
+			std::cerr << "Failed to open run file: " << run_files[i] << std::endl;
 			continue;
 		}
+		fps[i] = fp;
 
-		ctx.buffer = std::make_unique<char[]>(MAX_LINE_SIZE * 2);
-		ctx.buffer_size = fread(ctx.buffer.get(), 1, MAX_LINE_SIZE * 2, ctx.fp);
-		ctx.eof = (ctx.buffer_size == 0);
-
-		// 读取第一条记录
-		if (!ctx.eof)
+		char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
+		if (fgets(desc, MAX_LINE_SIZE, fp) && fgets(seq, MAX_LINE_SIZE, fp))
 		{
 			FastaRecord rec;
+			rec.desc = desc;
+			rec.seq = seq;
 			rec.file_id = i;
-
-			// 读取描述行
-			char *desc_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '\n', ctx.buffer_size - ctx.buffer_pos));
-			if (!desc_end)
-			{
-				fclose(ctx.fp);
-				continue;
-			}
-			rec.desc.assign(ctx.buffer.get() + ctx.buffer_pos, desc_end - (ctx.buffer.get() + ctx.buffer_pos) + 1);
-			ctx.buffer_pos = desc_end - ctx.buffer.get() + 1;
-
-			// 读取序列行
-			char *seq_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '>', ctx.buffer_size - ctx.buffer_pos));
-			if (!seq_end)
-			{
-				seq_end = ctx.buffer.get() + ctx.buffer_size;
-			}
-			rec.seq.assign(ctx.buffer.get() + ctx.buffer_pos, seq_end - (ctx.buffer.get() + ctx.buffer_pos));
-			ctx.buffer_pos = seq_end - ctx.buffer.get();
-
 			pq.push(rec);
+			total_num++;
 		}
 	}
 
-	// 初始化进程文件
+	// 初始化输出文件
 	struct ProcFile
 	{
 		FILE *fp;
@@ -2399,12 +2437,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	std::vector<ProcFile> proc_files(num_procs);
 	for (int i = 0; i < num_procs; ++i)
 	{
-		// std::string filename = output_prefix + "_proc" + std::to_string(i) + ".fa";
-		// proc_files[i].fp = fopen(filename.c_str(), "w+b");
-		// assert(proc_files[i].fp);
-		// fprintf(proc_files[i].fp, "##ProcessID=%d ChunkSize=%zu\n", i, chunk_size);
 		std::string filename = output_prefix + "_proc" + std::to_string(i) + ".fa";
-		proc_files[i].fp = fopen(filename.c_str(), "w+b");
+		proc_files[i].fp = fopen(filename.c_str(), "w");
 		if (!proc_files[i].fp)
 		{
 			fprintf(stderr, "FATAL: Failed to create output file %s (%s)\n",
@@ -2413,7 +2447,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		}
 	}
 
-	// 合并状态跟踪
+	// 合并状态
 	size_t global_chunk_id = 0;
 	size_t current_chunk_size = 0;
 	int current_proc = -1;
@@ -2422,116 +2456,63 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	{
 		if (current_proc != -1)
 		{
-			// 写入当前chunk元数据
-			ProcFile &pf = proc_files[current_proc];
-			fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n",
-					global_chunk_id, current_chunk_size);
+			auto &pf = proc_files[current_proc];
+			fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 			fflush(pf.fp);
 		}
 
-		// 切换到新的chunk
 		global_chunk_id++;
 		current_proc = (global_chunk_id - 1) % num_procs;
 		current_chunk_size = 0;
 
-		ProcFile &pf = proc_files[current_proc];
+		auto &pf = proc_files[current_proc];
 		fprintf(pf.fp, "\n#CHUNK_START ID=%zu\n", global_chunk_id);
 	};
 
-	rotate_chunk(); // 初始化第一个chunk
+	rotate_chunk(); // 初始化第一个 chunk
 
-	// 主合并循环
+	// 主循环
 	while (!pq.empty())
 	{
 		FastaRecord rec = pq.top();
 		pq.pop();
 
-		// 写入当前chunk
-		ProcFile &pf = proc_files[current_proc];
+		auto &pf = proc_files[current_proc];
 		fwrite(rec.desc.data(), 1, rec.desc.size(), pf.fp);
 		fwrite(rec.seq.data(), 1, rec.seq.size(), pf.fp);
 		current_chunk_size++;
 
-		// 从原始文件读取下一条记录
-		FileContext &ctx = file_ctxs[rec.file_id];
-		if (ctx.eof)
-			continue;
-
-		// 处理缓冲区刷新
-		if (ctx.buffer_pos >= ctx.buffer_size)
-		{
-			if (ctx.buffer_size < MAX_LINE_SIZE * 2)
-			{
-				ctx.eof = true;
-			}
-			else
-			{
-				size_t remaining = ctx.buffer_size - ctx.buffer_pos;
-				memmove(ctx.buffer.get(), ctx.buffer.get() + ctx.buffer_pos, remaining);
-				ctx.buffer_size = remaining + fread(ctx.buffer.get() + remaining, 1,
-													MAX_LINE_SIZE * 2 - remaining, ctx.fp);
-				ctx.buffer_pos = 0;
-				if (ctx.buffer_size == remaining)
-					ctx.eof = true;
-			}
-		}
-
-		if (!ctx.eof)
+		// 读取下一条记录
+		int fid = rec.file_id;
+		char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
+		if (fgets(desc, MAX_LINE_SIZE, fps[fid]) && fgets(seq, MAX_LINE_SIZE, fps[fid]))
 		{
 			FastaRecord new_rec;
-			new_rec.file_id = rec.file_id;
-
-			// 读取描述行
-			char *desc_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '\n',
-														ctx.buffer_size - ctx.buffer_pos));
-			if (!desc_end)
-			{
-				ctx.eof = true;
-				continue;
-			}
-			new_rec.desc.assign(ctx.buffer.get() + ctx.buffer_pos, desc_end - (ctx.buffer.get() + ctx.buffer_pos) + 1);
-			ctx.buffer_pos = desc_end - ctx.buffer.get() + 1;
-
-			// 读取序列行
-			char *seq_end = static_cast<char *>(memchr(ctx.buffer.get() + ctx.buffer_pos, '>',
-													   ctx.buffer_size - ctx.buffer_pos));
-			if (!seq_end)
-			{
-				seq_end = ctx.buffer.get() + ctx.buffer_size;
-			}
-			new_rec.seq.assign(ctx.buffer.get() + ctx.buffer_pos, seq_end - (ctx.buffer.get() + ctx.buffer_pos));
-			ctx.buffer_pos = seq_end - ctx.buffer.get();
-
+			new_rec.desc = desc;
+			new_rec.seq = seq;
+			new_rec.file_id = fid;
 			pq.push(new_rec);
+			total_num++;
 		}
 
-		// 检查是否需要切换chunk
 		if (current_chunk_size >= chunk_size)
-		{
 			rotate_chunk();
-		}
 	}
 
-	// 最终处理
-	rotate_chunk(); // 关闭最后一个chunk
+	rotate_chunk(); // 最后一个chunk
 
-	//清理资源
+	// 清理资源
 	for (auto &pf : proc_files)
-	{
-
 		fclose(pf.fp);
-	}
 
-	// 清理输入文件
-	for (auto &ctx : file_ctxs)
-	{
-		if (ctx.fp)
-			fclose(ctx.fp);
-	}
+	for (auto *fp : fps)
+		if (fp)
+			fclose(fp);
+
 	for (const auto &fname : run_files)
-	{
 		remove(fname.c_str());
-	}
+
+	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 }
 
 //压缩文件的读取入口
