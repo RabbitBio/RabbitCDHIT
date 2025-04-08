@@ -618,6 +618,7 @@ class SequenceDB
 	
 		//外排序先读后写
 		void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,Options &options);
+		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
