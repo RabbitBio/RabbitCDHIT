@@ -618,9 +618,9 @@ public:
 	void DoClustering(const Options& options);
 	void DoClustering(int T, const Options& options);
 	void ClusterTo(SequenceDB& other, const Options& optioins);
-	int  CheckOne(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
+	int  CheckOne(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt, bool test_flag = false);
 	int  CheckOneEST(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
-	int  CheckOneAA(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
+	int  CheckOneAA(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt, bool test_flag = false);
 
 	void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 
@@ -628,9 +628,9 @@ public:
 		long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf,
 		long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
 
-	void prepare_to_decode(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf,long long*& prefix_buf, long long& indexCount_buf_size);
+	void prepare_to_decode(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size);
 
-	void decode_WordTable(WordTable& table, long*& info_buf, int& chunk_id, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
+	void decode_WordTable(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
 
 };
 

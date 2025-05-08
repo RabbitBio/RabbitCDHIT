@@ -153,15 +153,10 @@ int main(int argc, char* argv[])
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
-	// seq_db.DoClustering(options);
 	seq_db.DoClustering_MPI(options, my_rank, master, worker, worker_rank);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
 		cout << "Cluster is Finished" << endl;
-	}
-	MPI_Barrier(MPI_COMM_WORLD);
-	exit(0);
-	if (master) {
 		printf("writing new database\n");
 		seq_db.WriteClusters(db_in.c_str(), db_out.c_str(), options);
 
@@ -169,5 +164,7 @@ int main(int argc, char* argv[])
 		seq_db.WriteExtra1D(options);
 		cout << "program completed !" << endl << endl;
 	}
+	// MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
 	return 0;
 } // END int main

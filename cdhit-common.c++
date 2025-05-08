@@ -1483,49 +1483,49 @@ void WordTable::PrintAll()
 
 void WordTable::PrintAll(const std::string& filename)
 {
-    int i, j, k;
-    int cols = 0;
-    long long total_words = 0;
-    k = 0;
+	int i, j, k;
+	int cols = 0;
+	long long total_words = 0;
+	k = 0;
 
-    // 如果提供了文件名，则使用文件输出流，否则使用标准输出流
-    std::ostream* out = &std::cout;
-    std::ofstream file_stream;
+	// 如果提供了文件名，则使用文件输出流，否则使用标准输出流
+	std::ostream* out = &std::cout;
+	std::ofstream file_stream;
 
-    if (!filename.empty()) {
-        file_stream.open(filename);  // 打开文件
-        if (!file_stream.is_open()) {
-            std::cerr << "Error opening file: " << filename << std::endl;
-            return;
-        }
-        out = &file_stream;  // 使用文件输出流
-    }
+	if (!filename.empty()) {
+		file_stream.open(filename);  // 打开文件
+		if (!file_stream.is_open()) {
+			std::cerr << "Error opening file: " << filename << std::endl;
+			return;
+		}
+		out = &file_stream;  // 使用文件输出流
+	}
 
-    for (i = 0; i < NAAN; i++) {
-        int size = indexCounts[i].Size();
-        if (size == 0) continue;
-        cols++;
-        (*out) << k << "\t" << i << "\tsize:" << size << "\t";
-        for (j = 0; j < size; j++) {
-            (*out) << indexCounts[i][j].index << "," << indexCounts[i][j].count << " ";
-            total_words += indexCounts[i][j].count;
-        }
-        (*out) << std::endl;
-        k++;
-    }
+	for (i = 0; i < NAAN; i++) {
+		int size = indexCounts[i].Size();
+		if (size == 0) continue;
+		cols++;
+		(*out) << k << "\t" << i << "\tsize:" << size << "\t";
+		for (j = 0; j < size; j++) {
+			(*out) << indexCounts[i][j].index << "," << indexCounts[i][j].count << " ";
+			total_words += indexCounts[i][j].count;
+		}
+		(*out) << std::endl;
+		k++;
+	}
 
-    (*out) << "total cols: " << cols << " total words: " << total_words << std::endl;
+	(*out) << "total cols: " << cols << " total words: " << total_words << std::endl;
 
-    for (i = 0; i < sequences.size(); i++) {
-        (*out) << sequences[i]->cluster_id << " " << sequences[i]->data << std::endl;
-    }
+	for (i = 0; i < sequences.size(); i++) {
+		(*out) << sequences[i]->cluster_id << " " << sequences[i]->size << std::endl;
+	}
 
-    (*out) << "total sequences: " << sequences.size() << std::endl;
+	(*out) << "total sequences: " << sequences.size() << std::endl;
 
-    // 如果文件流被使用了，关闭文件
-    if (file_stream.is_open()) {
-        file_stream.close();
-    }
+	// 如果文件流被使用了，关闭文件
+	if (file_stream.is_open()) {
+		file_stream.close();
+	}
 }
 
 
@@ -3378,6 +3378,8 @@ void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_i
 		cluster_id_buf[index] = sequences[rep_seqs[i]]->cluster_id;
 	}
 
+	// cout << "    " <<chunk_id<< " " << table.sequences.size() << " " << len << endl;
+
 	// Record size of each line 
 	indexCount_buf_size = table.size * 2;
 	prefix_size = table.indexCounts.size();
@@ -3419,6 +3421,10 @@ void SequenceDB::prepare_to_decode(WordTable& table, long*& info_buf, long*& clu
 	long long low = (long long)(info_buf[4]) & 0xFFFFFFFF;
 	indexCount_buf_size = (high << 32) | low;
 
+	// int my_rank;
+	// MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	// if (my_rank == 1)
+	// 	cout << len << endl;
 	cluster_id_buf = (long*)malloc(len * sizeof(long));
 	suffix_buf = (long*)malloc(len * sizeof(long));
 	prefix_buf = (long long*)malloc(prefix_size * sizeof(long long));
@@ -3435,22 +3441,34 @@ This sentence can be rewritten arbitrarily to correspond to the form of taking o
 I thought about the point that each worker must get the chunk information of the corresponding word_table
 	when getting the word table, is it possible to read the data of the corresponding chunk before decoding the word table.
 */
-void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf, int& chunk_id,
+void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	long*& cluster_id_buf, long*& suffix_buf,
 	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size) {
 	int T = options.threads;
-	chunk_id = info_buf[0];
 	int len = info_buf[1];
+
+	int my_rank;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+
+
 	table.sequences.resize(len);
 	// rebuilt the 'table.sequences'
 #pragma omp parallel for num_threads(T)
+	// cout << ">>> Len: " << len << endl;
 	for (int i = 0;i < len;i++) {
 		int index = i;
 		Sequence* seq = sequences[suffix_buf[index]];
 		seq->cluster_id = cluster_id_buf[index];
 		seq->identity = 0;
+		// cout << seq->state << endl;
+		// if (seq->state == 2)
+		// 	cout << "Table Sequence idx " << suffix_buf[index] << endl;
 		seq->state |= IS_REP;
+		// if (seq->state == 3) {
+		// 	cout << seq->state << endl;
+		// }
 		table.sequences[i] = seq;
+		// if (my_rank == 1 && i == len / 2) cout << "IN decode: for : " << i << endl;
 	}
 	// rebuilt the 'table.indexCounts'
 
@@ -3458,7 +3476,7 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf, int& chunk_
 #pragma omp parallel for num_threads(T)
 	for (int i = 0;i < prefix_size;i++) {
 		long long idx = (i == 0 ? 0 : prefix_buf[i - 1]) * 2;
-		int size = (i == 0) ? prefix_buf[0] : prefix_buf[i] - prefix_buf[i - 1];
+		int size = (i == 0) ? prefix_buf[0] : (prefix_buf[i] - prefix_buf[i - 1]);
 		table.indexCounts[i].Resize(size);
 		for (int j = 0;j < size;j++) {
 			int idx_val = indexCount_buf[idx++];
@@ -3468,6 +3486,19 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf, int& chunk_
 	}
 	table.size = prefix_buf[prefix_size - 1];
 }
+
+template<typename T>
+void writeArrayToFile(const std::string& filename, const T* array, size_t count) {
+	static_assert(std::is_integral<T>::value, "Only integral types are supported.");
+	std::ofstream outfile(filename, std::ios::binary);
+	if (!outfile) {
+		std::cerr << "Failed to open file: " << filename << std::endl;
+		return;
+	}
+	outfile.write(reinterpret_cast<const char*>(array), count * sizeof(T));
+	outfile.close();
+}
+
 
 void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank) {
 
@@ -3540,75 +3571,199 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			cerr << "no workers found" << endl;
 			exit(0);
 		}
+		int target_worker = 0;
 		for (i = 0;i < chunks.size();i++) {
-			if (i > 0) break;
+			// if (i > 1) break;
 			cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
 			int start_rep_suffix = rep_seqs.size();
-			if (i == 0) {
-				for (j = chunks[i].first;j < chunks[i].second;j++) {
-					Sequence* seq = sequences[j];
-					if (options.store_disk) seq->SwapIn();
-					if (seq->state & IS_REDUNDANT) continue;
-					ClusterOne(seq, j, word_table, params[0], buffers[0], options);
-					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
-				}
+			for (j = chunks[i].first;j < chunks[i].second;j++) {
+				Sequence* seq = sequences[j];
+				if (options.store_disk) seq->SwapIn();
+				if (seq->state & IS_REDUNDANT) continue;
+				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 			}
+
+			// cout << "\nSeqs 9885 state: " << sequences[9885]->state;
+			// cout << "\nSeqs 9891 state: " << sequences[9891]->state << endl;
 			cout << "\n";
+			cout << ">>> In chunk "<<i<<" bult table by sequences size: " << word_table.sequences.size() << endl;
+
+			if (i == chunks.size() - 1) break;
 			int end_rep_suffix = rep_seqs.size();
+
+
 			encode_WordTable(word_table, info_buf, i,
 				start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
 				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size);
+			MPI_Barrier(MPI_COMM_WORLD);
 			MPI_Bcast((void*)info_buf, 5, MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			cout << ">>> Done for Chunk " << i << endl;
 
-			word_table.PrintAll("master_word_table.info");
+			// if (table.sequences.size > 56) {
+			// 	cout << "!!! " << table.sequences[56];
+			// }
+				// if (i == 1) {
+			// 	cout << ">>> In master: " << info_buf[0] << " " << info_buf[1] << " " << info_buf[2] << " " << indexCount_buf_size << endl;
+			// 	writeArrayToFile<long>("master.info", indexCount_buf, indexCount_buf_size);
+			// }
 
+			// if (i == 1) {
+			// 	word_table.PrintAll("master_word_table.info");
+			// 	cout << "In " << i << " round:" << info_buf[1] << endl;
+			// }
+			// if (i == 1) {
+			// 	Sequence* seq = sequences[79553];
+			// 	CheckOne(seq, word_table, params[0], buffers[0], options, true);
+			// 	cout << "Finished" << endl;
+			// }
+			// cout << ">>> Done for Chunk " << i << endl;
 
+			// if (i == 0) word_table.PrintAll("master_word_table.info");
+
+			int size = chunks[i + 1].second - chunks[i + 1].first;
+			int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
+			MPI_Recv(rep_chunk, size * 8, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+			cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
+			target_worker = (target_worker + 1) % (rank_size - 1);
+		#pragma omp parallel for num_threads(T)
+			for (int j = chunks[i + 1].first;j < chunks[i + 1].second;j++) {
+				int index = (j - chunks[i + 1].first) * 8;
+				Sequence* seq = sequences[j];
+				if (rep_chunk[index] == 0) continue;
+				seq->state = (short)rep_chunk[index];
+				seq->identity = rep_chunk[index + 1];
+				seq->cluster_id = rep_chunk[index + 2];
+				seq->distance = rep_chunk[index + 3];
+				seq->coverage[0] = rep_chunk[index + 4];
+				seq->coverage[1] = rep_chunk[index + 5];
+				seq->coverage[2] = rep_chunk[index + 6];
+				seq->coverage[3] = rep_chunk[index + 7];
+			}
+			free(rep_chunk);
+
+			word_table.Clear();
 			// free momery
 			free(info_buf);
 			free(cluster_id_buf);
 			free(seqs_suffix_buf);
 			free(prefix_buf);
 			free(indexCount_buf);
+			info_buf = NULL;
+			cluster_id_buf = NULL;
+			seqs_suffix_buf = NULL;
+			prefix_buf = NULL;
+			indexCount_buf = NULL;
 		}
 	}
 	if (worker) {
 		int start = 0;
-		for (int round = 0;round < chunks.size();round++) {
-			if (round > 0) break;
-			int soure_chunk;
+		int chunksNum = chunks.size() * (rank_size - 1) + 1;
+		for (int round = 0;round < chunks.size() * (rank_size - 1) + 1;round++) {
+			// if (round > 1) break;
+			if (round == chunks.size() * (rank_size - 1)) break;
+			MPI_Barrier(MPI_COMM_WORLD);
+
 			info_buf = (long*)malloc(5 * sizeof(long));
 			MPI_Bcast((void*)info_buf, 5, MPI_LONG, source, MPI_COMM_WORLD);
-			prepare_to_decode(word_table,info_buf,cluster_id_buf,seqs_suffix_buf,indexCount_buf,prefix_buf,indexCount_buf_size);
+			int soure_chunk = info_buf[0];
+			prepare_to_decode(word_table, info_buf, cluster_id_buf, seqs_suffix_buf, indexCount_buf, prefix_buf, indexCount_buf_size);
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-
-			decode_WordTable(word_table, info_buf, soure_chunk,
+			// if (round == 1 && worker_rank == 0) {
+			// 	cout << ">>> In worker: " << info_buf[0] << " " << info_buf[1] << " " << info_buf[2] << " " << indexCount_buf_size << endl;
+			// 	writeArrayToFile<long>("worker.info", indexCount_buf, indexCount_buf_size);
+			// }
+			// cout << "\nIn worker before checkone:";
+			// cout << "\n    Seqs 9885 state: " << sequences[9885]->state;
+			// cout << "\n    Seqs 9891 state: " << sequences[9891]->state << endl;
+			decode_WordTable(word_table, info_buf,
 				cluster_id_buf, seqs_suffix_buf,
 				indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2]);
 
-			if (worker_rank == 0) {
-				word_table.PrintAll("worker_word_table.info");
-			}
+			// if (worker_rank == 0 && round == 1) {
+			// 	word_table.PrintAll("worker_word_table.info");
+			// 	cout << "worker:" << info_buf[1] << endl;
+			// }
 
-			for (i = start;i < chunks.size();i++) {
-				// #pragma omp parallel num_threads(T)
-				// 	for (j = chunks[i].first;j < chunks[i].second;j++) {
-				// 	}
-			}
+			// if (my_rank == 1 && round == 1) {
+			// 	Sequence* seq = sequences[79553];
+			// 	CheckOne(seq, word_table, params[0], buffers[0], options, true);
+			// 	cout << "Finished" << endl;
+			// }
 
+			int remain_chunks = chunks.size() - start;
+			for (i = 0;i < remain_chunks; i++) {
+				int idx = i + start;
+				// cout << "*>> Chunk begin " << chunks[idx].first<<" end "<<chunks[idx].second << endl;
+				// if (worker_rank == 0 && round == 1) cout << idx << " " << endl;
+			#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+				for (j = chunks[idx].first;j < chunks[idx].second;j++) {
+					Sequence* seq = sequences[j];
+					if (options.store_disk) seq->SwapIn();
+					if (seq->state & IS_REDUNDANT) continue;
+					int tid = omp_get_thread_num();
+					// if (j == chunks[idx].first && my_rank == 1) {
+					// 	// auto start = std::chrono::high_resolution_clock::now();
+					// 	if (seq->state & IS_REDUNDANT) continue;
+					// 	CheckOne(seq, word_table, params[tid], buffers[tid], options);
+					// 	// auto end = std::chrono::high_resolution_clock::now();
+					// 	// std::chrono::duration<int64_t, std::micro> duration_us = std::chrono::duration_cast<std::chrono::duration<int64_t, std::micro>>(end - start);
+					// 	// std::cout << "Time taken: " << duration_us.count() << " microseconds." << std::endl;
+					// }
+					if (seq->state & IS_REDUNDANT) continue;
+					CheckOne(seq, word_table, params[tid], buffers[tid], options);
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+				}
+			}
+			if (chunks_id[start] == soure_chunk + 1) {
+				int size = chunks[start].second - chunks[start].first;
+				int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
+				for (j = chunks[start].first;j < chunks[start].second;j++) {
+					int index = (j - chunks[start].first)*8;
+					Sequence* seq = sequences[j];
+					if (seq->state & IS_REDUNDANT) {
+						rep_chunk[index] = (int)seq->state;
+						rep_chunk[index + 1] = seq->identity;
+						rep_chunk[index + 2] = seq->cluster_id;
+						rep_chunk[index + 3] = seq->distance;
+						rep_chunk[index + 4] = seq->coverage[0];
+						rep_chunk[index + 5] = seq->coverage[1];
+						rep_chunk[index + 6] = seq->coverage[2];
+						rep_chunk[index + 7] = seq->coverage[3];
+					}
+					else {
+						rep_chunk[index] = 0;
+						rep_chunk[index + 1] = -1;
+						rep_chunk[index + 2] = -1;
+						rep_chunk[index + 3] = -1;
+						rep_chunk[index + 4] = -1;
+						rep_chunk[index + 5] = -1;
+						rep_chunk[index + 6] = -1;
+						rep_chunk[index + 7] = -1;
+					}
+				}
+				MPI_Send(rep_chunk, size * 8, MPI_INT, source, 0, MPI_COMM_WORLD);
+				free(rep_chunk);
+				start++;
+			}
 			// free momery
+			word_table.Clear();
 			free(info_buf);
 			free(cluster_id_buf);
 			free(seqs_suffix_buf);
 			free(prefix_buf);
 			free(indexCount_buf);
+			info_buf = NULL;
+			cluster_id_buf = NULL;
+			seqs_suffix_buf = NULL;
+			prefix_buf = NULL;
+			indexCount_buf = NULL;
 		}
 	}
 
@@ -3618,9 +3773,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	// if (worker) {
 	// 	cout << "Worker " << worker_rank << " is Finished" << endl;
 	// }
-
 	MPI_Barrier(MPI_COMM_WORLD);
-
+	if (master) {
+		printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
 }
 
 void SequenceDB::DoClustering(int T, const Options& options)
@@ -3823,14 +3980,14 @@ void SequenceDB::DoClustering(int T, const Options& options)
 	word_table.Clear();
 }
 
-int SequenceDB::CheckOne(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options)
+int SequenceDB::CheckOne(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, bool test_flag)
 {
 	int len = seq->size;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	if (options.isEST) return CheckOneEST(seq, table, param, buf, options);
-	return CheckOneAA(seq, table, param, buf, options);
+	return CheckOneAA(seq, table, param, buf, options, test_flag);
 }
-int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options)
+int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, bool test_flag)
 {
 	NVector<IndexCount>& lookCounts = buf.lookCounts;
 	NVector<uint32_t>& indexMapping = buf.indexMapping;
@@ -3875,6 +4032,7 @@ int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param,
 		if (len < min_red) return 0; // return flag=0
 	}
 
+
 	param.ControlShortCoverage(len_eff, options);
 	param.ComputeRequiredBases(options.NAA, 2, options);
 
@@ -3883,6 +4041,10 @@ int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param,
 	// if minimal alignment length > len, return
 	// I can not return earlier, because I need to calc the word_encodes etc
 	if (options.min_control > len) return 0; // return flag=0
+	if (test_flag) {
+		cout << "@>> " << options.min_control << " " << len << endl;
+		cout << "@>> Error Point Test" << endl;
+	}
 
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
@@ -3947,6 +4109,12 @@ int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param,
 			has_aa2 = 1;
 		}
 		seqj = rep->data; //NR_seq[NR90_idx[j]];
+		if (seqj == nullptr) {
+			cout << ">>> " << rep->index << endl;
+			cout << ">>> " << ic->index << endl;
+			cout << ">>> " << rep->state << endl;
+			exit(0);
+		}
 
 		band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 		// 预处理一个对角线宽度
