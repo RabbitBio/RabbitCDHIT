@@ -85,7 +85,7 @@ int main(int argc, char* argv[])
 	// In the following code, 'node_chunks' indicates how many chunks should be allocated to a node,
 	//		and 'chunk_size' indicates the size of a chunk.
 	int node_chunks = 0, chunk_size = 0;
-	node_chunks = num_seqs / (worker_size * 10000) + 1;
+	node_chunks = num_seqs / (worker_size * 20000) + 1;
 	if (num_seqs % (worker_size * node_chunks + 1))
 		chunk_size = num_seqs / (worker_size * node_chunks + 1) + 1;
 	else chunk_size = num_seqs / (worker_size * node_chunks + 1);
