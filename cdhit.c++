@@ -85,10 +85,11 @@ int main(int argc, char* argv[])
 	// In the following code, 'node_chunks' indicates how many chunks should be allocated to a node,
 	//		and 'chunk_size' indicates the size of a chunk.
 	int node_chunks = 0, chunk_size = 0;
-	node_chunks = num_seqs / (worker_size * 20000) + 1;
-	if (num_seqs % (worker_size * node_chunks + 1))
-		chunk_size = num_seqs / (worker_size * node_chunks + 1) + 1;
-	else chunk_size = num_seqs / (worker_size * node_chunks + 1);
+	int m=10000;
+	node_chunks = (num_seqs - m) / (worker_size * 20000) + 1;
+	if ((num_seqs - m) % (worker_size * node_chunks))
+		chunk_size = (num_seqs - m) / (worker_size * node_chunks) + 1;
+	else chunk_size = (num_seqs - m)/ (worker_size * node_chunks);
 
 	vector<pair<int, int>>& chunks = seq_db.chunks;
 	vector<int>& chunks_id = seq_db.chunks_id;
@@ -103,9 +104,16 @@ int main(int argc, char* argv[])
 		chunks_id.resize(num_chunks, -1);
 		chunks.resize(num_chunks);
 		for (int i = 0;i < num_chunks;i++) {
-			chunks_id[i] = i;
-			chunks[i] = make_pair(i * chunk_size, min((i + 1) * chunk_size, num_seqs));
-			if (i == 0) continue;
+			if(i==0){
+				chunks_id[i] = i;
+				chunks[i] = make_pair(i * chunk_size, min(m, num_seqs));
+				continue;
+			}
+			else{
+				chunks_id[i] = i;
+			chunks[i] = make_pair((i-1) * chunk_size+m, min((i) * chunk_size+m, num_seqs));
+			}
+			
 			int target = temp_target + 1;
 			// First send the chunk_id of this chunk, stored in the vector chunk_id
 			MPI_Send(&i, 1, MPI_INT, target, 0, MPI_COMM_WORLD);

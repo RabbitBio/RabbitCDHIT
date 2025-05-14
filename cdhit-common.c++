@@ -3576,7 +3576,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		
 		for (i = 0;i < chunks.size();i++) {
 			int total_flag=0;
-			cerr<<"remaining   "<<remaining<<endl;
+			// cerr<<"remaining   "<<remaining<<endl;
 			bool all_done = false;
 			vector<MPI_Request> requests(rank_size-1,0);
 			vector<int> done_flags(rank_size-1,0);
@@ -3591,7 +3591,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			int start_rep_suffix = rep_seqs.size();
 		
 			if(remaining){
-				cerr<<"last word  size"<<last_table.sequences.size()<<endl;
+				// cerr<<"last word  size"<<last_table.sequences.size()<<endl;
 				#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 				for (j = chunks[i].second-remaining;j < chunks[i].second;j++){
 					Sequence* seq = sequences[j];
@@ -3603,8 +3603,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					CheckOne(seq, last_table, params[tid], buffers[tid], options);
 					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
-				cerr<<"over!!!!"<<endl;
-				cerr<<"start        "<<chunks[i].second-remaining<<endl;
+				// cerr<<"over!!!!"<<endl;
+				// cerr<<"start        "<<chunks[i].second-remaining<<endl;
 				
 				for (j = chunks[i].second-remaining;j < chunks[i].second;j++){
 				
@@ -3627,7 +3627,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					// if(total_flag==rank_size-1)
 					{
 						remaining=chunks[i].second-j;
-						cerr<<"end        "<<j<<endl;
+						// cerr<<"end        "<<j<<endl;
 						// i--;
 						break;
 					}
@@ -3779,12 +3779,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			decode_WordTable(word_table, info_buf,
 				cluster_id_buf, seqs_suffix_buf,
 				indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2]);
-				cerr<<"now word  table"<<word_table.sequences.size()<<endl;
+				// cerr<<"now word  table"<<word_table.sequences.size()<<endl;
 			int remain_chunks = chunks.size() - start;
 			if(remain_chunks==0){
 				if(info_buf[1]==0)
 				break;
-			cerr<<"pass  "<<endl;
+			// cerr<<"pass  "<<endl;
 			done_flag=1;
 			MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD); 
 			
@@ -3792,7 +3792,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// cerr<<"remain_chunk"<<remain_chunks<<endl;
 			for (i = 0;i < remain_chunks; i++) {
 				int idx = i + start;
-
+				if(idx==chunks.size())break;
 				// cout <<idx<< "*>> Chunk begin " << chunks[idx].first<<" end "<<chunks[idx].second << endl;
 				// if (worker_rank == 0 && round == 1) cout << idx << " " << endl;
 			#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
@@ -3857,7 +3857,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			seqs_suffix_buf = NULL;
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
-			cerr<<"pass  "<<endl;
+			// cerr<<"pass  "<<endl;
 			done_flag=1;
 			MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD);  
 		}
