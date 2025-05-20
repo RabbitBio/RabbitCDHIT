@@ -37,13 +37,28 @@ int main(int argc, char *argv[])
 	string db_out;
 	vector<SequenceMeta> meta_table;
 	std::vector<std::string> run_files;
+	vector<pair<int, int>>& all_chunks = seq_db.all_chunks;
+	vector<pair<int, int>>& my_chunks = seq_db.my_chunks;
+	vector<int>& chunks_id = seq_db.chunks_id;
+	int chunks_size=seq_db.chunks_size;
+	int total_chunk=seq_db.total_chunk;
 	float begin_time = current_time();
 	float end_time;
+	bool master = true;
+	bool worker = false;
+	int worker_rank = -1;
+	
+
 	//初始化MPI
 	MPI_Init(&argc, &argv);
 	int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+	if(rank != 0){
+		worker_rank = rank - 1;
+		worker = true;
+		master = false;
+	}
 	int total_seqs = 0;
 	// ***********************************    parse command line and open file
 	if (argc < 5) print_usage(argv[0]);
@@ -56,8 +71,6 @@ int main(int argc, char *argv[])
 	InitNAA( MAX_UAA );
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
-	vector<Sequence*> all_sequences;
-	vector<vector<Sequence*>> chunks;
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
 	
 	if (rank == 0) {
@@ -69,49 +82,27 @@ int main(int argc, char *argv[])
 
 		//外部排序
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
-		seq_db.MergeSortedRuns_KWay(run_files, "output/",4,10000);
-		std::cout << "Rank " << rank << " entered Barrier" << std::endl;
+		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,20000);
+		
+	
 		MPI_Barrier(MPI_COMM_WORLD);
-		std::cout << "Rank " << rank << " exiting normally." << std::endl;
-		MPI_Finalize();
-		return 0;
+
 	}
 
 
 	else {
-		std::cout << "Rank " << rank << " entered Barrier" << std::endl;
-		MPI_Barrier(MPI_COMM_WORLD);  // 等所有进程都输出完
-		std::cout << "Rank " << rank << " exiting normally." << std::endl;
-		MPI_Finalize();
-		exit(0);
+		
+
+		// sleep(10);
+		seq_db.read_sorted_files(rank,chunks_id);
+		MPI_Barrier(MPI_COMM_WORLD);
+		
 
     }
+	MPI_Barrier(MPI_COMM_WORLD);
+	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank);
+	MPI_Barrier(MPI_COMM_WORLD);
+
 	
 
-
-	
-
-// 	MPI_Barrier(MPI_COMM_WORLD);  // 等所有进程同步
-
-// // 让每个进程都输出一个信息以确认它们活着
-// printf("Rank %d finished preprocessing\n", rank);
-
-// MPI_Finalize();
-// return 0;
-	// seq_db.Read( db_in.c_str(), options );
-	// cout << "total seq: " << seq_db.sequences.size() << endl;
-
-	// seq_db.SortDivide( options );
-
-	// seq_db.DoClustering( options );
-
-	// printf( "writing new database\n" );
-	// seq_db.WriteClusters( db_in.c_str(), db_out.c_str(), options );
-
-	// // write a backup clstr file in case next step crashes
-	// seq_db.WriteExtra1D( options );
-	// cout << "program completed !" << endl << endl;
-	// end_time = current_time();
-	// printf( "Total CPU time %.2f\n", end_time - begin_time );
-	// return 0;
-} // END int main
+}

@@ -579,21 +579,28 @@ class SequenceDB
 		int NAAN;
 		Vector<Sequence*>  sequences;
 		Vector<int>        rep_seqs;
-
+		long long total_num;
 		long long total_letter;
 		long long total_desc;
 		size_t max_len;
 		size_t min_len;
 		size_t len_n50;
-
+		vector<pair<int, int>>all_chunks;
+		vector<pair<int, int>>my_chunks;
+		vector<int> chunks_id;
+		int total_chunk;
+		int chunks_size;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
 			sequences.clear(); rep_seqs.clear();
 		}
 
 		SequenceDB(){
+			total_num = 0;
+			chunks_size = 0;
 			total_letter = 0;
 			total_desc = 0;
+			total_chunk = 0;
 			min_len = 0;
 			max_len = 0;
 			len_n50 = 0;
@@ -621,10 +628,19 @@ class SequenceDB
 		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
+		void read_sorted_files( int rank, vector<int>& chunks_id);
+		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
+		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
+							  long *&cluster_id_buf, long *&suffix_buf,
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size);
+		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
+							   long long *&prefix_buf, long long &indexCount_buf_size);
+		void decode_WordTable(WordTable &table, long *&info_buf,
+							  long *&cluster_id_buf, long *&suffix_buf,
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size);
+		void WriteClusters(const char *db, const char *newdb, const Options &options);
+		void WriteClustersgz(const char *db, const char *newdb, const Options &options);
 
-		void WriteClusters( const char *db, const char *newdb, const Options & options );
-		void WriteClustersgz( const char *db, const char *newdb, const Options & options );
-		
 		void WriteClusters( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
 		void WriteClustersgz( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
 
