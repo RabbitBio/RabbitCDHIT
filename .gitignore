@@ -1,3 +1,4 @@
 *.o
 *.clstr
 cd-hit
+output/
