@@ -2,3 +2,4 @@
 *.clstr
 cd-hit
 output/
+tmp_run/
