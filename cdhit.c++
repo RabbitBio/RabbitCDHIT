@@ -82,8 +82,8 @@ int main(int argc, char *argv[])
 
 		//外部排序
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
-		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,20000);
-		
+		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,50000);
+		// sleep(10);
 	
 		MPI_Barrier(MPI_COMM_WORLD);
 

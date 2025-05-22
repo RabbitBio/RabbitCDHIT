@@ -398,7 +398,8 @@ struct FastaRecord {
 	
 	bool operator<(const FastaRecord& other) const {
 		// 最大堆：按序列长度降序排列
-		return seq.size() < other.seq.size();
+		if(seq.size()!=other.seq.size()) return seq.size() < other.seq.size();
+		else return file_id > other.file_id;
 	}
 };
 
@@ -578,6 +579,7 @@ class SequenceDB
 
 		int NAAN;
 		Vector<Sequence*>  sequences;
+		Vector<Sequence*>  rep_sequences;
 		Vector<int>        rep_seqs;
 		long long total_num;
 		long long total_letter;
@@ -632,12 +634,12 @@ class SequenceDB
 		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size);
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index , size_t send_offset);
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
 							   long long *&prefix_buf, long long &indexCount_buf_size);
 		void decode_WordTable(WordTable &table, long *&info_buf,
 							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size);
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
 		void WriteClusters(const char *db, const char *newdb, const Options &options);
 		void WriteClustersgz(const char *db, const char *newdb, const Options &options);
 

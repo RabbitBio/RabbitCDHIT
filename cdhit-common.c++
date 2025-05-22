@@ -2322,17 +2322,17 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	std::cout << "total_num_divede: " << total_num_divede << std::endl;
 	std::cout << "Total number: " << total_num << std::endl;
 	std::cout << "N50 length: " << len_n50 << std::endl;
-	chunks_size=total_num/10000+1;
+	chunks_size=total_num/50000+1;
 	// std::cout << "chunk_size: " << chunks_size<< std::endl;
 	run_files.resize(chunks.size());
 	long long chunk_total_num = 0;
 	
-// 并行处理chunk;
+
 #pragma omp parallel for schedule(dynamic)
 	for (int i = 0; i < (int)chunks.size(); ++i)
 	{
 		auto &chunk = chunks[i];
-		sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
+		stable_sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
 			 { return a.second.size() > b.second.size(); });
 		string run_file = "tmp_runs/run_" + to_string(i) + ".fa";
 		run_files[i] = run_file;
@@ -2352,7 +2352,6 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 				fprintf(fout, "%s", p.first.c_str());
 			}
 
-			// 确保序列数据以换行符结尾
 			if (!p.second.empty() && p.second.back() != '\n')
 			{
 				fprintf(fout, "%s\n", p.second.c_str());
@@ -2366,35 +2365,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	}
 	// std::cout << "Total number: " << chunk_total_num << std::endl;
 }
-// 辅助函数：在缓冲区中查找字符，若未找到则读取更多数据
-char* SequenceDB::FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos)
-{
-    while (true) {
-        // 在当前缓冲区中查找目标字符
-        char* start = ctx.buffer.get() + buffer_pos;
-        size_t search_len = ctx.buffer_size - buffer_pos;
-        char* found = static_cast<char*>(memchr(start, target, search_len));
-        
-        if (found) return found;
 
-        // 未找到且文件已结束，返回剩余数据指针
-        if (ctx.eof) return (search_len > 0) ? (start + search_len) : nullptr;
-
-        // 移动剩余数据到缓冲区头部
-        size_t remaining = ctx.buffer_size - buffer_pos;
-        if (remaining > 0)
-            memmove(ctx.buffer.get(), start, remaining);
-
-        // 读取新数据到缓冲区尾部
-        size_t read_size = fread(ctx.buffer.get() + remaining, 1, 
-                               MAX_LINE_SIZE*100 - remaining, ctx.fp);
-        
-        // 更新缓冲区状态
-        buffer_pos = 0;
-        ctx.buffer_size = remaining + read_size;
-        ctx.eof = (read_size == 0);
-    }
-}
 // 归并
 void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 									  const std::string &output_prefix,
@@ -2408,6 +2379,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	std::vector<FILE *> fps(run_files.size(), nullptr);
 	long long total_num = 0;
 
+	
 	for (size_t i = 0; i < run_files.size(); ++i)
 	{
 		FILE *fp = fopen(run_files[i].c_str(), "r");
@@ -2430,6 +2402,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		}
 	}
 
+
 	struct ProcFile
 	{
 		FILE *fp;
@@ -2449,14 +2422,14 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		}
 	}
 
-	
+
 	size_t global_chunk_id = -1;
 	size_t current_chunk_size = 0;
 	int current_proc = -1;
 	long long global_sequence_id = 0;			  
-	long long chunk_start_id = global_sequence_id;
+	long long chunk_start_id = global_sequence_id; 
 
-	
+
 	auto rotate_chunk = [&]
 	{
 		if (current_proc != -1)
@@ -2479,7 +2452,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	rotate_chunk();
 
-
+	
 	while (!pq.empty())
 	{
 		FastaRecord rec = pq.top();
@@ -2504,22 +2477,20 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 			total_num++;
 		}
 
-		
 		if (current_chunk_size >= chunk_size)
 			rotate_chunk();
 	}
 
-	
 	if (current_chunk_size > 0)
 	{
-		
+
 		auto &pf = proc_files[current_proc];
 		fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 		fflush(pf.fp);
 	}
 	total_chunk = global_chunk_id;
-	cerr << "total_chunk" << global_chunk_id << endl;
-	
+	cerr << "total_chunk" << global_chunk_id + 1 << endl;
+
 	for (auto &pf : proc_files)
 		fclose(pf.fp);
 
@@ -2532,133 +2503,117 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&total_desc, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&total_letter, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&len_n50,1, MPI_INT, 0, MPI_COMM_WORLD);
-
-
+	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 }
 
-void SequenceDB::read_sorted_files(int rank, vector<int> &chunks_id)
-{
+void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
+
+
+
 	int file_index = rank;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&total_desc, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&total_letter, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	// MPI_Bcast(&len_n50,1, MPI_INT, 0, MPI_COMM_WORLD);
-
+	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	Sequence one;
-	Sequence des;
-	
+    Sequence des;
+   
 	std::string file = std::string("output/") + "_proc" + std::to_string(rank - 1) + ".fa";
-	FILE *fin = fopen(file.c_str(), "rb");
+	FILE* fin = fopen(file.c_str(), "rb");
 
-	char *buffer = NULL;
-	char *res = NULL;
-	if (fin == NULL)
-		bomb_error("Failed to open the database file");
+	char* buffer = NULL;
+    char* res = NULL;
+    if (fin == NULL) bomb_error("Failed to open the database file");
 
-	buffer = new char[MAX_LINE_SIZE + 1];
+    buffer = new char[MAX_LINE_SIZE + 1];
 
-	int chunk_id = 0;
+    int chunk_id = 0;
 	int start_id = -1;
-	int global_id = 0;
+	int global_id=0;
 	int end_id = -1;
-	int record = 0;
-	while (not feof(fin) || one.size)
-	{
-		if (global_id == end_id)
-			global_id = start_id;
-		buffer[0] = '>';
+	int record=0;
+    while (not feof(fin) || one.size) { 
+		if(global_id==end_id)
+		global_id=start_id;
+        buffer[0] = '>';
 
-		if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-			break;
+   
+        if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
+            break;
 
-	
-		if (strncmp(buffer, "#CHUNK_START", 12) == 0)
-		{
-
-			sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-			if (global_id == 0)
-			{
-				global_id = start_id;
+  
+        if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
+            
+            
+            sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
+            if(global_id==0){
+				global_id=start_id;
 			}
-			all_chunks.push_back(make_pair(start_id, -1)); 
-			if (!my_chunks.empty())
-			{
-				my_chunks.push_back(make_pair(sequences.size() + 1, -1));
+         
+            all_chunks.push_back(make_pair(start_id, -1));  
+			if(!my_chunks.empty()){
+				my_chunks.push_back(make_pair(sequences.size()+1, -1));
 			}
 			else
-				my_chunks.push_back(make_pair(sequences.size(), -1));
-		
-			chunks_id.push_back(chunk_id);
-		}
-		else if (strncmp(buffer, "#CHUNK_END", 10) == 0)
-		{
-		
-			sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-			end_id = start_id + record;
-			
-			if (!all_chunks.empty())
-			{
-				all_chunks.back().second = end_id; 
-				my_chunks.back().second = sequences.size();
-			}
-		}
-		else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size))
-		{
-			if (one.size)
-			{ 
-				if (one.identifier == NULL || one.Format())
-				{
+			my_chunks.push_back(make_pair(sequences.size(), -1));
+     
+            chunks_id.push_back(chunk_id);
+        } 
+        else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
+          
+            sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
+            end_id=start_id+record;
+        
+            if (!all_chunks.empty()) {
+               all_chunks.back().second = end_id; 
+			   my_chunks.back().second=sequences.size();
+            }
+        }
+        else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+            if (one.size) { 
+                if (one.identifier == NULL || one.Format()) {
 					printf("Warning: from file \"%s\",\n", file.c_str());
-					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-					if (one.identifier)
-						printf("%s\n", one.identifier);
-					printf("%s\n", one.data);
-					one.size = 0;
-				}
+                    printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+                    if (one.identifier) printf("%s\n", one.identifier);
+                    printf("%s\n", one.data);
+                    one.size = 0;
+                }
 				one.index = global_id;
 				// cout<<one.index<<endl;
 				// cerr<<"seq  id "<<sequences.size()<<endl;
-				sequences.Append(new Sequence(one));
-				global_id++;
-			}
-			one.size = 0;
-			one.tot_length = 0;
+                sequences.Append(new Sequence(one));
+				// if(rank==1)
+				// cerr<<sequences[sequences.size()-1]->size<<endl;
+				// if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
+                global_id++;
+			
+            }
+            one.size = 0;
+            one.tot_length = 0;
 
-			int len = strlen(buffer);
-			int len2 = len;
-			des.size = 0;
-			des += buffer;
-			while (len2 && buffer[len2 - 1] != '\n')
-			{
-				des += buffer;
-				len2 = strlen(buffer);
-				len += len2;
-			}
-			size_t offset = ftell(fin);
-			one.des_begin = offset - len;
-			one.tot_length += len; // count first line
+            int len = strlen(buffer);
+            int len2 = len;
+            des.size = 0;
+            des += buffer;
+            while (len2 && buffer[len2 - 1] != '\n') {
+                des += buffer;
+                len2 = strlen(buffer);
+                len += len2;
+            }
+            size_t offset = ftell(fin);
+            one.des_begin = offset - len;
+            one.tot_length += len;              
 
-			int i = 0;
-			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+')
-				i += 1;
-			if (des.data[i] == ' ' or des.data[i] == '\t')
-				i += 1;
-			while (i < des.size and !isspace(des.data[i]))
-				i += 1;
-			des.data[i] = 0;
-			one.identifier = des.data;
-		}
-		else
-		{
-			one.tot_length += strlen(buffer);
-			one += buffer;
-		}
-	}
+            int i = 0;
+            if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+            if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+            while (i < des.size and !isspace(des.data[i])) i += 1;
+            des.data[i] = 0;
+            one.identifier = des.data;
+        }
+        else {
+            one.tot_length += strlen(buffer);  
+            one += buffer;
+        }
+    }
 	// if(rank==1)
 	// for(int i=0;i< chunks_id.size();i++){
 	// 	cerr<<chunks_id[i]<<endl;
@@ -2677,10 +2632,15 @@ void SequenceDB::read_sorted_files(int rank, vector<int> &chunks_id)
 	// 	cerr<<sequences[i]->index<<endl;
 
 	// }
-	
+
 	one.identifier = NULL;
-	delete[] buffer;
-	fclose(fin);
+    delete[] buffer;
+    fclose(fin);
+	// for(int i=0;i<sequences.size();i++){
+	// 	Sequence *seq=sequences[i];
+	// 	if(seq->swap==NULL) seq->ConvertBases();
+	// }
+  
 }
 
 //压缩文件的读取入口
@@ -3839,13 +3799,13 @@ void Options::ComputeTableLimits( int min_len, int max_len, int typical_len, siz
 }
 void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_id, int start, int end,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size)
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size ,int send_file_index , size_t send_offset)
 {
 	int T = options.threads;
 	int len = end - start;
 
 	// Ready to expand
-	info_buf = (long*)malloc(5 * sizeof(long));
+	info_buf = (long*)malloc(7 * sizeof(long));
 	info_buf[0] = chunk_id;
 	info_buf[1] = len;
 	// cerr<<"len  "<<info_buf[1]<<endl;
@@ -3867,7 +3827,8 @@ void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_i
 	info_buf[2] = prefix_size;
 	info_buf[3] = (indexCount_buf_size >> 32) & 0xFFFFFFFF;
 	info_buf[4] = indexCount_buf_size & 0xFFFFFFFF;
-
+	info_buf[5] = send_file_index;
+	info_buf[6] = send_offset;
 	//cout << info_buf[3] << " " << info_buf[4] << endl;
 
 	prefix_buf = (long long*)malloc(prefix_size * sizeof(long long));
@@ -3913,7 +3874,7 @@ void SequenceDB::prepare_to_decode(WordTable& table, long*& info_buf, long*& clu
 }
 void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size) {
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size,long start_id) {
 	int T = options.threads;
 	int len = info_buf[1];
 
@@ -3922,12 +3883,20 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 
 
 	table.sequences.resize(len);
+	cerr<<"rep_sequences.size  "<<rep_sequences.size()<<endl;
+	cerr<<"start_id   "<<start_id<<endl;
 	// rebuilt the 'table.sequences'
 #pragma omp parallel for num_threads(T)
 	// cout << ">>> Len: " << len << endl;
 	for (int i = 0;i < len;i++) {
+		
 		int index = i;
-		Sequence* seq = sequences[suffix_buf[index]];
+		// cerr<<"suffix_buf[index]  "<<suffix_buf[index]<<"start_id   "<<start_id<<endl;
+		Sequence* seq = rep_sequences[suffix_buf[index]-start_id];
+		if (seq->swap == NULL) seq->ConvertBases();
+		// if(i==100)
+		// cerr<<"rep name   "<<seq->identifier<<endl;
+		// Sequence* seq = sequences[suffix_buf[index]];
 		seq->cluster_id = cluster_id_buf[index];
 		seq->identity = 0;
 		// cout << seq->state << endl;
@@ -3941,7 +3910,7 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 		// if (my_rank == 1 && i == len / 2) cout << "IN decode: for : " << i << endl;
 	}
 	// rebuilt the 'table.indexCounts'
-
+	// cerr<<"table.sequences.size       "<<table.sequences.size()<<endl;
 	table.indexCounts.resize(prefix_size);
 #pragma omp parallel for num_threads(T)
 	for (int i = 0;i < prefix_size;i++) {
@@ -3956,14 +3925,13 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	}
 	table.size = prefix_buf[prefix_size - 1];
 }
-void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank)
-{
+void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank) {
 
 	int rank_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
 	int source = 0;
 
-	int i, j, jj, k;
+	int i, j, jj , k;
 	int T = options.threads;
 	int NAA = options.NAA;
 	double aa1_cutoff = options.cluster_thd;
@@ -3974,32 +3942,27 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 	int frag_size = options.frag_size;
 	int len, len_bound;
 	int flag;
-
-	if (frag_size)
-	{
+	
+	if (frag_size) {
 		frag_no = 0;
-		if (master)
-		{
+		if (master) {
 			for (i = 0; i < seq_no; i++)
 				frag_no += (sequences[i]->size - NAA) / frag_size + 1;
 		}
 		MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
-
+		
 		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
 	if (not options.isEST)
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
-					   options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA);
 	Vector<WorkingParam> params(T);
 	Vector<WorkingBuffer> buffers(T);
-	for (i = 0; i < T; i++)
-	{
+	for (i = 0; i < T; i++) {
 		params[i].Set(aa1_cutoff, aas_cutoff, aan_cutoff);
 		buffers[i].Set(frag_no, max_len, options);
 	}
-	// cerr<<"NAA  "<<options.NAA<<endl;
-	// cerr<<"NAAN  "<<NAAN<<endl;
 	WordTable word_table(options.NAA, NAAN);
 	WordTable last_table(options.NAA, NAAN);
 	int N = 0;
@@ -4010,7 +3973,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 	// int K = N - 100 * T;
 
 	// FIXME:
-	// The estimation of memory usage here still relies heavily on the original estimation version,
+	// The estimation of memory usage here still relies heavily on the original estimation version, 
 	//		which will certainly be modified later.
 	size_t mem_need = MinimalMemory(frag_no, buffers[0].total_bytes, T, options);
 	size_t mem_limit = MemoryLimit(mem_need, options);
@@ -4022,407 +3985,379 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 	size_t max_items = opts.max_entries;
 	size_t max_seqs = opts.max_sequences;
 
-	long *info_buf;
-	long *cluster_id_buf;
-	long *seqs_suffix_buf;
-	long *indexCount_buf;
-	long long *prefix_buf;
+	long* info_buf;
+	long* cluster_id_buf;
+	long* seqs_suffix_buf;
+	long* indexCount_buf;
+	long long* prefix_buf;
 	long long indexCount_buf_size;
 	long prefix_size;
-
-	if (master)
-	{
+	
+	if (master) {
 		// cerr<<"chunks_size  "<<chunks_size<<endl;
-		if (rank_size <= 1)
-		{
+		if (rank_size <= 1) {
 			cerr << "no workers found" << endl;
 			exit(0);
 		}
-		int file_index = 0;
-		vector<size_t> chunk_offset(rank_size - 1, 0);
+		int file_index=0;
+		vector<size_t>chunk_offset(rank_size-1,0);
 		int chunk_id = 0;
 		int start_id = -1;
 		int end_id = -1;
-		int record = 0;
-		int remaining = 0;
+		int record=0;
+		int remaining=0;
 		int target_worker = 1;
-		bool read_stop = 0;
+		bool read_stop=0;
+		int send_file_index=0;
+		size_t send_offset=0;
 		Clear();
 		Sequence one;
 		Sequence des;
 		std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-		FILE *fin = fopen(file.c_str(), "rb");
-		char *buffer = NULL;
-		char *res = NULL;
-		if (fin == NULL)
-			bomb_error("Failed to open the database file");
+		FILE* fin = fopen(file.c_str(), "rb");
+		char* buffer = NULL;
+		char* res = NULL;
+		if (fin == NULL) bomb_error("Failed to open the database file");
+
+		send_file_index=file_index;
+		send_offset=chunk_offset[file_index];
 		fseek(fin, chunk_offset[file_index], SEEK_SET);
-		buffer = new char[MAX_LINE_SIZE + 1];
-		while (not feof(fin) || one.size)
-		{
-			buffer[0] = '>';
-			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-				break;
-			if (strncmp(buffer, "#CHUNK_START", 12) == 0)
-			{
-				if (read_stop == 1)
-					continue;
-				sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-				all_chunks.push_back(make_pair(start_id, -1));
-				chunks_id.push_back(chunk_id);
-			}
-			else if (strncmp(buffer, "#CHUNK_END", 10) == 0)
-			{
-				sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-				end_id = start_id + record;
-				read_stop = 1;
-				chunk_offset[file_index] = ftell(fin);
-				if (!all_chunks.empty())
-				{
-					all_chunks.back().second = end_id; 
-				}
-			}
-			else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size))
-			{
-				if (one.size)
-				{
-					if (one.identifier == NULL || one.Format())
-					{
-						printf("Warning: from file \"%s\",\n", file.c_str());
-						printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-						if (one.identifier)
-							printf("%s\n", one.identifier);
-						printf("%s\n", one.data);
-						one.size = 0;
-					}
-					one.index = sequences.size();
-					// cout<<one.index<<endl;
-					// cerr<<"seq  id "<<sequences.size()<<endl;
-					sequences.Append(new Sequence(one));
-					if (read_stop == 1)
-					{
-						read_stop = 0;
-						break;
+			buffer = new char[MAX_LINE_SIZE + 1];
+			while (not feof(fin) || one.size) { 
+				buffer[0] = '>';
+		
+			
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
+					break;
+			
+				if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
+					
+					if(read_stop==1)continue;
+					sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
+			
+					all_chunks.push_back(make_pair(start_id, -1));  
+					
+					chunks_id.push_back(chunk_id);
+				} 
+				 else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
+				
+					sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
+					end_id=start_id+record;
+					read_stop=1;
+					chunk_offset[file_index] = ftell(fin);
+					if (!all_chunks.empty()) {
+						all_chunks.back().second = end_id;  
 					}
 				}
-				one.size = 0;
-				one.tot_length = 0;
-
-				int len = strlen(buffer);
-				int len2 = len;
-				des.size = 0;
-				des += buffer;
-				while (len2 && buffer[len2 - 1] != '\n')
-				{
+				else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+					if (one.size) { 
+						if (one.identifier == NULL || one.Format()) {
+							printf("Warning: from file \"%s\",\n", file.c_str());
+							printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+							if (one.identifier) printf("%s\n", one.identifier);
+							printf("%s\n", one.data);
+							one.size = 0;
+						}
+						one.index = sequences.size();
+						// cout<<one.index<<endl;
+						// cerr<<"seq  id "<<sequences.size()<<endl;
+					
+						sequences.Append(new Sequence(one));
+						if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
+						if(read_stop==1){
+							read_stop=0;
+							break;
+						}
+						
+					
+					}
+					one.size = 0;
+					one.tot_length = 0;
+		
+					int len = strlen(buffer);
+					int len2 = len;
+					des.size = 0;
 					des += buffer;
-					len2 = strlen(buffer);
-					len += len2;
+					while (len2 && buffer[len2 - 1] != '\n') {
+						des += buffer;
+						len2 = strlen(buffer);
+						len += len2;
+					}
+					size_t offset = ftell(fin);
+					one.des_begin = offset - len;
+					one.tot_length += len;              // count first line
+		
+					int i = 0;
+					if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+					if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+					while (i < des.size and !isspace(des.data[i])) i += 1;
+					des.data[i] = 0;
+					one.identifier = des.data;
 				}
-				size_t offset = ftell(fin);
-				one.des_begin = offset - len;
-				one.tot_length += len; 
-
-				int i = 0;
-				if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+')
-					i += 1;
-				if (des.data[i] == ' ' or des.data[i] == '\t')
-					i += 1;
-				while (i < des.size and !isspace(des.data[i]))
-					i += 1;
-				des.data[i] = 0;
-				one.identifier = des.data;
+				else {
+					one.tot_length += strlen(buffer);  
+					one += buffer;
+				}
 			}
-			else
-			{
-				one.tot_length += strlen(buffer);
-				one += buffer;
-			}
-		}
-		one.identifier = NULL;
-		delete[] buffer;
+	
+			one.identifier = NULL;
+			delete[] buffer;
+			
+			file_index=(file_index+1)%(rank_size-1);
+			fclose(fin);
 
-		file_index = (file_index + 1) % (rank_size - 1);
-		fclose(fin);
-
-		// cerr<<"origin chunks size "<<all_chunks.size()<<endl;
-		for (i = 0; i < chunks_size; i++)
-		{
-			int total_flag = 0;
+			// cerr<<"origin chunks size "<<all_chunks.size()<<endl;
+		for (i = 0;i < chunks_size;i++) {
+			int total_flag=0;
 			// cerr<<"remaining   "<<remaining<<endl;
 			bool all_done = false;
-			vector<MPI_Request> requests(rank_size - 1, 0);
-			vector<int> done_flags(rank_size - 1, 0);
-			if (i > 0)
-				for (int ii = 0; ii < rank_size - 1; ++ii)
-				{
-					MPI_Irecv(&done_flags[ii], 1, MPI_INT, ii + 1, 0, MPI_COMM_WORLD, &requests[ii]);
-				}
-
+			vector<MPI_Request> requests(rank_size-1,0);
+			vector<int> done_flags(rank_size-1,0);
+				if(i>0)
+				// for (int ii = 0; ii < rank_size - 1; ++ii)
+				// {
+				// 	MPI_Irecv(&done_flags[ii], 1, MPI_INT, ii + 1, 0, MPI_COMM_WORLD, &requests[ii]);
+				// }
+			
 			// if (i > 1) break;
 			cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
 			int start_rep_suffix = rep_seqs.size();
-
-			if (remaining)
-			{
-				cerr << "remaining  " << remaining << endl;
-				cerr << "start   " << all_chunks[i].second - remaining << endl;
-				cerr << "end    " << all_chunks[i].second << endl;
-				cerr << "last word  size" << last_table.sequences.size() << endl;
-				cerr << "last word  size" << last_table.size << endl;
-				// cerr<<"seq  num   "<<sequences.size()<<endl;
+		
+			if(remaining){
+								cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
+				cerr<<"end    "<<all_chunks[i].second<<endl;
+				cerr<<"last word  size"<<last_table.sequences.size()<<endl;
 				#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
-				for (j = all_chunks[i].second - remaining; j < all_chunks[i].second; j++)
-				{
-					Sequence *seq = sequences[j];
-					// cerr<<sequences[j]->data<<endl;
-					if (options.store_disk)
-						seq->SwapIn();
-					// if (seq->swap == NULL)
-					// 	seq->ConvertBases();
-					if (seq->state & IS_REDUNDANT)
-						continue;
+				for (j = all_chunks[i].second-remaining;j < all_chunks[i].second;j++){
+					Sequence* seq = sequences[j];
+					if (options.store_disk) seq->SwapIn();
+					// if (seq->swap == NULL) seq->ConvertBases();
+					if (seq->state & IS_REDUNDANT) continue;
 					int tid = omp_get_thread_num();
 
-					if (seq->state & IS_REDUNDANT)
-						continue;
+					if (seq->state & IS_REDUNDANT) continue;
 					CheckOne(seq, last_table, params[tid], buffers[tid], options);
-					if (options.store_disk && (seq->state & IS_REDUNDANT))
-						seq->SwapOut();
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 				// cerr<<"over!!!!"<<endl;
 				// cerr<<"start        "<<chunks[i].second-remaining<<endl;
+				
+				for (j = all_chunks[i].second-remaining;j < all_chunks[i].second;j++){
+				// cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
+				// cerr<<"end    "<<all_chunks[i].second<<endl;
+					
+				
 
-				for (j = all_chunks[i].second - remaining; j < all_chunks[i].second; j++)
-				{
-					// cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
-					// cerr<<"end    "<<all_chunks[i].second<<endl;
+					if(i>0&&j%100==0){
 
-					if (i > 0 && j % 100 == 0)
-					{
-
-						for (int iii = 0; iii < rank_size - 1; ++iii)
-						{
+						for (int iii = 0; iii <rank_size-1 ; ++iii) {
 							int flag = 0;
 							MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
-							if (flag)
-							{
-								total_flag += done_flags[iii];
-								done_flags[iii] = 0;
+							if(flag){
+								total_flag+=done_flags[iii];
+								done_flags[iii]=0;
 							}
 						}
 					}
-
-					if (total_flag == rank_size - 1 && word_table.sequences.size() >= 200)
+	
+					if(total_flag==rank_size-1&&word_table.sequences.size() >=200)
 					// if(total_flag==rank_size-1)
 					{
-						remaining = all_chunks[i].second - j;
+						remaining=all_chunks[i].second-j;
 						// cerr<<"end        "<<j<<endl;
 						// i--;
 						break;
 					}
-					if (j == all_chunks[i].second - 1)
-						remaining = 0;
-					Sequence *seq = sequences[j];
-					if (options.store_disk)
-						seq->SwapIn();
-					if (seq->state & IS_REDUNDANT)
-						continue;
-					ClusterOne(seq, j, word_table, params[0], buffers[0], options);
-					if (options.store_disk && (seq->state & IS_REDUNDANT))
-						seq->SwapOut();
-				}
+					if(j== all_chunks[i].second-1)
+				remaining=0;
+				Sequence* seq = sequences[j];
+				if (options.store_disk) seq->SwapIn();
+				if (seq->state & IS_REDUNDANT) continue;
+				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+				
+				
 			}
-			else
-			{
-				cerr << "chunks start     " << all_chunks[i].first << endl;
-				cerr << "chunks end     " << all_chunks[i].second << endl;
-				for (j = all_chunks[i].first; j < all_chunks[i].second; j++)
-				{
+			}
+			else{
+				cerr<<"chunks start     "<<all_chunks[i].first<<endl;
+				cerr<<"chunks end     "<<all_chunks[i].second<<endl;
+				for (j = all_chunks[i].first;j < all_chunks[i].second;j++) {
 
-					if (i > 0 && i < chunks_size - 1 && j % 100 == 0)
-					{
 
-						for (int iii = 0; iii < rank_size - 1; ++iii)
-						{
-							int flag = 0;
-							MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
-							if (flag)
-							{
-								total_flag += done_flags[iii];
-								done_flags[iii] = 0;
-							}
-						}
-					}
-					if (total_flag == rank_size - 1 && word_table.sequences.size() >= 200)
+					// if(i>0&&i<chunks_size-1&&j%100==0){
+
+					// 	for (int iii = 0; iii <rank_size-1 ; ++iii) {
+					// 		int flag = 0;
+					// 		MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
+					// 		if(flag){
+					// 			total_flag+=done_flags[iii];
+					// 			done_flags[iii]=0;
+					// 		}
+					// 	}
+					// }
+					if(total_flag==rank_size-1&&word_table.sequences.size()>=200)
 					// if(total_flag==rank_size-1&&word_table.sequences.size() >=100)
 					{
-						remaining = all_chunks[i].second - j;
+						remaining=all_chunks[i].second-j;
 						// i--;
 						break;
 					}
-					Sequence *seq = sequences[j];
-					// cerr<<"seq  "<<sequences[j]->size<<endl;
-					// cerr<<"rep size  "<<rep_seqs.size()<<endl;
-					if (seq->swap == NULL)
-						seq->ConvertBases();
-					if (options.store_disk)
-						seq->SwapIn();
-					if (seq->state & IS_REDUNDANT)
-						continue;
-					ClusterOne(seq, j, word_table, params[0], buffers[0], options);
-					if (options.store_disk && (seq->state & IS_REDUNDANT))
-						seq->SwapOut();
-				}
-				cerr << "word table size" << word_table.sequences.size() << endl;
+				Sequence* seq = sequences[j];
+				// cerr<<"seq  "<<sequences[j]->size<<endl;
+				// cerr<<"rep size  "<<rep_seqs.size()<<endl;
+				// if (seq->swap == NULL) seq->ConvertBases();
+				if (options.store_disk) seq->SwapIn();
+				if (seq->state & IS_REDUNDANT) continue;
+				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 			}
-
+			cerr<<"word table size"<<word_table.sequences.size()<<endl;
+			}
+		
 			// cout << "\nSeqs 9885 state: " << sequences[9885]->state;
 			// cout << "\nSeqs 9891 state: " << sequences[9891]->state << endl;
 			cout << "\n";
-			cout << ">>> In chunk " << i << " bult table by sequences size: " << word_table.sequences.size() << endl;
+			cout << ">>> In chunk "<<i<<" bult table by sequences size: " << word_table.sequences.size() << endl;
 			int end_rep_suffix = rep_seqs.size();
 			// cerr<<"end_rep_suffix   "<<end_rep_suffix<<endl;
 
 			encode_WordTable(word_table, info_buf, i,
-							 start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
-							 indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size);
-
-			if (i == total_chunk)
-			{
-				info_buf[1] = 0;
+				start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
+				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size,send_file_index,send_offset);
+				
+			if (i == total_chunk) {
+				info_buf[1]=0;
 			}
 			MPI_Barrier(MPI_COMM_WORLD);
-
-			MPI_Bcast((void *)info_buf, 5, MPI_LONG, source, MPI_COMM_WORLD);
+			
+			MPI_Bcast((void*)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD);
 			// cerr<<"send len  "<<info_buf[1]<<endl;
-
-			MPI_Bcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Send(&remaining, 1, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD);
-			if (i == chunks_size - 1)
-			{
+		
+			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Send(&remaining,1, MPI_INT, target_worker+1, 0, MPI_COMM_WORLD);
+			if (i == chunks_size- 1) {
 				break;
 			}
-			if (!remaining)
-			{
+			if(!remaining){
+				// cerr<<"gogogog!"<<endl;
 				Sequence one;
 				Sequence des;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-				cerr << "file_index      " << file_index << endl;
-				FILE *fin = fopen(file.c_str(), "rb");
-				char *buffer = NULL;
-				char *res = NULL;
-				if (fin == NULL)
-					bomb_error("Failed to open the database file");
+				// cerr<<"file_index      "<<file_index<<endl;
+				FILE* fin = fopen(file.c_str(), "rb");
+				char* buffer = NULL;
+				char* res = NULL;
+				if (fin == NULL) bomb_error("Failed to open the database file");
+				send_file_index=file_index;
+				send_offset=chunk_offset[file_index];
 				fseek(fin, chunk_offset[file_index], SEEK_SET);
-				buffer = new char[MAX_LINE_SIZE + 1];
-				while (not feof(fin) || one.size)
-				{
-					buffer[0] = '>';
-					if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-						break;
-					if (strncmp(buffer, "#CHUNK_START", 12) == 0)
-					{
-						if (read_stop == 1)
-							continue;
-						sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-						all_chunks.push_back(make_pair(start_id, -1)); 
-						// cerr<<" chunks size "<<all_chunks.size()<<endl;
-						chunks_id.push_back(chunk_id);
-					}
-					else if (strncmp(buffer, "#CHUNK_END", 10) == 0)
-					{
-						sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-						end_id = start_id + record;
-						read_stop = 1;
-						chunk_offset[file_index] = ftell(fin);
-						if (!all_chunks.empty())
-						{
-							all_chunks.back().second = end_id;
-							// cerr<<" chunks size "<<all_chunks.size()<<endl;  
-						}
-					}
-					else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size))
-					{
-						if (one.size)
-						{ 
-							if (one.identifier == NULL || one.Format())
-							{
-								printf("Warning: from file \"%s\",\n", file.c_str());
-								printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-								if (one.identifier)
-									printf("%s\n", one.identifier);
-								printf("%s\n", one.data);
-								one.size = 0;
-							}
-							one.index = sequences.size();
-							// cout<<one.index<<endl;
-							// cerr<<"seq  id "<<sequences.size()<<endl;
-							sequences.Append(new Sequence(one));
-							if (read_stop == 1)
-							{
-								read_stop = 0;
-								break;
-							}
-						}
-						one.size = 0;
-						one.tot_length = 0;
-
-						int len = strlen(buffer);
-						int len2 = len;
-						des.size = 0;
-						des += buffer;
-						while (len2 && buffer[len2 - 1] != '\n')
-						{
-							des += buffer;
-							len2 = strlen(buffer);
-							len += len2;
-						}
-						size_t offset = ftell(fin);
-						one.des_begin = offset - len;
-						one.tot_length += len; 
-
-						int i = 0;
-						if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+')
-							i += 1;
-						if (des.data[i] == ' ' or des.data[i] == '\t')
-							i += 1;
-						while (i < des.size and !isspace(des.data[i]))
-							i += 1;
-						des.data[i] = 0;
-						one.identifier = des.data;
-					}
-					else
-					{
-						one.tot_length += strlen(buffer);
-						one += buffer;
-					}
-				}
+					buffer = new char[MAX_LINE_SIZE + 1];
+					while (not feof(fin) || one.size) { 
+						buffer[0] = '>';
 				
-				one.identifier = NULL;
-				delete[] buffer;
-
-				file_index = (file_index + 1) % (rank_size - 1);
-				fclose(fin);
-				// cerr<<"daozhe"<<endl;
+					
+						if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
+							break;
+					
+						if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
+						
+							if(read_stop==1)continue;
+							sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
+							
+							all_chunks.push_back(make_pair(start_id, -1)); 
+							
+							
+							chunks_id.push_back(chunk_id);
+						} 
+						else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
+						
+							sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
+							end_id=start_id+record;
+							read_stop=1;
+							chunk_offset[file_index] = ftell(fin);
+							if (!all_chunks.empty()) {
+								all_chunks.back().second = end_id;
+								// cerr<<" chunks size "<<all_chunks.size()<<endl;  // 最后一个 chunk 的结束 ID
+							}
+						}
+						else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+							if (one.size) { // write previous record
+								if (one.identifier == NULL || one.Format()) {
+									printf("Warning: from file \"%s\",\n", file.c_str());
+									printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+									if (one.identifier) printf("%s\n", one.identifier);
+									printf("%s\n", one.data);
+									one.size = 0;
+								}
+								one.index = sequences.size();
+								// cout<<one.index<<endl;
+								// cerr<<"seq  id "<<sequences.size()<<endl;
+								sequences.Append(new Sequence(one));
+								if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
+								if(read_stop==1){
+									read_stop=0;
+									break;
+								}
+								
+							
+							}
+							one.size = 0;
+							one.tot_length = 0;
+				
+							int len = strlen(buffer);
+							int len2 = len;
+							des.size = 0;
+							des += buffer;
+							while (len2 && buffer[len2 - 1] != '\n') {
+								des += buffer;
+								len2 = strlen(buffer);
+								len += len2;
+							}
+							size_t offset = ftell(fin);
+							one.des_begin = offset - len;
+							one.tot_length += len;              // count first line
+				
+							int i = 0;
+							if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+							if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+							while (i < des.size and !isspace(des.data[i])) i += 1;
+							des.data[i] = 0;
+							one.identifier = des.data;
+						}
+						else {
+							one.tot_length += strlen(buffer);  
+							one += buffer;
+						}
+					}
+			
+					one.identifier = NULL;
+					delete[] buffer;
+				
+					file_index=(file_index+1)%(rank_size-1);
+					fclose(fin);
+					int continue_size=0;
 				int size = all_chunks[i + 1].second - all_chunks[i + 1].first;
-				cerr << "chunks size" << all_chunks.size() << endl;
-				cerr << "chunks start  " << all_chunks[i + 1].first << endl;
-				cerr << "chunks end  " << all_chunks[i + 1].second << endl;
-				cerr << "size  " << size << endl;
-				int *rep_chunk = (int *)malloc(size * 8 * sizeof(int));
+				cerr<<"chunks size"<<all_chunks.size()<<endl;
+				cerr<<"chunks start  "<<all_chunks[i+1].first<<endl;
+				cerr<<"chunks end  "<<all_chunks[i+1].second<<endl;
+				cerr<<"size  "<<size<<endl;
+				int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
 				MPI_Recv(rep_chunk, size * 8, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
 				target_worker = (target_worker + 1) % (rank_size - 1);
-#pragma omp parallel for num_threads(T)
-				for (int j = all_chunks[i + 1].first; j < all_chunks[i + 1].second; j++)
-				{
+			#pragma omp parallel for num_threads(T)
+				for (int j = all_chunks[i + 1].first;j < all_chunks[i + 1].second;j++) {
 					int index = (j - all_chunks[i + 1].first) * 8;
-					Sequence *seq = sequences[j];
-					if (rep_chunk[index] == 0)
+					Sequence* seq = sequences[j];
+					if (rep_chunk[index] == 0) 
+					{
+						continue_size++;
 						continue;
+					}
 					seq->state = (short)rep_chunk[index];
 					seq->identity = rep_chunk[index + 1];
 					seq->cluster_id = rep_chunk[index + 2];
@@ -4433,15 +4368,16 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 					seq->coverage[3] = rep_chunk[index + 7];
 				}
 				free(rep_chunk);
+				cerr<<"continue_size   "<<continue_size<<endl;
 			}
 
-			if (remaining)
+			if(remaining)
 			{
-				last_table.Clear();
-				last_table.sequences.swap(word_table.sequences);
-				last_table.indexCounts.swap(word_table.indexCounts);
-				last_table.size = word_table.size;
-				i--;
+			last_table.Clear();
+			last_table.sequences.swap(word_table.sequences);
+			last_table.indexCounts.swap(word_table.indexCounts);
+			last_table.size = word_table.size;
+			i--;
 			}
 			word_table.Clear();
 			// free momery
@@ -4455,6 +4391,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 			seqs_suffix_buf = NULL;
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
+		
 
 			// int test=0;
 			// if(i==0)continue;
@@ -4466,91 +4403,181 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 			// }
 		}
 	}
-	if (worker)
-	{
+	if (worker) {
+		vector<int>read_chunk(chunks_size,0);
+		
 		int start = 0;
 		// cerr<<"my_rank   "<<my_rank<<endl;
-		if (my_rank == 1)
-			start = 1;
+		if(my_rank==1) start=1;
 		// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
 		int chunksNum = all_chunks.size() * (rank_size - 1) + 1;
-		int remaining = 0;
-		while (1)
-		{
+		int remaining=0;
+		long start_id=0;
+		int read_stop=0;
+		while(1){
 			// if (round > 1) break;
-
+			
 			MPI_Barrier(MPI_COMM_WORLD);
-			int done_flag = 0;
-			info_buf = (long *)malloc(5 * sizeof(long));
+			int done_flag=0;
+			info_buf = (long*)malloc(7 * sizeof(long));
 
-			MPI_Bcast((void *)info_buf, 5, MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD);
 			int soure_chunk = info_buf[0];
+			int file_index=info_buf[5];
+			size_t offset=info_buf[6];
+			if(read_chunk[soure_chunk]==0){
+				int id;
+				for(int i=0; i<rep_sequences.size(); i++) delete rep_sequences[i];
+				rep_sequences.clear(); 
+				Sequence one;
+				Sequence des;
+				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
+				cerr<<"file_index      "<<file_index<<endl;
+				FILE* fin = fopen(file.c_str(), "rb");
+				char* buffer = NULL;
+				char* res = NULL;
+				if (fin == NULL) bomb_error("Failed to open the database file");
+				fseek(fin, offset, SEEK_SET);
+					buffer = new char[MAX_LINE_SIZE + 1];
+					while (not feof(fin) || one.size) { 
+						buffer[0] = '>';
+				
+						
+						if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
+							break;
+					
+						if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
+							
+							if(read_stop==1)continue;
+							sscanf(buffer, "#CHUNK_START ID=%d START_ID=%ld", &id, &start_id);
+				
+							
+						} 
+						else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
+							read_stop=1;
+						}
+						else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+							if (one.size) { // write previous record
+								if (one.identifier == NULL || one.Format()) {
+									printf("Warning: from file \"%s\",\n", file.c_str());
+									printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+									if (one.identifier) printf("%s\n", one.identifier);
+									printf("%s\n", one.data);
+									one.size = 0;
+								}
+								one.index = rep_sequences.size();
+								// cout<<one.index<<endl;
+								// cerr<<"seq  id "<<rep_sequences.size()<<endl;
+								rep_sequences.Append(new Sequence(one));
+								// if(rep_sequences[rep_sequences.size()-1]->swap==NULL)rep_sequences[rep_sequences.size()-1]->ConvertBases();
+								if(read_stop==1){
+									read_stop=0;
+									break;
+								}
+								
+							
+							}
+							one.size = 0;
+							one.tot_length = 0;
+				
+							int len = strlen(buffer);
+							int len2 = len;
+							des.size = 0;
+							des += buffer;
+							while (len2 && buffer[len2 - 1] != '\n') {
+								des += buffer;
+								len2 = strlen(buffer);
+								len += len2;
+							}
+							size_t offset = ftell(fin);
+							one.des_begin = offset - len;
+							one.tot_length += len;              // count first line
+				
+							int i = 0;
+							if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+							if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+							while (i < des.size and !isspace(des.data[i])) i += 1;
+							des.data[i] = 0;
+							one.identifier = des.data;
+						}
+						else {
+							one.tot_length += strlen(buffer);  
+							one += buffer;
+						}
+					}
+				
+					one.identifier = NULL;
+					delete[] buffer;
+					fclose(fin);
+					read_chunk[soure_chunk]=1;
+					// for(int i=0;i<rep_sequences.size();i++){
+					// 	Sequence* seq = rep_sequences[i];
+					// 		if (seq->swap == NULL) seq->ConvertBases();
+						
+					// }
+			}
 			// cerr<<"soure_chunk  "<<soure_chunk<<endl;
 			// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
 			prepare_to_decode(word_table, info_buf, cluster_id_buf, seqs_suffix_buf, indexCount_buf, prefix_buf, indexCount_buf_size);
-			MPI_Bcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			if (chunks_id[start] == soure_chunk + 1)
-			{
+			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
+			if (chunks_id[start] == soure_chunk + 1) {
 				// cerr<<"hi   "<<endl;
 				MPI_Recv(&remaining, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
 			decode_WordTable(word_table, info_buf,
-							 cluster_id_buf, seqs_suffix_buf,
-							 indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2]);
-			// cerr<<"my rank   "<<my_rank<<"now word  table"<<word_table.sequences.size()<<endl;
+				cluster_id_buf, seqs_suffix_buf,
+				indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2],start_id);
+				cerr<<"my rank   "<<my_rank<<"now word  table"<<word_table.sequences.size()<<endl;
 			int remain_chunks = all_chunks.size() - start;
-			if (remain_chunks == 0)
-			{
-				if (info_buf[1] == 0)
-					break;
-				// cerr<<"pass  "<<endl;
-				done_flag = 1;
-				MPI_Send(&done_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+
+			if(remain_chunks==0){
+				if(info_buf[1]==0)
+				break;
+			// cerr<<"pass  "<<endl;
+			done_flag=1;
+			MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD); 
+			
 			}
-			// cerr<<"my rank   "<<my_rank<<"remain_chunk"<<remain_chunks<<endl;
-			for (i = 0; i < remain_chunks; i++)
-			{
+			cerr<<"my rank   "<<my_rank<<"remain_chunk"<<remain_chunks<<endl;
+			for (i = 0;i < remain_chunks; i++) {
+
 				int idx = i + start;
-				if (idx == all_chunks.size())
-					break;
-				// cout <<my_rank<<"     "<<idx<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
+				if(idx==all_chunks.size())break;
+				// cout <<my_rank<<"     "<<chunks_id[idx]<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
+				
+			#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+				for (j = my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
 
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
-				for (j = my_chunks[idx].first; j <= my_chunks[idx].second; j++)
-				{
-
-					Sequence *seq = sequences[j];
+					Sequence* seq = sequences[j];
+					
 					// cerr<<seq->data<<endl;
-
-					if (options.store_disk)
-						seq->SwapIn();
-					if (seq->state & IS_REDUNDANT)
-						continue;
+					// if(j==1234)
+					// cerr<<"rep name  "<<seq->identifier<<endl;
+					if (options.store_disk) seq->SwapIn();
+					// if (seq->swap == NULL) seq->ConvertBases();
+					if (seq->state & IS_REDUNDANT) continue;
 					int tid = omp_get_thread_num();
 
-					if (seq->state & IS_REDUNDANT)
-						continue;
-					// if (seq->swap == NULL) seq->ConvertBases();
+					if (seq->state & IS_REDUNDANT) continue;
+					
 					CheckOne(seq, word_table, params[tid], buffers[tid], options);
-					if (options.store_disk && (seq->state & IS_REDUNDANT))
-						seq->SwapOut();
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 
-				if (chunks_id[start] == soure_chunk + 1 && !remaining)
-				{
+				if (chunks_id[start] == soure_chunk + 1&&!remaining) {
 					// cerr<<"this"<<endl;
-					int size = my_chunks[start].second - my_chunks[start].first + 1;
-					// cerr<<"send   size"<<size<<endl;
-					int *rep_chunk = (int *)malloc(size * 8 * sizeof(int));
-					for (j = my_chunks[start].first; j <= my_chunks[start].second; j++)
-					{
-						int index = (j - my_chunks[start].first) * 8;
-						Sequence *seq = sequences[j];
-						if (seq->state & IS_REDUNDANT)
-						{
+					int size = my_chunks[start].second - my_chunks[start].first+1;
+					cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
+					int red_num=0;
+					int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
+					for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
+						int index = (j - my_chunks[start].first)*8;
+						Sequence* seq = sequences[j];
+						if (seq->state & IS_REDUNDANT) {
+							red_num++;
 							rep_chunk[index] = (int)seq->state;
 							rep_chunk[index + 1] = seq->identity;
 							rep_chunk[index + 2] = seq->cluster_id;
@@ -4560,8 +4587,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 							rep_chunk[index + 6] = seq->coverage[2];
 							rep_chunk[index + 7] = seq->coverage[3];
 						}
-						else
-						{
+						else {
 							rep_chunk[index] = 0;
 							rep_chunk[index + 1] = -1;
 							rep_chunk[index + 2] = -1;
@@ -4572,11 +4598,12 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 							rep_chunk[index + 7] = -1;
 						}
 					}
+					cerr<<"red_size  "<<red_num<<endl;
 					MPI_Send(rep_chunk, size * 8, MPI_INT, source, 0, MPI_COMM_WORLD);
 					free(rep_chunk);
-					start++;
-					i--;
-
+						start++;
+						i--;
+					
 					// start++;
 					// i--;
 				}
@@ -4596,9 +4623,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 			seqs_suffix_buf = NULL;
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
-			cerr << "pass  " << endl;
-			done_flag = 1;
-			MPI_Send(&done_flag, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+			 cerr<<"pass  "<<endl;
+			done_flag=1;
+			// MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD);  
 		}
 	}
 
@@ -4609,8 +4636,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 	// 	cout << "Worker " << worker_rank << " is Finished" << endl;
 	// }
 	MPI_Barrier(MPI_COMM_WORLD);
-	if (master)
-	{
+	if (master) {
 		printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
