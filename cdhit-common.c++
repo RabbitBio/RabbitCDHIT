@@ -1777,8 +1777,7 @@ void Sequence::trim(int trim_len) {
 }
 void Sequence::ConvertBases()
 {
-	int i;
-	for (i = 0; i < size; i++) data[i] = aa2idx[data[i] - 'A'];
+	for (int i = 0; i < size; i++) data[i] = aa2idx[data[i] - 'A'];
 }
 
 void Sequence::Swap(Sequence& other)
@@ -1941,6 +1940,170 @@ void SequenceDB::Readgz(const char* file, const Options& options)
 #endif
 }
 
+void SequenceDB::ReadByKseq(const char* file, const Options& options) {
+	gzFile fp = gzopen(file, "r");
+	kseq_t* seq = kseq_init(fp);
+	int option_l = options.min_length;
+	int len;
+	Sequence one;
+	while ((len = kseq_read(seq)) >= 0) {
+		one.identifier = strdup(seq->name.s);
+		// cout << seq->name.s << endl;
+		one.data = strdup(seq->seq.s);
+		one.size = len;
+		one.tot_length = len + seq->name.l;
+		one.index = sequences.size();
+		if (len > option_l) {
+			if (options.trim_len > 0)
+				one.trim(options.trim_len);
+			sequences.Append(new Sequence(one));
+		}
+	}
+	// cout << "Read Over" << endl;
+	for (int i = 0; i < sequences.size(); i++) {
+		Sequence* seq = sequences[i];
+		if (seq->swap == NULL) seq->ConvertBases();
+	}
+	kseq_destroy(seq);
+	gzclose(fp);
+	return;
+}
+
+void SequenceDB::ReadExternalSorting(const char* file, const Options& options, int max_seqs=100000) {
+	struct Seq {
+		string name;
+		string seq;
+		size_t length;
+
+		Seq(const string& n, const string& s)
+			: name(n), seq(s), length(s.length()) {}
+
+		bool operator<(const Seq& other) const {
+			return length > other.length;
+		}
+	};
+
+	total_letter = 0;
+	total_desc = 0;
+	total_seqs = 0;
+	max_len = 0;
+	min_len = (size_t)-1;
+
+	gzFile fp = gzopen(file, "r");
+	kseq_t* seq = kseq_init(fp);
+	int option_l = options.min_length;
+	int len, fileID = 0;
+	vector<Seq> tmp;
+	system("mkdir -p tempfiles");
+	while ((len = kseq_read(seq)) >= 0) {
+		if (len <= option_l) continue;
+		total_letter += len;
+		if (len > max_len) max_len = len;
+		if (len < min_len) min_len = len;
+		if (seq->name.s) total_desc += strlen(seq->name.s);
+		total_seqs++;
+
+		tmp.emplace_back(seq->name.s, seq->seq.s);
+		if (tmp.size() >= static_cast<size_t>(max_seqs)) {
+			stable_sort(tmp.begin(), tmp.end());
+			string filename = "tempfiles/file" + to_string(fileID++)+".fa";
+			ofstream out(filename);
+			for (const auto& s : tmp) {
+				out << ">" << s.name << "\n" << s.seq << "\n";
+			}
+			out.close();
+			tmp_files.push_back(filename);
+			tmp.clear();
+		}
+	}
+	if (!tmp.empty()) {
+		stable_sort(tmp.begin(), tmp.end());
+		string filename = "tempfiles/file" + to_string(fileID++)+".fa";
+		ofstream out(filename);
+		for (const auto& s : tmp) {
+			out << ">" << s.name << "\n" << s.seq << "\n";
+		}
+		out.close();
+		tmp_files.push_back(filename);
+		tmp.clear();
+	}
+	kseq_destroy(seq);
+	gzclose(fp);
+	cout << "External Sorting Divide Files is Finished!\n";
+	return;
+}
+
+void SequenceDB::MergeExternalSorting(const Options& options) {
+	struct FileStream {
+		gzFile fp;
+		kseq_t* kseq;
+		string name;
+		string seq;
+		size_t length;
+		bool finished;
+		int fileID;
+		string filename;
+
+		FileStream(const string& fname, int fid) :filename(fname), fileID(fid), finished(false) {
+			fp = gzopen(fname.c_str(), "r");
+			if (!fp) {
+				throw runtime_error("Cannot open file: " + filename);
+			}
+			kseq = kseq_init(fp);
+			readNext();
+		}
+
+		~FileStream() {
+			kseq_destroy(kseq);
+			gzclose(fp);
+		}
+
+		bool readNext() {
+			int len = kseq_read(kseq);
+			if (len < 0) {
+				finished = true;
+				return false;
+			}
+			name = kseq->name.s;
+			seq = kseq->seq.s;
+			length = len;
+			return true;
+		}
+	};
+
+	auto cmp = [](FileStream* a, FileStream* b) {
+		if (a->length != b->length) {
+			return a->length < b->length;
+		}
+		return a->fileID > b->fileID;
+		};
+
+	priority_queue<FileStream*, vector<FileStream*>, decltype(cmp)> heap(cmp);
+
+	for (size_t i = 0;i < tmp_files.size();i++) {
+		FileStream* fs = new FileStream(tmp_files[i], static_cast<int>(i));
+		if (!fs->finished)
+			heap.push(fs);
+		else
+			delete fs;
+	}
+
+	ofstream out("tempfiles/all.fa");
+	if (!out)
+		throw runtime_error("Cannot open output file: tempfiles/all.fa");
+	while (!heap.empty()) {
+		FileStream* top = heap.top();
+		heap.pop();
+		out << ">" << top->name << "\n" << top->seq << "\n";
+		if (top->readNext()) {
+			heap.push(top);
+		}
+		else delete top;
+	}
+	out.close();
+	cout << "External Sorting Merge is finished!\n";
+	return;
+}
 
 
 // by liwz

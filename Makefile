@@ -65,6 +65,10 @@ all: $(PROGS)
 
 clean:
 	rm -f *.o $(PROGS)
+	@if [ -d tempfiles ]; then \
+		echo "Removing tempfiles directory..."; \
+		rm -rf tempfiles; \
+	fi
 
 
 # programs

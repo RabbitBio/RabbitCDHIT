@@ -35,6 +35,14 @@ int digitCount(int num) {
     return static_cast<int>(log10(abs(num))) + 1;
 }
 
+void countChunkSize(int& node_chunks, int& chunk_size,int num_seqs,int worker_size, int first_chunk_size, int upper_size) {
+	int m=first_chunk_size;
+	node_chunks = (num_seqs - m) / (worker_size * 20000) + 1;
+	if ((num_seqs - m) % (worker_size * node_chunks))
+		chunk_size = (num_seqs - m) / (worker_size * node_chunks) + 1;
+	else chunk_size = (num_seqs - m)/ (worker_size * node_chunks);
+}
+
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char* argv[])
 {
@@ -73,23 +81,52 @@ int main(int argc, char* argv[])
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
 
-	seq_db.Read(db_in.c_str(), options);
-	size_t num_seqs = seq_db.sequences.size();
-	if(master)
+	// seq_db.Read(db_in.c_str(), options);
+	// seq_db.ReadByKseq(db_in.c_str(), options);
+	if (master) {
+		// FIXME:现阶段内部是主进程进行读取和排序
+		seq_db.ReadExternalSorting(db_in.c_str(), options, 1000000);
+		seq_db.MergeExternalSorting(options);
+		cout << "External Sorting is finished" << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	if (master) {
+		long long* info = new long long[5];
+		info[0] = seq_db.max_len;
+		info[1] = seq_db.min_len;
+		info[2] = seq_db.total_letter;
+		info[3] = seq_db.total_desc;
+		info[4] = seq_db.total_seqs;
+		// cout << seq_db.max_len << " " << seq_db.min_len << " " << seq_db.total_letter << " " << seq_db.total_desc << " " << seq_db.total_seqs<<endl;
+		MPI_Bcast((void*)info, 5, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+		delete[] info;
+	}
+	if (worker) {
+		long long* info = new long long[5];
+		MPI_Bcast((void*)info, 5, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+		seq_db.max_len = info[0];
+		seq_db.min_len = info[1];
+		seq_db.total_letter = info[2];
+		seq_db.total_desc = info[3];
+		seq_db.total_seqs = info[4];
+		delete[] info;
+		// cout << seq_db.max_len << " " << seq_db.min_len << " " << seq_db.total_letter << " " << seq_db.total_desc << " " << seq_db.total_seqs << endl;
+	}
+	// size_t num_seqs = seq_db.sequences.size();
+	size_t num_seqs = seq_db.total_seqs;
+	if (master)
 		cout << "total seq: " << num_seqs << endl;
 
-	seq_db.SortDivide(options);
-
+	// seq_db.SortDivide(options);
+	seq_db.ReadByKseq("tempfiles/all.fa", options);
+	cout << "Read Successfully!" << endl;
 	MPI_Barrier(MPI_COMM_WORLD);
 	// To solve for chunk_size, because in the previous CDHIT each table should not contain more than 10000 m values.
 	// In the following code, 'node_chunks' indicates how many chunks should be allocated to a node,
 	//		and 'chunk_size' indicates the size of a chunk.
 	int node_chunks = 0, chunk_size = 0;
-	int m=10000;
-	node_chunks = (num_seqs - m) / (worker_size * 20000) + 1;
-	if ((num_seqs - m) % (worker_size * node_chunks))
-		chunk_size = (num_seqs - m) / (worker_size * node_chunks) + 1;
-	else chunk_size = (num_seqs - m)/ (worker_size * node_chunks);
+	int m = 10000;
+	countChunkSize(node_chunks, chunk_size, num_seqs,worker_size,10000, 20000);
 
 	vector<pair<int, int>>& chunks = seq_db.chunks;
 	vector<int>& chunks_id = seq_db.chunks_id;
@@ -111,7 +148,7 @@ int main(int argc, char* argv[])
 			}
 			else{
 				chunks_id[i] = i;
-			chunks[i] = make_pair((i-1) * chunk_size+m, min((i) * chunk_size+m, num_seqs));
+				chunks[i] = make_pair((i-1) * chunk_size+m, min((i) * chunk_size+m, num_seqs));
 			}
 			
 			int target = temp_target + 1;
@@ -163,15 +200,15 @@ int main(int argc, char* argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 	seq_db.DoClustering_MPI(options, my_rank, master, worker, worker_rank);
 	MPI_Barrier(MPI_COMM_WORLD);
-	if (master) {
-		cout << "Cluster is Finished" << endl;
-		printf("writing new database\n");
-		seq_db.WriteClusters(db_in.c_str(), db_out.c_str(), options);
+	// if (master) {
+	// 	cout << "Cluster is Finished" << endl;
+	// 	printf("writing new database\n");
+	// 	seq_db.WriteClusters(db_in.c_str(), db_out.c_str(), options);
 
-		// write a backup clstr file in case next step crashes
-		seq_db.WriteExtra1D(options);
-		cout << "program completed !" << endl << endl;
-	}
+	// 	// write a backup clstr file in case next step crashes
+	// 	seq_db.WriteExtra1D(options);
+	// 	cout << "program completed !" << endl << endl;
+	// }
 	// MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Finalize();
 	return 0;

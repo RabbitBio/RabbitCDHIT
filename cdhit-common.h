@@ -37,6 +37,8 @@
 
 #include <chrono>
 #include <mpi.h>
+#include "kseq.h"
+#include <queue>
 
 #include "input_sequence.h"
 
@@ -90,6 +92,8 @@ typedef unsigned short UINT2;
 #endif
 
 using namespace std;
+
+KSEQ_INIT(gzFile, gzread)
 
 // the parent containter must guarantee continuous memory allocation.
 // std::valarray could be used instead of std::vector.
@@ -559,6 +563,7 @@ public:
 	size_t max_len;
 	size_t min_len;
 	size_t len_n50;
+	size_t total_seqs;
 
 	vector<pair<int, int>> chunks;
 	vector<int> chunks_id;
@@ -583,6 +588,12 @@ public:
 	void Readgz(const char* file, const Options& options);
 
 	void Readvector(const std::vector<Input_Sequence*>& input, const Options& options);
+	void ReadByKseq(const char* file, const Options& options);
+
+	vector<string> tmp_files;
+
+	void ReadExternalSorting(const char* file, const Options& options, int max_seqs);
+	void MergeExternalSorting(const Options& options);
 
 	void Read(const char* file, const char* file2, const Options& options);
 	void Readgz(const char* file, const char* file2, const Options& options);
