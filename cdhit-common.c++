@@ -541,9 +541,29 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 		cpx = 1 + (iseq2[i] != iseq2[i+1]);
 		if ( (j=taap[c22]) == 0) continue;
 		int m = aap_begin[c22];
-		for(int k=0; k<j; k++){
-			diag_score[ i1 - aap_list[m+k] ] ++;
-			diag_score2[ i1 - aap_list[m+k] ] += cpx;
+
+		for (int k = 0; k < j; k++)
+		{
+			int pos = i1 - aap_list[m + k];
+
+			if (m + k >= aap_list.size())
+			{
+				std::cerr << "[ERROR] aap_list index out of bounds: m=" << m << " k=" << k
+						  << " m+k=" << (m + k) << " size=" << aap_list.size() << std::endl;
+			
+			}
+
+			if (pos < 0 || pos >= diag_score.size())
+			{
+				std::cerr << "[ERROR] diag_score index out of bounds: i1=" << i1
+						  << ", aap_list[m+k]=" << aap_list[m + k]
+						  << ", pos=" << pos
+						  << ", diag_score.Size()=" << diag_score.size() << std::endl;
+			
+			}
+
+			diag_score[i1 - aap_list[m + k]]++;
+			diag_score2[i1 - aap_list[m + k]] += cpx;
 		}
 	}
 
@@ -1432,7 +1452,7 @@ void PartialQuickSort( IndexCount *data, int first, int last, int partial )
 }
 int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no,
     NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, 
-	bool est, int min)
+	bool est, int min,int my_rank)
 {
 	int S = frag_count ? frag_count : sequences.size();
 	int  j, k, j0, j1, k1, m;
@@ -1461,6 +1481,12 @@ int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> &
 		for (k=0; k<k1; k++, ic++){
 			int c = ic->count < j1 ? ic->count : j1;
 			uint32_t *idm = indexMapping.items + ic->index;
+			// if(my_rank==1){
+			// 	cerr<<"lookCounts.size     "<<lookCounts.size<<endl;
+			// 	cerr<<"ic->index     "<<ic->index<<endl;
+			// 	cerr<<"*idm     "<<*idm<<endl;
+			// }
+			
 			if( *idm ==0 ){
 				if( rest < min ) continue;
 				IndexCount *ic2 = lookCounts.items + lookCounts.size;
@@ -2504,6 +2530,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 }
 
 void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
@@ -2513,6 +2540,7 @@ void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
 	int file_index = rank;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	Sequence one;
     Sequence des;
    
@@ -2636,10 +2664,10 @@ void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
 	one.identifier = NULL;
     delete[] buffer;
     fclose(fin);
-	// for(int i=0;i<sequences.size();i++){
-	// 	Sequence *seq=sequences[i];
-	// 	if(seq->swap==NULL) seq->ConvertBases();
-	// }
+	for(int i=0;i<sequences.size();i++){
+		Sequence *seq=sequences[i];
+		if(seq->swap==NULL) seq->ConvertBases();
+	}
   
 }
 
@@ -3676,9 +3704,8 @@ void WorkingBuffer::ComputeAAP2( const char *seqi, int size )
 		aap_list[aap_begin[c22]+taap[c22]++] =j1;
 	}
 }
-
 void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options )
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options)
 {
 	if (seq->state & IS_REDUNDANT) return;
 	int frag_size = options.frag_size;
@@ -3687,6 +3714,50 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
 	int len_bound = upper_bound_length_rep(len, options);
 	param.len_upper_bound = len_bound;
 	int flag = CheckOne( seq, table, param, buffer, options );
+
+	if( flag == 0 ){
+		if ((seq->identity>0) && (options.cluster_best)) {
+			// because of the -g option, this seq is similar to seqs in old SEGs
+			seq->state |= IS_REDUNDANT ;
+			seq->Clear();
+		} else {                  // else add to NR90 db
+			int aan_no = len - NAA + 1;
+			int size = rep_seqs.size();
+			rep_seqs.Append( id );
+			seq->cluster_id = size;
+			seq->identity = 0;
+			seq->state |= IS_REP;
+			if (frag_size){ /* not used for EST */
+				int frg1 = (len - NAA ) / frag_size + 1;
+				table.AddWordCountsFrag( aan_no, buffer.word_encodes_backup, 
+						buffer.word_encodes_no, frg1, frag_size );
+			}else{
+				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
+			}
+			table.sequences.Append( seq );
+			if( frag_size ){
+				while( table.sequences.size() < table.frag_count )
+					table.sequences.Append( seq );
+			}
+		}
+	}
+	if ( (id+1) % 1000 == 0 ) {
+		int size = rep_seqs.size();
+		printf( "." );
+		fflush( stdout );
+		if ( (id+1) % 10000 == 0 ) printf( "\r..........%9i  finished  %9i  clusters\n", id+1, size );
+	}
+}
+void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,int my_rank )
+{
+	if (seq->state & IS_REDUNDANT) return;
+	int frag_size = options.frag_size;
+	int NAA = options.NAA;
+	int len = seq->size;
+	int len_bound = upper_bound_length_rep(len, options);
+	param.len_upper_bound = len_bound;
+	int flag = CheckOne( seq, table, param, buffer, options,my_rank );
 
 	if( flag == 0 ){
 		if ((seq->identity>0) && (options.cluster_best)) {
@@ -3893,7 +3964,7 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 		int index = i;
 		// cerr<<"suffix_buf[index]  "<<suffix_buf[index]<<"start_id   "<<start_id<<endl;
 		Sequence* seq = rep_sequences[suffix_buf[index]-start_id];
-		if (seq->swap == NULL) seq->ConvertBases();
+		// if (seq->swap == NULL) seq->ConvertBases();
 		// if(i==100)
 		// cerr<<"rep name   "<<seq->identifier<<endl;
 		// Sequence* seq = sequences[suffix_buf[index]];
@@ -3942,7 +4013,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	int frag_size = options.frag_size;
 	int len, len_bound;
 	int flag;
-	
+	// cerr<<"frag_no    "<<frag_no<<endl;
+	// cerr<<"max_len   "<<max_len<<endl;
 	if (frag_size) {
 		frag_no = 0;
 		if (master) {
@@ -4114,10 +4186,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			vector<MPI_Request> requests(rank_size-1,0);
 			vector<int> done_flags(rank_size-1,0);
 				if(i>0)
-				// for (int ii = 0; ii < rank_size - 1; ++ii)
-				// {
-				// 	MPI_Irecv(&done_flags[ii], 1, MPI_INT, ii + 1, 0, MPI_COMM_WORLD, &requests[ii]);
-				// }
+				for (int ii = 0; ii < rank_size - 1; ++ii)
+				{
+					MPI_Irecv(&done_flags[ii], 1, MPI_INT, ii + 1, 0, MPI_COMM_WORLD, &requests[ii]);
+				}
 			
 			// if (i > 1) break;
 			cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
@@ -4136,7 +4208,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					int tid = omp_get_thread_num();
 
 					if (seq->state & IS_REDUNDANT) continue;
-					CheckOne(seq, last_table, params[tid], buffers[tid], options);
+					CheckOne(seq, last_table, params[tid], buffers[tid], options,my_rank);
 					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 				// cerr<<"over!!!!"<<endl;
@@ -4173,7 +4245,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				Sequence* seq = sequences[j];
 				if (options.store_disk) seq->SwapIn();
 				if (seq->state & IS_REDUNDANT) continue;
-				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+				ClusterOne(seq, j, word_table, params[0], buffers[0], options,my_rank);
 				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				
 				
@@ -4185,17 +4257,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				for (j = all_chunks[i].first;j < all_chunks[i].second;j++) {
 
 
-					// if(i>0&&i<chunks_size-1&&j%100==0){
+					if(i>0&&i<chunks_size-1&&j%100==0){
 
-					// 	for (int iii = 0; iii <rank_size-1 ; ++iii) {
-					// 		int flag = 0;
-					// 		MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
-					// 		if(flag){
-					// 			total_flag+=done_flags[iii];
-					// 			done_flags[iii]=0;
-					// 		}
-					// 	}
-					// }
+						for (int iii = 0; iii <rank_size-1 ; ++iii) {
+							int flag = 0;
+							MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
+							if(flag){
+								total_flag+=done_flags[iii];
+								done_flags[iii]=0;
+							}
+						}
+					}
 					if(total_flag==rank_size-1&&word_table.sequences.size()>=200)
 					// if(total_flag==rank_size-1&&word_table.sequences.size() >=100)
 					{
@@ -4209,7 +4281,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// if (seq->swap == NULL) seq->ConvertBases();
 				if (options.store_disk) seq->SwapIn();
 				if (seq->state & IS_REDUNDANT) continue;
-				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+				ClusterOne(seq, j, word_table, params[0], buffers[0], options,my_rank);
 				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 			}
 			cerr<<"word table size"<<word_table.sequences.size()<<endl;
@@ -4469,7 +4541,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								// cout<<one.index<<endl;
 								// cerr<<"seq  id "<<rep_sequences.size()<<endl;
 								rep_sequences.Append(new Sequence(one));
-								// if(rep_sequences[rep_sequences.size()-1]->swap==NULL)rep_sequences[rep_sequences.size()-1]->ConvertBases();
+								if(rep_sequences[rep_sequences.size()-1]->swap==NULL)rep_sequences[rep_sequences.size()-1]->ConvertBases();
 								if(read_stop==1){
 									read_stop=0;
 									break;
@@ -4518,6 +4590,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			// cerr<<"soure_chunk  "<<soure_chunk<<endl;
 			// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
+
 			prepare_to_decode(word_table, info_buf, cluster_id_buf, seqs_suffix_buf, indexCount_buf, prefix_buf, indexCount_buf_size);
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
@@ -4557,13 +4630,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					// if(j==1234)
 					// cerr<<"rep name  "<<seq->identifier<<endl;
 					if (options.store_disk) seq->SwapIn();
-					// if (seq->swap == NULL) seq->ConvertBases();
+				
 					if (seq->state & IS_REDUNDANT) continue;
 					int tid = omp_get_thread_num();
 
 					if (seq->state & IS_REDUNDANT) continue;
 					
-					CheckOne(seq, word_table, params[tid], buffers[tid], options);
+					CheckOne(seq, word_table, params[tid], buffers[tid], options,my_rank);
 					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 
@@ -4625,7 +4698,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			indexCount_buf = NULL;
 			 cerr<<"pass  "<<endl;
 			done_flag=1;
-			// MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD);  
+			MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD);  
 		}
 	}
 
@@ -4840,15 +4913,23 @@ void SequenceDB::DoClustering( int T, const Options & options )
 	word_table.Clear();
 }
 
+int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank )
+{
+	int len = seq->size;
+	// cerr<<seq->data<<endl;
+	param.len_upper_bound = upper_bound_length_rep(len, options);
+	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
+	return CheckOneAA( seq, table, param, buf, options ,my_rank);
+}
 int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options );
+	return CheckOneAA( seq, table, param, buf, options,1 );
 }
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank )
 {
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 	NVector<uint32_t> & indexMapping = buf.indexMapping;
@@ -4905,7 +4986,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	int M = frag_size ? table.frag_count : S;
-	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan);
+	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan, my_rank);
 
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
@@ -4930,6 +5011,8 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 		}
 
 		Sequence *rep = table.sequences[ ic->index ];
+		// if(my_rank==3)
+		// cerr<<"error   "<<rep->data<<endl;
 		len2 = rep->size;
 		if (len2 > len_upper_bound ) continue;
 		if (options.has2D && len2 < len_lower_bound ) continue;
@@ -4960,8 +5043,9 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			has_aa2 = 1;
 		}
 		seqj = rep->data; //NR_seq[NR90_idx[j]];
-
+		
 		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+
 		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
 				band_width1, band_left, band_center, band_right, required_aa1);
 		if ( best_sum < required_aa2 ) continue;
