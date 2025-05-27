@@ -261,7 +261,7 @@ class WordTable
 				Vector<INTs> & word_encodes_no, int frag, int frag_size );
 		int CountWords(int aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
 				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
-				bool est=false, int min=0);
+				bool est=false, int min=0,int my_rank=1);
 		void PrintAll();
 }; // END class INDEX_TBL
 struct Options
@@ -660,8 +660,10 @@ class SequenceDB
 		size_t MinimalMemory( int frag_no, int bsize, int T, const Options & options, size_t extra=0 );
 
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
-				WorkingParam & param, WorkingBuffer & buf, const Options & options );
+				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
 
+		void ClusterOne( Sequence *seq, int id, WordTable & table,
+				WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		//void SelfComparing( int start, int end, WordTable & table, 
 		//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
 
@@ -670,8 +672,9 @@ class SequenceDB
 		void DoClustering( int T, const Options & options );
 		void ClusterTo( SequenceDB & other, const Options & optioins );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
-		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
-		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
+		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
+		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
+		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
 };
 
 
