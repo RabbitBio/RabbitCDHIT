@@ -48,9 +48,10 @@
 #include <memory>
 #include <cassert>
 #include <cstring>
-#ifdef WITH_ZLIB
+#include"kseq.h"
+// #ifdef WITH_ZLIB
 #include<zlib.h>
-#endif
+// #endif
 
 #include<valarray>
 #include<vector>
@@ -98,7 +99,7 @@ typedef unsigned short UINT2;
 #endif
 
 using namespace std;
-
+KSEQ_INIT(gzFile, gzread)
 // the parent containter must guarantee continuous memory allocation.
 // std::valarray could be used instead of std::vector.
 template<class TYPE>
@@ -630,11 +631,11 @@ class SequenceDB
 		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
-		void read_sorted_files( int rank, vector<int>& chunks_id);
+		void read_sorted_files( int rank, int rank_size);
 		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
 		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index , size_t send_offset);
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index );
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
 							   long long *&prefix_buf, long long &indexCount_buf_size);
 		void decode_WordTable(WordTable &table, long *&info_buf,

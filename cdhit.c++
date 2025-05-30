@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 		//外部排序
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,50000);
-		// sleep(10);
+		sleep(10);
 	
 		MPI_Barrier(MPI_COMM_WORLD);
 
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 		
 
 		// sleep(10);
-		seq_db.read_sorted_files(rank,chunks_id);
+		seq_db.read_sorted_files(rank,size);
 		MPI_Barrier(MPI_COMM_WORLD);
 		
 
