@@ -2171,8 +2171,8 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	int option_l = options.min_length;
 	total_num = 0;
 	long long total_num_divede = 0;
-	string max_name="";
-	string min_name="";
+	string max_name = "";
+	string min_name = "";
 	total_letter = 0;
 	total_desc = 0;
 	max_len = 0;
@@ -2182,137 +2182,49 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	vector<size_t> all_lengths;
 	size_t current_chunk_size = 0;
 	mkdir("tmp_runs", 0755);
-	int f_len = strlen(file);
-	if (strcmp(file + f_len - 3, ".gz") == 0)
+	gzFile fp = gzopen(file, "r");
+	kseq_t *seq = kseq_init(fp);
+	int len;
+	// Sequence one;
+	string data;
+	string identifier;
+
+	while (true)
 	{
-		Readgz(file, options);
-		return;
-	}
-
-	Sequence one;
-	Sequence des;
-	FILE *fin = fopen(file, "rb");
-	char *buffer = nullptr;
-	char *res = nullptr;
-	if (fin == nullptr)
-		bomb_error("Failed to open the database file");
-	Clear();
-	buffer = new char[MAX_LINE_SIZE + 1];
-
-	while (!feof(fin) || one.size)
-	{
-		buffer[0] = '>';
-		if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr && one.size == 0)
-			break;
-
-		if (buffer[0] == '+' || buffer[0] == '@')
-		{
-			int len = strlen(buffer);
-			int len2 = len;
-			while (len2 && buffer[len2 - 1] != '\n')
-			{
-				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
-					break;
-				len2 = strlen(buffer);
-				len += len2;
-			}
-			one.tot_length += len;
-
-			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
-				bomb_error("Cannot read quality score after + line");
-
-			len = strlen(buffer);
-			len2 = len;
-			while (len2 && buffer[len2 - 1] != '\n')
-			{
-				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
-					break;
-				len2 = strlen(buffer);
-				len += len2;
-			}
-			one.tot_length += len;
+		len = kseq_read(seq);
+		if (len < 0) break;
+		if (len <= option_l) continue;
+		total_num++;
+		data = seq->seq.s;
+		identifier = seq->name.s;
+		if (options.trim_len > 0){
+			if (options.trim_len >= len) return;
+    		len = options.trim_len;
+    		if (len) data[len]=0;
 		}
-		else if (buffer[0] == '>' || buffer[0] == '@' || (res == nullptr && one.size))
+		current_chunk.emplace_back(identifier, data);
+		total_letter += len;
+		total_desc += seq->name.l;
+		all_lengths.push_back(len);
+		if (len > max_len)
 		{
-			if (one.size)
-			{
-				if (one.identifier == nullptr || one.Format())
-				{
-					printf("Warning: from file \"%s\",\n", file);
-					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-					if (one.identifier)
-						printf("%s\n", one.identifier);
-					printf("%s\n", one.data);
-					one.size = 0;
-				}
-
-				if (one.size > option_l)
-				{
-					total_num++;
-					// std::cout << std::string(one.identifier) << std::endl;
-					// std::cout <<one.data << std::endl;
-					current_chunk.emplace_back(std::string(one.identifier), one.data);
-					total_letter += one.size;
-					total_desc += std::string(one.identifier).size();
-					all_lengths.push_back(one.size);
-					if (one.size > max_len){
-						max_len = one.size;
-						max_name=one.identifier;
-					}
-						
-					
-					if (one.size < min_len){
-						min_len = one.size;
-						min_name=one.identifier;
-					}
-						
-					current_chunk_size += std::string(one.identifier).size() + one.size;
-					if (current_chunk_size >= chunk_size_bytes)
-					{
-						total_num_divede += current_chunk.size();
-						chunks.push_back(std::move(current_chunk));
-						current_chunk.clear();
-						current_chunk_size = 0;
-					}
-				}
-			}
-
-			one.size = 0;
-			one.tot_length = 0;
-
-			int len = strlen(buffer);
-			int len2 = len;
-			des.size = 0;
-			des += buffer;
-			while (len2 && buffer[len2 - 1] != '\n')
-			{
-				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
-					break;
-				des += buffer;
-				len2 = strlen(buffer);
-				len += len2;
-			}
-
-			size_t offset = ftell(fin);
-			one.des_begin = offset - len;
-			one.tot_length += len;
-
-			int i = 0;
-			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+')
-				i++;
-			if (des.data[i] == ' ' || des.data[i] == '\t')
-				i++;
-			if (options.des_len && options.des_len < des.size)
-				des.size = options.des_len;
-			while (i < des.size && !isspace(des.data[i]))
-				i++;
-			des.data[i] = 0;
-			one.identifier = des.data;
+			max_len = len;
+			max_name = identifier;
 		}
-		else
+
+		if (len < min_len)
 		{
-			one.tot_length += strlen(buffer);
-			one += buffer;
+			min_len = len;
+			min_name = identifier;
+		}
+
+		current_chunk_size += seq->name.l + len;
+		if (current_chunk_size >= chunk_size_bytes)
+		{
+			total_num_divede += current_chunk.size();
+			chunks.push_back(std::move(current_chunk));
+			current_chunk.clear();
+			current_chunk_size = 0;
 		}
 	}
 	if (current_chunk_size > 0)
@@ -2322,9 +2234,8 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		current_chunk.clear();
 		current_chunk_size = 0;
 	}
-	one.identifier = nullptr;
-	delete[] buffer;
-	fclose(fin);
+	kseq_destroy(seq);
+	gzclose(fp);
 	options.max_entries = max_len * MAX_TABLE_SEQ;
 	if (max_len >= 65536 && sizeof(INTs) <= 2)
 		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
@@ -2348,18 +2259,17 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	std::cout << "total_num_divede: " << total_num_divede << std::endl;
 	std::cout << "Total number: " << total_num << std::endl;
 	std::cout << "N50 length: " << len_n50 << std::endl;
-	chunks_size=total_num/50000+1;
+	chunks_size = total_num / 50000 + 1;
 	// std::cout << "chunk_size: " << chunks_size<< std::endl;
 	run_files.resize(chunks.size());
 	long long chunk_total_num = 0;
-	
 
 #pragma omp parallel for schedule(dynamic)
 	for (int i = 0; i < (int)chunks.size(); ++i)
 	{
 		auto &chunk = chunks[i];
 		stable_sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
-			 { return a.second.size() > b.second.size(); });
+					{ return a.second.size() > b.second.size(); });
 		string run_file = "tmp_runs/run_" + to_string(i) + ".fa";
 		run_files[i] = run_file;
 
@@ -2371,11 +2281,11 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			chunk_total_num++;
 			if (p.first.back() != '\n')
 			{
-				fprintf(fout, "%s\n", p.first.c_str());
+				fprintf(fout, ">%s\n", p.first.c_str());
 			}
 			else
 			{
-				fprintf(fout, "%s", p.first.c_str());
+				fprintf(fout, ">%s", p.first.c_str());
 			}
 
 			if (!p.second.empty() && p.second.back() != '\n')
@@ -2389,7 +2299,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		}
 		fclose(fout);
 	}
-	// std::cout << "Total number: " << chunk_total_num << std::endl;
+	std::cout << "Total number: " << chunk_total_num << std::endl;
 }
 
 // 归并
@@ -2461,7 +2371,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		if (current_proc != -1)
 		{
 			auto &pf = proc_files[current_proc];
-			fprintf(pf.fp, "#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
+			// fprintf(pf.fp, "#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 			fflush(pf.fp);
 		}
 
@@ -2473,7 +2383,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		chunk_start_id = global_sequence_id;
 
 		auto &pf = proc_files[current_proc];
-		fprintf(pf.fp, "#CHUNK_START ID=%zu START_ID=%lld\n", global_chunk_id, chunk_start_id);
+		// fprintf(pf.fp, "#CHUNK_START ID=%zu START_ID=%lld\n", global_chunk_id, chunk_start_id);
 	};
 
 	rotate_chunk();
@@ -2511,11 +2421,11 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	{
 
 		auto &pf = proc_files[current_proc];
-		fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
+		// fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 		fflush(pf.fp);
 	}
 	total_chunk = global_chunk_id;
-	cerr << "total_chunk" << global_chunk_id + 1 << endl;
+	// cerr << "total_chunk" << global_chunk_id + 1 << endl;
 
 	for (auto &pf : proc_files)
 		fclose(pf.fp);
@@ -2531,124 +2441,76 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+	// exit(0);
 }
 
-void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
-
+void SequenceDB::read_sorted_files( int rank, int rank_size) {
 
 
 	int file_index = rank;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-	Sequence one;
-    Sequence des;
+	// Sequence one;
+    // Sequence des;
    
 	std::string file = std::string("output/") + "_proc" + std::to_string(rank - 1) + ".fa";
-	FILE* fin = fopen(file.c_str(), "rb");
+	// FILE* fin = fopen(file.c_str(), "rb");
 
-	char* buffer = NULL;
-    char* res = NULL;
-    if (fin == NULL) bomb_error("Failed to open the database file");
+	// char* buffer = NULL;
+    // char* res = NULL;
+    // if (fin == NULL) bomb_error("Failed to open the database file");
 
-    buffer = new char[MAX_LINE_SIZE + 1];
-
-    int chunk_id = 0;
-	int start_id = -1;
-	int global_id=0;
-	int end_id = -1;
-	int record=0;
-    while (not feof(fin) || one.size) { 
-		if(global_id==end_id)
-		global_id=start_id;
-        buffer[0] = '>';
-
-   
-        if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-            break;
+    // buffer = new char[MAX_LINE_SIZE + 1];
 
   
-        if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
-            
-            
-            sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-            if(global_id==0){
-				global_id=start_id;
-			}
-         
-            all_chunks.push_back(make_pair(start_id, -1));  
-			if(!my_chunks.empty()){
-				my_chunks.push_back(make_pair(sequences.size()+1, -1));
-			}
-			else
-			my_chunks.push_back(make_pair(sequences.size(), -1));
-     
-            chunks_id.push_back(chunk_id);
-        } 
-        else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
-          
-            sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-            end_id=start_id+record;
-        
-            if (!all_chunks.empty()) {
-               all_chunks.back().second = end_id; 
-			   my_chunks.back().second=sequences.size();
-            }
-        }
-        else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
-            if (one.size) { 
-                if (one.identifier == NULL || one.Format()) {
-					printf("Warning: from file \"%s\",\n", file.c_str());
-                    printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-                    if (one.identifier) printf("%s\n", one.identifier);
-                    printf("%s\n", one.data);
-                    one.size = 0;
-                }
-				one.index = global_id;
-				// cout<<one.index<<endl;
-				// cerr<<"seq  id "<<sequences.size()<<endl;
-                sequences.Append(new Sequence(one));
-				// if(rank==1)
-				// cerr<<sequences[sequences.size()-1]->size<<endl;
-				// if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
-                global_id++;
-			
-            }
-            one.size = 0;
-            one.tot_length = 0;
+	// int start_id = -1;
+	//这里后面传入参数
+	int global_id = (rank-1)*50000;
+	int start_global_id=global_id;
+	int start_my_id=sequences.size();
+	int chunk_id = (rank-1);
+	// int end_id = -1;
+	// int record=0;
+	gzFile fp = gzopen(file.c_str(), "r");
+	kseq_t* seq = kseq_init(fp);
+	int len;
+	Sequence one;
+	while ((len = kseq_read(seq)) >= 0) {
+		one.identifier = strdup(seq->name.s);
+		// cout << seq->name.s << endl;
+		one.data = strdup(seq->seq.s);
+		one.size = len;
+		one.tot_length = len + seq->name.l;
+		one.index = global_id;
+		sequences.Append(new Sequence(one));
+		global_id++;
+		if(sequences.size()%50000==0){
+			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
+			chunks_id.push_back(chunk_id);
+			all_chunks.push_back(make_pair(start_global_id,global_id ));
+			chunk_id=(rank_size-1)+chunk_id;
+			global_id=(global_id-50000)+(rank_size-1)*50000;
+			start_global_id=global_id;
+			start_my_id=sequences.size();
 
-            int len = strlen(buffer);
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while (len2 && buffer[len2 - 1] != '\n') {
-                des += buffer;
-                len2 = strlen(buffer);
-                len += len2;
-            }
-            size_t offset = ftell(fin);
-            one.des_begin = offset - len;
-            one.tot_length += len;              
-
-            int i = 0;
-            if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
-            if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
-            while (i < des.size and !isspace(des.data[i])) i += 1;
-            des.data[i] = 0;
-            one.identifier = des.data;
-        }
-        else {
-            one.tot_length += strlen(buffer);  
-            one += buffer;
-        }
-    }
-	// if(rank==1)
+		}
+		
+	}
+	if(sequences.size()%50000!=0){
+		my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
+		chunks_id.push_back(chunk_id);
+		all_chunks.push_back(make_pair(start_global_id,global_id ));
+	}
+		kseq_destroy(seq);
+	gzclose(fp);
+	// if(rank==3)
 	// for(int i=0;i< chunks_id.size();i++){
 	// 	cerr<<chunks_id[i]<<endl;
-	// 	// cerr<<"all start   "<<all_chunks[i].first<<endl;
-	// 	// cerr<<"all  end   "<<all_chunks[i].second<<endl;
-	// 	// cerr<<"my start   "<<my_chunks[i].first<<endl;
-	// 	// cerr<<"my  end   "<<my_chunks[i].second<<endl;
+	// 	cerr<<"all start   "<<all_chunks[i].first<<endl;
+	// 	cerr<<"all  end   "<<all_chunks[i].second<<endl;
+	// 	cerr<<"my start   "<<my_chunks[i].first<<endl;
+	// 	cerr<<"my  end   "<<my_chunks[i].second<<endl;
 	// 	// cerr<<sequences[my_chunks[i].first]->identifier<<endl;
 	// 	// cerr<<sequences[my_chunks[i].first]->index<<endl;
 	// 	// cerr<<sequences[my_chunks[i].second]->identifier<<endl;
@@ -2661,9 +2523,9 @@ void SequenceDB::read_sorted_files( int rank, vector<int>& chunks_id) {
 
 	// }
 
-	one.identifier = NULL;
-    delete[] buffer;
-    fclose(fin);
+	// one.identifier = NULL;
+    // delete[] buffer;
+    // fclose(fin);
 	for(int i=0;i<sequences.size();i++){
 		Sequence *seq=sequences[i];
 		if(seq->swap==NULL) seq->ConvertBases();
@@ -3870,13 +3732,13 @@ void Options::ComputeTableLimits( int min_len, int max_len, int typical_len, siz
 }
 void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_id, int start, int end,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size ,int send_file_index , size_t send_offset)
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size ,int send_file_index)
 {
 	int T = options.threads;
 	int len = end - start;
 
 	// Ready to expand
-	info_buf = (long*)malloc(7 * sizeof(long));
+	info_buf = (long*)malloc(6 * sizeof(long));
 	info_buf[0] = chunk_id;
 	info_buf[1] = len;
 	// cerr<<"len  "<<info_buf[1]<<endl;
@@ -3899,7 +3761,6 @@ void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_i
 	info_buf[3] = (indexCount_buf_size >> 32) & 0xFFFFFFFF;
 	info_buf[4] = indexCount_buf_size & 0xFFFFFFFF;
 	info_buf[5] = send_file_index;
-	info_buf[6] = send_offset;
 	//cout << info_buf[3] << " " << info_buf[4] << endl;
 
 	prefix_buf = (long long*)malloc(prefix_size * sizeof(long long));
@@ -4072,113 +3933,57 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			exit(0);
 		}
 		int file_index=0;
-		vector<size_t>chunk_offset(rank_size-1,0);
+		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
+		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int chunk_id = 0;
 		int start_id = -1;
 		int end_id = -1;
 		int record=0;
+		int len=0;
 		int remaining=0;
 		int target_worker = 1;
+		int start_global_id=sequences.size();
 		bool read_stop=0;
 		int send_file_index=0;
-		size_t send_offset=0;
+		kseq_t* seq = nullptr;
 		Clear();
 		Sequence one;
-		Sequence des;
 		std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-		FILE* fin = fopen(file.c_str(), "rb");
-		char* buffer = NULL;
-		char* res = NULL;
-		if (fin == NULL) bomb_error("Failed to open the database file");
-
+		
 		send_file_index=file_index;
-		send_offset=chunk_offset[file_index];
-		fseek(fin, chunk_offset[file_index], SEEK_SET);
-			buffer = new char[MAX_LINE_SIZE + 1];
-			while (not feof(fin) || one.size) { 
-				buffer[0] = '>';
-		
-			
-				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-					break;
-			
-				if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
-					
-					if(read_stop==1)continue;
-					sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-			
-					all_chunks.push_back(make_pair(start_id, -1));  
-					
-					chunks_id.push_back(chunk_id);
-				} 
-				 else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
-				
-					sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-					end_id=start_id+record;
-					read_stop=1;
-					chunk_offset[file_index] = ftell(fin);
-					if (!all_chunks.empty()) {
-						all_chunks.back().second = end_id;  
-					}
-				}
-				else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
-					if (one.size) { 
-						if (one.identifier == NULL || one.Format()) {
-							printf("Warning: from file \"%s\",\n", file.c_str());
-							printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-							if (one.identifier) printf("%s\n", one.identifier);
-							printf("%s\n", one.data);
-							one.size = 0;
-						}
-						one.index = sequences.size();
-						// cout<<one.index<<endl;
-						// cerr<<"seq  id "<<sequences.size()<<endl;
-					
-						sequences.Append(new Sequence(one));
-						if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
-						if(read_stop==1){
-							read_stop=0;
-							break;
-						}
-						
-					
-					}
-					one.size = 0;
-					one.tot_length = 0;
-		
-					int len = strlen(buffer);
-					int len2 = len;
-					des.size = 0;
-					des += buffer;
-					while (len2 && buffer[len2 - 1] != '\n') {
-						des += buffer;
-						len2 = strlen(buffer);
-						len += len2;
-					}
-					size_t offset = ftell(fin);
-					one.des_begin = offset - len;
-					one.tot_length += len;              // count first line
-		
-					int i = 0;
-					if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
-					if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
-					while (i < des.size and !isspace(des.data[i])) i += 1;
-					des.data[i] = 0;
-					one.identifier = des.data;
-				}
-				else {
-					one.tot_length += strlen(buffer);  
-					one += buffer;
-				}
+		if (chunk_kseq[file_index] == nullptr)
+		{
+			gzFile fp = gzopen(file.c_str(), "r");
+			if (!fp)
+			{
+				fprintf(stderr, "Cannot open file: %s\n", file.c_str());
+				exit(1);
 			}
-	
-			one.identifier = NULL;
-			delete[] buffer;
-			
-			file_index=(file_index+1)%(rank_size-1);
-			fclose(fin);
+			chunk_fp[file_index] = fp;
+			seq = kseq_init(fp);
 
-			// cerr<<"origin chunks size "<<all_chunks.size()<<endl;
+		}
+		else seq=chunk_kseq[file_index];
+		while ((len = kseq_read(seq)) >= 0) {
+		one.identifier = strdup(seq->name.s);
+		// cout << seq->name.s << endl;
+		one.data = strdup(seq->seq.s);
+		one.size = len;
+		one.tot_length = len + seq->name.l;
+		one.index = sequences.size();
+		sequences.Append(new Sequence(one));
+		if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
+		if(sequences.size()%50000==0){
+			chunks_id.push_back(chunk_id);
+			all_chunks.push_back(make_pair(start_global_id,sequences.size()));
+			chunk_id++;
+			start_global_id=sequences.size();
+			chunk_kseq[file_index] =seq;
+			break;
+		}
+		
+	}
+	file_index=(file_index+1)%(rank_size-1);
 		for (i = 0;i < chunks_size;i++) {
 			int total_flag=0;
 			// cerr<<"remaining   "<<remaining<<endl;
@@ -4296,7 +4101,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 			encode_WordTable(word_table, info_buf, i,
 				start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
-				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size,send_file_index,send_offset);
+				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size,send_file_index);
 				
 			if (i == total_chunk) {
 				info_buf[1]=0;
@@ -4314,103 +4119,55 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			if (i == chunks_size- 1) {
 				break;
 			}
-			if(!remaining){
+			if (!remaining)
+			{
 				// cerr<<"gogogog!"<<endl;
 				Sequence one;
-				Sequence des;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-				// cerr<<"file_index      "<<file_index<<endl;
-				FILE* fin = fopen(file.c_str(), "rb");
-				char* buffer = NULL;
-				char* res = NULL;
-				if (fin == NULL) bomb_error("Failed to open the database file");
-				send_file_index=file_index;
-				send_offset=chunk_offset[file_index];
-				fseek(fin, chunk_offset[file_index], SEEK_SET);
-					buffer = new char[MAX_LINE_SIZE + 1];
-					while (not feof(fin) || one.size) { 
-						buffer[0] = '>';
-				
-					
-						if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-							break;
-					
-						if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
-						
-							if(read_stop==1)continue;
-							sscanf(buffer, "#CHUNK_START ID=%d START_ID=%d", &chunk_id, &start_id);
-							
-							all_chunks.push_back(make_pair(start_id, -1)); 
-							
-							
-							chunks_id.push_back(chunk_id);
-						} 
-						else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
-						
-							sscanf(buffer, "#CHUNK_END ID=%d RECORDS=%d", &chunk_id, &record);
-							end_id=start_id+record;
-							read_stop=1;
-							chunk_offset[file_index] = ftell(fin);
-							if (!all_chunks.empty()) {
-								all_chunks.back().second = end_id;
-								// cerr<<" chunks size "<<all_chunks.size()<<endl;  // 最后一个 chunk 的结束 ID
-							}
-						}
-						else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
-							if (one.size) { // write previous record
-								if (one.identifier == NULL || one.Format()) {
-									printf("Warning: from file \"%s\",\n", file.c_str());
-									printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-									if (one.identifier) printf("%s\n", one.identifier);
-									printf("%s\n", one.data);
-									one.size = 0;
-								}
-								one.index = sequences.size();
-								// cout<<one.index<<endl;
-								// cerr<<"seq  id "<<sequences.size()<<endl;
-								sequences.Append(new Sequence(one));
-								if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
-								if(read_stop==1){
-									read_stop=0;
-									break;
-								}
-								
-							
-							}
-							one.size = 0;
-							one.tot_length = 0;
-				
-							int len = strlen(buffer);
-							int len2 = len;
-							des.size = 0;
-							des += buffer;
-							while (len2 && buffer[len2 - 1] != '\n') {
-								des += buffer;
-								len2 = strlen(buffer);
-								len += len2;
-							}
-							size_t offset = ftell(fin);
-							one.des_begin = offset - len;
-							one.tot_length += len;              // count first line
-				
-							int i = 0;
-							if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
-							if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
-							while (i < des.size and !isspace(des.data[i])) i += 1;
-							des.data[i] = 0;
-							one.identifier = des.data;
-						}
-						else {
-							one.tot_length += strlen(buffer);  
-							one += buffer;
-						}
+				cerr << "master  file_index      " << file_index << endl;
+				// FILE* fin = fopen(file.c_str(), "rb");
+				send_file_index = file_index;
+				if (chunk_kseq[file_index] == nullptr)
+				{
+					gzFile fp = gzopen(file.c_str(), "r");
+					if (!fp)
+					{
+						fprintf(stderr, "Cannot open file: %s\n", file.c_str());
+						exit(1);
 					}
-			
-					one.identifier = NULL;
-					delete[] buffer;
+					chunk_fp[file_index] = fp;
+					seq = kseq_init(fp);
+				}
+				else
+					seq = chunk_kseq[file_index];
+				while ((len = kseq_read(seq)) >= 0)
+				{
+					one.identifier = strdup(seq->name.s);
+					// cout << seq->name.s << endl;
+					one.data = strdup(seq->seq.s);
+					one.size = len;
+					one.tot_length = len + seq->name.l;
+					one.index = sequences.size();
+					sequences.Append(new Sequence(one));
+					if (sequences[sequences.size() - 1]->swap == NULL)
+						sequences[sequences.size() - 1]->ConvertBases();
+					if (sequences.size() % 50000 == 0)
+					{	
+						chunks_id.push_back(chunk_id);
+						all_chunks.push_back(make_pair(start_global_id, sequences.size()));
+						chunk_id++;
+						start_global_id = sequences.size();
+						chunk_kseq[file_index] =seq;
+						break;
+					}
+				}
+				if (sequences.size() % 50000 != 0)
+				{	cerr<<"last seq    "<<sequences[sequences.size()-1]->identifier<<endl;
+					chunks_id.push_back(chunk_id);
+					all_chunks.push_back(make_pair(start_global_id, sequences.size()));
+				}
+				file_index = (file_index + 1) % (rank_size - 1);
 				
-					file_index=(file_index+1)%(rank_size-1);
-					fclose(fin);
 					int continue_size=0;
 				int size = all_chunks[i + 1].second - all_chunks[i + 1].first;
 				cerr<<"chunks size"<<all_chunks.size()<<endl;
@@ -4464,20 +4221,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
 		
-
-			// int test=0;
-			// if(i==0)continue;
-			// MPI_Request request;
-			// MPI_Irecv(&test, 1, MPI_INT, 1, 0, MPI_COMM_WORLD,  &request);
-			// if(test==1){
-			// 	cerr<<"i    "<<i<<endl;
-			// 	cerr<<"Stop    "<<endl;
-			// }
 		}
+		for (int i = 0; i < rank_size - 1; i++) {
+    if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
+    if (chunk_fp[i]) gzclose(chunk_fp[i]);
+}
 	}
 	if (worker) {
 		vector<int>read_chunk(chunks_size,0);
-		
+		kseq_t* seq = nullptr;
+		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
+		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int start = 0;
 		// cerr<<"my_rank   "<<my_rank<<endl;
 		if(my_rank==1) start=1;
@@ -4491,102 +4245,54 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			
 			MPI_Barrier(MPI_COMM_WORLD);
 			int done_flag=0;
-			info_buf = (long*)malloc(7 * sizeof(long));
+			info_buf = (long*)malloc(6 * sizeof(long));
 
-			MPI_Bcast((void*)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void*)info_buf, 6, MPI_LONG, source, MPI_COMM_WORLD);
 			int soure_chunk = info_buf[0];
 			int file_index=info_buf[5];
-			size_t offset=info_buf[6];
-			if(read_chunk[soure_chunk]==0){
+			start_id=soure_chunk*50000;
+			if (read_chunk[soure_chunk] == 0)
+			{
 				int id;
-				for(int i=0; i<rep_sequences.size(); i++) delete rep_sequences[i];
-				rep_sequences.clear(); 
+				for (int i = 0; i < rep_sequences.size(); i++)
+					delete rep_sequences[i];
+				rep_sequences.clear();
 				Sequence one;
-				Sequence des;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-				cerr<<"file_index      "<<file_index<<endl;
-				FILE* fin = fopen(file.c_str(), "rb");
-				char* buffer = NULL;
-				char* res = NULL;
-				if (fin == NULL) bomb_error("Failed to open the database file");
-				fseek(fin, offset, SEEK_SET);
-					buffer = new char[MAX_LINE_SIZE + 1];
-					while (not feof(fin) || one.size) { 
-						buffer[0] = '>';
-				
-						
-						if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0)
-							break;
-					
-						if (strncmp(buffer, "#CHUNK_START", 12) == 0) {
-							
-							if(read_stop==1)continue;
-							sscanf(buffer, "#CHUNK_START ID=%d START_ID=%ld", &id, &start_id);
-				
-							
-						} 
-						else if (strncmp(buffer, "#CHUNK_END", 10) == 0) {
-							read_stop=1;
-						}
-						else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
-							if (one.size) { // write previous record
-								if (one.identifier == NULL || one.Format()) {
-									printf("Warning: from file \"%s\",\n", file.c_str());
-									printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-									if (one.identifier) printf("%s\n", one.identifier);
-									printf("%s\n", one.data);
-									one.size = 0;
-								}
-								one.index = rep_sequences.size();
-								// cout<<one.index<<endl;
-								// cerr<<"seq  id "<<rep_sequences.size()<<endl;
-								rep_sequences.Append(new Sequence(one));
-								if(rep_sequences[rep_sequences.size()-1]->swap==NULL)rep_sequences[rep_sequences.size()-1]->ConvertBases();
-								if(read_stop==1){
-									read_stop=0;
-									break;
-								}
-								
-							
-							}
-							one.size = 0;
-							one.tot_length = 0;
-				
-							int len = strlen(buffer);
-							int len2 = len;
-							des.size = 0;
-							des += buffer;
-							while (len2 && buffer[len2 - 1] != '\n') {
-								des += buffer;
-								len2 = strlen(buffer);
-								len += len2;
-							}
-							size_t offset = ftell(fin);
-							one.des_begin = offset - len;
-							one.tot_length += len;              // count first line
-				
-							int i = 0;
-							if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
-							if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
-							while (i < des.size and !isspace(des.data[i])) i += 1;
-							des.data[i] = 0;
-							one.identifier = des.data;
-						}
-						else {
-							one.tot_length += strlen(buffer);  
-							one += buffer;
-						}
+				cerr << "file_index      " << file_index << endl;
+				if (chunk_kseq[file_index] == nullptr)
+				{
+					gzFile fp = gzopen(file.c_str(), "r");
+					if (!fp)
+					{
+						fprintf(stderr, "Cannot open file: %s\n", file.c_str());
+						exit(1);
 					}
-				
-					one.identifier = NULL;
-					delete[] buffer;
-					fclose(fin);
-					read_chunk[soure_chunk]=1;
-					// for(int i=0;i<rep_sequences.size();i++){
-					// 	Sequence* seq = rep_sequences[i];
-					// 		if (seq->swap == NULL) seq->ConvertBases();
-						
-					// }
+					chunk_fp[file_index] = fp;
+					seq = kseq_init(fp);
+				}
+				else
+					seq = chunk_kseq[file_index];
+				while ((len = kseq_read(seq)) >= 0)
+				{
+					one.identifier = strdup(seq->name.s);
+					// cout << seq->name.s << endl;
+					one.data = strdup(seq->seq.s);
+					one.size = len;
+					one.tot_length = len + seq->name.l;
+					one.index = rep_sequences.size();
+					rep_sequences.Append(new Sequence(one));
+					if (rep_sequences[rep_sequences.size() - 1]->swap == NULL)
+						rep_sequences[rep_sequences.size() - 1]->ConvertBases();
+					if (rep_sequences.size() % 50000 == 0)
+					{
+						chunk_kseq[file_index] =seq;
+						break;
+					}
+					
+
+				}
+				read_chunk[soure_chunk]=1;
 			}
 			// cerr<<"soure_chunk  "<<soure_chunk<<endl;
 			// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
@@ -4700,6 +4406,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			done_flag=1;
 			MPI_Send(&done_flag, 1, MPI_INT, 0,0, MPI_COMM_WORLD);  
 		}
+		for (int i = 0; i < rank_size - 1; i++) {
+    if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
+    if (chunk_fp[i]) gzclose(chunk_fp[i]);
+}
 	}
 
 	// if (master) {
