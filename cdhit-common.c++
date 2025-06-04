@@ -2033,7 +2033,23 @@ void SequenceDB::ReadExternalSorting(const char* file, const Options& options, i
 	return;
 }
 
-void SequenceDB::MergeExternalSorting(const Options& options) {
+void SequenceDB::MergeExternalSorting(const int first_size,const int upper_size ,const Options& options) {
+	int my_rank, rank_size;
+	MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
+	int worker_size = rank_size - 1;
+
+	int m = first_size;
+	int node_chunks = 0, chunk_size = 0;
+	node_chunks = (total_seqs - m) / (worker_size * upper_size) + 1;
+	if ((total_seqs - m) % (worker_size * node_chunks))
+		chunk_size = (total_seqs - m) / (worker_size * node_chunks) + 1;
+	else chunk_size = (total_seqs - m) / (worker_size * node_chunks);
+
+	// Modify: 将在DoClustering中的frag_no 的计算放入此处进行计算
+	frag_nums = total_seqs;
+	if (options.frag_size) frag_nums = 0;
+
 	struct FileStream {
 		gzFile fp;
 		kseq_t* kseq;
@@ -2089,12 +2105,15 @@ void SequenceDB::MergeExternalSorting(const Options& options) {
 	}
 
 	ofstream out("tempfiles/all.fa");
-	if (!out)
+	if(!out)
 		throw runtime_error("Cannot open output file: tempfiles/all.fa");
 	while (!heap.empty()) {
 		FileStream* top = heap.top();
 		heap.pop();
 		out << ">" << top->name << "\n" << top->seq << "\n";
+		if (options.frag_size) {
+			frag_nums += (top->length - options.NAA) / options.frag_size + 1;
+		}
 		if (top->readNext()) {
 			heap.push(top);
 		}
@@ -2105,6 +2124,22 @@ void SequenceDB::MergeExternalSorting(const Options& options) {
 	return;
 }
 
+bool SequenceDB::checkRepSeqs() {
+	int n = rep_seqs.size();
+	ofstream out("tempfiles/check_rep_seq.log");
+	if(!out)
+		throw runtime_error("Cannot open output file: tempfiles/check_rep_seq.log");
+	for (int i = 0;i < n;i++) {
+		int index = rep_seqs[i];
+		
+		out << "id " << index << " ";
+		out << sequences[index]->state << " ";
+		out << sequences[index]->cluster_id << " ";
+		out << "\n";
+	}
+	out.close();
+	return true;
+}
 
 // by liwz
 // disable swap option
@@ -2782,6 +2817,23 @@ void SequenceDB::WriteClustersgz(const char* db, const char* newdb, const Option
 
 }
 
+void SequenceDB::WriteClustersSort(const char* input, const char* output, const Options& options) {
+	ofstream fout(output);
+	int i, j, n = rep_seqs.size();
+	int count, rest;
+	char* buf = new char[MAX_LINE_SIZE + 1];
+	vector<uint64_t> sorting(n);
+	if (!fout)
+		throw runtime_error("Cannot open output file");
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[rep_seqs[i]];
+		fout << ">" <<seq->identifier << "\n";
+		// fout << seq->data << "\n";
+	}
+	fout.close();
+	return;
+}
+
 void SequenceDB::WriteClusters(const char* db, const char* newdb, const Options& options)
 {
 	int f_len = strlen(db);
@@ -3026,6 +3078,61 @@ void SequenceDB::WriteClusters(const char* db, const char* db_pe, const char* ne
 	fclose(fout);
 	fclose(fin_pe);
 	fclose(fout_pe);
+	delete[]buf;
+}
+
+void SequenceDB::WriteClusterDetail(const Options& options) {
+	string output = options.output + ".clstr";
+	string db_clstr_bak = options.output + ".bak.clstr";
+	int i, i0, k, N = total_seqs;
+	FILE* fout;
+	char* buf = new char[MAX_DES + 1];
+
+	if (options.backupFile) {
+		fout = fopen(db_clstr_bak.c_str(), "w+");
+		for (i = 0; i < N; i++) {
+			Sequence* seq = sequences[i];
+			seq->PrintInfo(seq->cluster_id, fout, options, buf);
+		}
+		fclose(fout);
+	}
+
+	cout << "writing clustering information" << endl;
+	int rep_size = rep_seqs.size();
+	vector<vector<int>> clusters(rep_size);
+	for (int i = 0;i < total_seqs;i++) {
+		int id = sequences[i]->cluster_id;
+		clusters[id].push_back(i);
+	}
+	fout = fopen(output.c_str(), "w+");
+
+
+	if (options.sort_output) {
+		int* clstr_size = new int[rep_size];
+		int* clstr_idx1 = new int[rep_size];
+
+		for (i = 0; i < rep_size; i++) {
+			clstr_size[i] = (int)clusters[i].size();
+			clstr_idx1[i] = i;
+		}
+		quick_sort_idxr(clstr_size, clstr_idx1, 0, rep_size - 1);
+
+		for (i = 0; i < rep_size; i++) {
+			i0 = clstr_idx1[i];
+			fprintf(fout, ">Cluster %i\n", i);
+			for (k = 0; k < (int)clusters[i0].size(); k++)
+				sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
+		}
+	}
+	else {
+		for (i = 0; i < rep_size; i++) {
+			fprintf(fout, ">Cluster %i\n", i);
+			for (k = 0; k < (int)clusters[i].size(); k++)
+				sequences[clusters[i][k]]->PrintInfo(k, fout, options, buf);
+		}
+
+	}
+
 	delete[]buf;
 }
 
@@ -3675,20 +3782,22 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	double aa1_cutoff = options.cluster_thd;
 	double aas_cutoff = 1 - (1 - options.cluster_thd) * 4;
 	double aan_cutoff = 1 - (1 - options.cluster_thd) * options.NAA;
-	int seq_no = sequences.size();
-	int frag_no = seq_no;
+	int seq_no = total_seqs;
+	int frag_no = frag_nums;
 	int frag_size = options.frag_size;
 	int len, len_bound;
 	int flag;
-	if (frag_size) {
-		frag_no = 0;
-		if (master) {
-			for (i = 0; i < seq_no; i++)
-				frag_no += (sequences[i]->size - NAA) / frag_size + 1;
-		}
-		MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
+
+	// Modify：迁移至MergeExternalSorting中进行计算
+	// if (frag_size) {
+	// 	frag_no = 0;
+	// 	if (master) {
+	// 		for (i = 0; i < seq_no; i++)
+	// 			frag_no += (sequences[i]->size - NAA) / frag_size + 1;
+	// 	}
+	// 	MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
+	// 	MPI_Barrier(MPI_COMM_WORLD);
+	// }
 
 	if (not options.isEST)
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
@@ -3701,12 +3810,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	}
 	WordTable word_table(options.NAA, NAAN);
 	WordTable last_table(options.NAA, NAAN);
-	int N = 0;
-	if (master)
-		N = sequences.size();
-	MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+	// Delete: Seems useless
+	// int N = 0;
+	// if (master)
+	// 	N = sequences.size();
+	// MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
 	// Polled_Output();
-	// int K = N - 100 * T;
 
 	// FIXME:
 	// The estimation of memory usage here still relies heavily on the original estimation version, 
@@ -3770,10 +3881,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// cerr<<"start        "<<chunks[i].second-remaining<<endl;
 				
 				for (j = chunks[i].second-remaining;j < chunks[i].second;j++){
-				
-					
-				
-
 					if(i>0&&j%100==0){
 
 						for (int iii = 0; iii <rank_size-1 ; ++iii) {
@@ -3801,14 +3908,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				if (seq->state & IS_REDUNDANT) continue;
 				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
 				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
-				
-			}
+				}
 			}
 			else{
-
 				for (j = chunks[i].first;j < chunks[i].second;j++) {
-				
-
 					if(i>0&&i<chunks.size()-1&&j%100==0){
 
 						for (int iii = 0; iii <rank_size-1 ; ++iii) {
@@ -3827,22 +3930,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						// i--;
 						break;
 					}
-				Sequence* seq = sequences[j];
-				if (options.store_disk) seq->SwapIn();
-				if (seq->state & IS_REDUNDANT) continue;
-				ClusterOne(seq, j, word_table, params[0], buffers[0], options);
-				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+					Sequence* seq = sequences[j];
+					if (options.store_disk) seq->SwapIn();
+					if (seq->state & IS_REDUNDANT) continue;
+					ClusterOne(seq, j, word_table, params[0], buffers[0], options);
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+				}
 			}
-
-			}
-		
-			// cout << "\nSeqs 9885 state: " << sequences[9885]->state;
-			// cout << "\nSeqs 9891 state: " << sequences[9891]->state << endl;
 			cout << "\n";
 			cout << ">>> In chunk "<<i<<" bult table by sequences size: " << word_table.sequences.size() << endl;
 			int end_rep_suffix = rep_seqs.size();
-
-
 			encode_WordTable(word_table, info_buf, i,
 				start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
 				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size);
@@ -3865,34 +3962,36 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			if(!remaining){
 				int size = chunks[i + 1].second - chunks[i + 1].first;
-				int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
-				MPI_Recv(rep_chunk, size * 8, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				int* rep_chunk = (int*)malloc(size * 7 * sizeof(int));
+				float* identity_array = (float*)malloc(size * sizeof(float));
+				MPI_Recv(rep_chunk, size * 7, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+				MPI_Recv(identity_array, size, MPI_FLOAT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
 				target_worker = (target_worker + 1) % (rank_size - 1);
 			#pragma omp parallel for num_threads(T)
 				for (int j = chunks[i + 1].first;j < chunks[i + 1].second;j++) {
-					int index = (j - chunks[i + 1].first) * 8;
+					int index = (j - chunks[i + 1].first) * 7;
 					Sequence* seq = sequences[j];
 					if (rep_chunk[index] == 0) continue;
 					seq->state = (short)rep_chunk[index];
-					seq->identity = rep_chunk[index + 1];
-					seq->cluster_id = rep_chunk[index + 2];
-					seq->distance = rep_chunk[index + 3];
-					seq->coverage[0] = rep_chunk[index + 4];
-					seq->coverage[1] = rep_chunk[index + 5];
-					seq->coverage[2] = rep_chunk[index + 6];
-					seq->coverage[3] = rep_chunk[index + 7];
+					seq->cluster_id = rep_chunk[index + 1];
+					seq->distance = rep_chunk[index + 2];
+					seq->coverage[0] = rep_chunk[index + 3];
+					seq->coverage[1] = rep_chunk[index + 4];
+					seq->coverage[2] = rep_chunk[index + 5];
+					seq->coverage[3] = rep_chunk[index + 6];
+					seq->identity = identity_array[index / 7];
 				}
 				free(rep_chunk);
 			}
 
 			if(remaining)
 			{
-			last_table.Clear();
-			last_table.sequences.swap(word_table.sequences);
-			last_table.indexCounts.swap(word_table.indexCounts);
-			last_table.size = word_table.size;
-			i--;
+				last_table.Clear();
+				last_table.sequences.swap(word_table.sequences);
+				last_table.indexCounts.swap(word_table.indexCounts);
+				last_table.size = word_table.size;
+				i--;
 			}
 			word_table.Clear();
 			// free momery
@@ -3906,16 +4005,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			seqs_suffix_buf = NULL;
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
-		
-
-			// int test=0;
-			// if(i==0)continue;
-			// MPI_Request request;
-			// MPI_Irecv(&test, 1, MPI_INT, 1, 0, MPI_COMM_WORLD,  &request);
-			// if(test==1){
-			// 	cerr<<"i    "<<i<<endl;
-			// 	cerr<<"Stop    "<<endl;
-			// }
 		}
 	}
 	if (worker) {
@@ -3972,19 +4061,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 				if (chunks_id[start] == soure_chunk + 1&&!remaining) {
 					int size = chunks[start].second - chunks[start].first;
-					int* rep_chunk = (int*)malloc(size * 8 * sizeof(int));
+					int* rep_chunk = (int*)malloc(size * 7 * sizeof(int));
+					float* identity_array = (float*)malloc(size * sizeof(float));
 					for (j = chunks[start].first;j < chunks[start].second;j++) {
-						int index = (j - chunks[start].first)*8;
+						int index = (j - chunks[start].first)*7;
 						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT) {
 							rep_chunk[index] = (int)seq->state;
-							rep_chunk[index + 1] = seq->identity;
-							rep_chunk[index + 2] = seq->cluster_id;
-							rep_chunk[index + 3] = seq->distance;
-							rep_chunk[index + 4] = seq->coverage[0];
-							rep_chunk[index + 5] = seq->coverage[1];
-							rep_chunk[index + 6] = seq->coverage[2];
-							rep_chunk[index + 7] = seq->coverage[3];
+							rep_chunk[index + 1] = seq->cluster_id;
+							rep_chunk[index + 2] = seq->distance;
+							rep_chunk[index + 3] = seq->coverage[0];
+							rep_chunk[index + 4] = seq->coverage[1];
+							rep_chunk[index + 5] = seq->coverage[2];
+							rep_chunk[index + 6] = seq->coverage[3];
+							identity_array[index / 7] = seq->identity;
 						}
 						else {
 							rep_chunk[index] = 0;
@@ -3994,21 +4084,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							rep_chunk[index + 4] = -1;
 							rep_chunk[index + 5] = -1;
 							rep_chunk[index + 6] = -1;
-							rep_chunk[index + 7] = -1;
+							identity_array[index / 7] = -1;
 						}
 					}
-					MPI_Send(rep_chunk, size * 8, MPI_INT, source, 0, MPI_COMM_WORLD);
+					MPI_Send(rep_chunk, size * 7, MPI_INT, source, 0, MPI_COMM_WORLD);
+					MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
 					free(rep_chunk);
-						start++;
-						i--;
-					
-					// start++;
-					// i--;
+					start++;
+					i--;
 				}
 			}
-			// if(flag==1)
-			// start++;
-			// free momery
 			word_table.Clear();
 			free(info_buf);
 			free(cluster_id_buf);

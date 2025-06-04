@@ -564,6 +564,7 @@ public:
 	size_t min_len;
 	size_t len_n50;
 	size_t total_seqs;
+	size_t frag_nums;
 
 	vector<pair<int, int>> chunks;
 	vector<int> chunks_id;
@@ -593,7 +594,7 @@ public:
 	vector<string> tmp_files;
 
 	void ReadExternalSorting(const char* file, const Options& options, int max_seqs);
-	void MergeExternalSorting(const Options& options);
+	void MergeExternalSorting(const int first_size,const int upper_size,const Options& options);
 
 	void Read(const char* file, const char* file2, const Options& options);
 	void Readgz(const char* file, const char* file2, const Options& options);
@@ -602,11 +603,15 @@ public:
 	void WriteClustersgz(const char* db, const char* newdb, const Options& options);
 
 	void WriteClustersvector(const std::vector<Input_Sequence*>& sequences, const char* newdb, const Options& options);
+	void WriteClustersSort(const char* input, const char* output, const Options& options);
 
 	void WriteClusters(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options);
 	void WriteClustersgz(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options);
 
 	void WriteExtra1D(const Options& options);
+
+	void WriteClusterDetail(const Options& options);
+
 	void WriteExtra2D(SequenceDB& other, const Options& options);
 	void DivideSave(const char* db, const char* newdb, int n, const Options& options);
 
@@ -642,6 +647,8 @@ public:
 	void prepare_to_decode(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size);
 
 	void decode_WordTable(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size);
+
+	bool checkRepSeqs();
 
 };
 
