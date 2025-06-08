@@ -641,6 +641,8 @@ class SequenceDB
 		void decode_WordTable(WordTable &table, long *&info_buf,
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
+		void WriteClusterDetail(const Options& options);
+		void WriteClustersSort(const char* input, const char* output, const Options& options);				  
 		void WriteClusters(const char *db, const char *newdb, const Options &options);
 		void WriteClustersgz(const char *db, const char *newdb, const Options &options);
 

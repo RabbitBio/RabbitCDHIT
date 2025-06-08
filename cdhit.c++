@@ -74,6 +74,7 @@ int main(int argc, char *argv[])
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
 	
 	if (rank == 0) {
+		
 		// 元数据排序
 		// seq_db.Read( db_in.c_str(), options ,meta_table);
         // seq_db.SortDivideMetaTable(meta_table, options );
@@ -82,14 +83,16 @@ int main(int argc, char *argv[])
 
 		//外部排序
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
+		
+		
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,50000);
-		sleep(10);
+		// sleep(10);
 	
 		MPI_Barrier(MPI_COMM_WORLD);
 
 	}
 
-
+  
 	else {
 		
 
@@ -102,7 +105,18 @@ int main(int argc, char *argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank);
 	MPI_Barrier(MPI_COMM_WORLD);
+	if (master) {
+		cout << "Cluster is Finished" << endl;
+		// seq_db.checkRepSeqs();
+		printf("writing new database\n");
+		seq_db.WriteClustersSort(db_in.c_str(), db_out.c_str(), options);
+		seq_db.WriteClusterDetail(options);
+		cout << "program completed !" << endl << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Finalize();
+	return 0;
 
 	
 
-}
+}  
