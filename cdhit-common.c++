@@ -2273,7 +2273,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	chunks_size = total_num / 50000 + 1;
 	else
 	chunks_size = total_num / 50000;
-	// std::cout << "chunk_size: " << chunks_size<< std::endl;
+	std::cout << "chunk_size: " << chunks_size<< std::endl;
 	run_files.resize(chunks.size());
 	long long chunk_total_num = 0;
 
@@ -2454,6 +2454,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	// exit(0);
 }
 
@@ -2464,6 +2466,8 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	// Sequence one;
     // Sequence des;
    
@@ -3741,7 +3745,7 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
 #include<assert.h>
 size_t SequenceDB::MinimalMemory( int frag_no, int bsize, int T, const Options & options, size_t extra )
 {
-	int N = sequences.size();
+	int N = total_num;
 	int F = frag_no < MAX_TABLE_SEQ ? frag_no : MAX_TABLE_SEQ;
 	size_t mem_need = 0;
 	size_t mem, mega = 1000000;
@@ -3993,6 +3997,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	// The estimation of memory usage here still relies heavily on the original estimation version, 
 	//		which will certainly be modified later.
 	size_t mem_need = MinimalMemory(frag_no, buffers[0].total_bytes, T, options);
+
 	size_t mem_limit = MemoryLimit(mem_need, options);
 	size_t mem, mega = 1000000;
 	size_t tabsize = 0;
@@ -4011,14 +4016,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long prefix_size;
 	
 	if (master) {
-		// cerr<<"chunks_size  "<<chunks_size<<endl;
+		cerr<<"chunks_size  "<<chunks_size<<endl;
 		if (rank_size <= 1) {
 			cerr << "no workers found" << endl;
 			exit(0);
 		}
 		int file_index=0;
 		bool first_block=true;
-		int first_size=1000;
+		int first_size=200;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int chunk_id = 0;
