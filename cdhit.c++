@@ -103,13 +103,13 @@ int main(int argc, char *argv[])
 
     }
 	MPI_Barrier(MPI_COMM_WORLD);
-	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank);
+	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
 		cout << "Cluster is Finished" << endl;
 		// seq_db.checkRepSeqs();
 		printf("writing new database\n");
-		seq_db.WriteClustersSort(db_in.c_str(), db_out.c_str(), options);
+		// seq_db.WriteClustersSort(db_in.c_str(), db_out.c_str(), options);
 		seq_db.WriteClusterDetail(options);
 		cout << "program completed !" << endl << endl;
 	}
