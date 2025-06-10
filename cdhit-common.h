@@ -411,11 +411,17 @@ struct FileContext {
 	size_t buffer_size = 0;
 	bool eof = false;
 };
+struct compare {
+    bool operator()(const IndexCount& a, const IndexCount& b) const {
+        return a.count > b.count; // 小顶堆，count 小的优先
+    }
+};
 struct Sequence
 {
 	// real sequence, if it is not stored swap file:
 	char *data;
 	// length of the sequence:
+	char *true_data;
 	int   size;
 	int   bufsize;
     int   size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
@@ -514,6 +520,7 @@ struct WorkingBuffer
 	Vector<INTs> aap_list;
 	Vector<INTs> aap_begin;
 	//Vector<IndexCount>  indexCounts;
+	priority_queue<IndexCount, vector<IndexCount>, compare> minHeap;
 	NVector<IndexCount>  lookCounts;
 	NVector<uint32_t>    indexMapping;    
 	MatrixInt64  score_mat;
@@ -632,7 +639,7 @@ class SequenceDB
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
 		void read_sorted_files( int rank, int rank_size);
-		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank);
+		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output);
 		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index );

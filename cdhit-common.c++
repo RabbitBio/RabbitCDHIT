@@ -1525,6 +1525,15 @@ Sequence::Sequence( const Sequence & other )
 		memcpy( data, other.data, size );
 		//for (i=0; i<size; i++) data[i] = other.data[i];
 	}
+		if( other.true_data ){
+		size = bufsize = other.size;
+                size_R2 = 0;
+		true_data = new char[size+1];
+		//printf( "data: %p  %p\n", data, other.data );
+		data[size] = 0;
+		memcpy( true_data, other.true_data, size );
+		//for (i=0; i<size; i++) data[i] = other.data[i];
+	}
 	if( other.identifier ){
 		int len = strlen( other.identifier );
 		identifier = new char[len+1];
@@ -1580,14 +1589,17 @@ Sequence::~Sequence()
 	//printf( "delete: %p\n", this );
 	if( data ) delete[] data;
 	if( identifier ) delete[] identifier;
+	if( true_data ) delete[] true_data;
 }
 
 void Sequence::Clear()
 {
 	if( data ) delete[] data;
+	if( true_data ) delete[] true_data;
 	/* do not set size to zero here, it is need for writing output */
 	bufsize = 0;
 	data = NULL;
+	true_data = NULL;
 }
 
 void Sequence::operator=( const char *s )
@@ -3941,7 +3953,7 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	}
 	table.size = prefix_buf[prefix_size - 1];
 }
-void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank) {
+void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output) {
 
 	int rank_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
@@ -4016,11 +4028,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			cerr << "no workers found" << endl;
 			exit(0);
 		}
+		ofstream fout(output);
 		int file_index=0;
 		bool first_block=true;
 		int first_size=1000;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
+		int last_rep_index=0;
 		int chunk_id = 0;
 		int start_id = -1;
 		int end_id = -1;
@@ -4054,6 +4068,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		one.identifier = strdup(seq->name.s);
 		// cout << seq->name.s << endl;
 		one.data = strdup(seq->seq.s);
+		one.true_data = strdup(seq->seq.s);
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = sequences.size();
@@ -4233,8 +4248,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				break;
 			}
 			if (!remaining)
-			{
+			{	
+				for(int kk=last_rep_index;kk<rep_seqs.size();kk++){
+					Sequence* seq=sequences[rep_seqs[kk]];
+					fout << ">" <<seq->identifier << "\n";
+					fout<<seq->true_data << "\n";
+					seq->Clear();
+
+				}
 				// cerr<<"gogogog!"<<endl;
+				last_rep_index=rep_seqs.size();
 				Sequence one;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
 				cerr << "master  file_index      " << file_index << endl;
@@ -4258,6 +4281,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					one.identifier = strdup(seq->name.s);
 					// cout << seq->name.s << endl;
 					one.data = strdup(seq->seq.s);
+					one.true_data = strdup(seq->seq.s);
 					one.size = len;
 					one.tot_length = len + seq->name.l;
 					one.index = sequences.size();
@@ -4341,6 +4365,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
     if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
     if (chunk_fp[i]) gzclose(chunk_fp[i]);
 }
+	for(int kk=last_rep_index;kk<rep_seqs.size();kk++){
+					Sequence* seq=sequences[rep_seqs[kk]];
+					fout << ">" <<seq->identifier << "\n";
+					fout<<seq->true_data << "\n";
+					seq->Clear();
+
+				}
+	fout.close();
 	}
 	if (worker) {
 		vector<int>read_chunk(chunks_size,0);
@@ -4527,6 +4559,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
     if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
     if (chunk_fp[i]) gzclose(chunk_fp[i]);
 }
+	
 	}
 
 	// if (master) {
@@ -4756,7 +4789,7 @@ int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param
 	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
 	return CheckOneAA( seq, table, param, buf, options,1 );
 }
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank )
+int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank)
 {
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 	NVector<uint32_t> & indexMapping = buf.indexMapping;
