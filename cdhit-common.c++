@@ -1527,11 +1527,10 @@ Sequence::Sequence( const Sequence & other )
 	}
 		if( other.true_data ){
 		size = bufsize = other.size;
-                size_R2 = 0;
 		true_data = new char[size+1];
 		//printf( "data: %p  %p\n", data, other.data );
-		data[size] = 0;
-		memcpy( true_data, other.true_data, size );
+		true_data[size] = 0;
+		memcpy( true_data, other.data, size );
 		//for (i=0; i<size; i++) data[i] = other.data[i];
 	}
 	if( other.identifier ){
@@ -1607,6 +1606,7 @@ void Sequence::operator=( const char *s )
 	size = 0; // avoid copying;
 	Resize( strlen( s ) );
 	strcpy( data, s );
+	strcpy( true_data, s );
 }
 void Sequence::operator+=( const char *s )
 {
