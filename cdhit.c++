@@ -40,7 +40,6 @@ int main(int argc, char *argv[])
 	vector<pair<int, int>>& all_chunks = seq_db.all_chunks;
 	vector<pair<int, int>>& my_chunks = seq_db.my_chunks;
 	vector<int>& chunks_id = seq_db.chunks_id;
-	int chunks_size=seq_db.chunks_size;
 	int total_chunk=seq_db.total_chunk;
 	float begin_time = current_time();
 	float end_time;
@@ -85,7 +84,7 @@ int main(int argc, char *argv[])
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
 		
 		
-		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1,50000);
+		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
 		// sleep(10);
 	
 		MPI_Barrier(MPI_COMM_WORLD);
