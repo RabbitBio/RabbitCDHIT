@@ -599,7 +599,8 @@ class SequenceDB
 		vector<pair<int, int>>my_chunks;
 		vector<int> chunks_id;
 		int total_chunk;
-		int chunks_size;
+		int chunk_size;
+		int chunks_num;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
 			sequences.clear(); rep_seqs.clear();
@@ -607,7 +608,7 @@ class SequenceDB
 
 		SequenceDB(){
 			total_num = 0;
-			chunks_size = 0;
+			chunk_size = 0;
 			total_letter = 0;
 			total_desc = 0;
 			total_chunk = 0;
@@ -637,7 +638,7 @@ class SequenceDB
 		void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,Options &options);
 		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
-		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs,size_t chunk_size = DEFAULT_CHUNK_SIZE);
+		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs);
 		void read_sorted_files( int rank, int rank_size);
 		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output);
 		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,

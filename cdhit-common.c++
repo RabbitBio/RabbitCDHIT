@@ -2181,6 +2181,7 @@ void SequenceDB::MergeRuns_Sequential(const std::vector<std::string> &run_files,
 void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
 {
 	int option_l = options.min_length;
+	chunk_size=50000;
 	total_num = 0;
 	long long total_num_divede = 0;
 	string max_name = "";
@@ -2281,11 +2282,11 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	std::cout << "total_num_divede: " << total_num_divede << std::endl;
 	std::cout << "Total number: " << total_num << std::endl;
 	std::cout << "N50 length: " << len_n50 << std::endl;
-	if(total_num / 50000)
-	chunks_size = total_num / 50000 + 1;
+	if(total_num / chunk_size)
+	chunks_num = total_num / chunk_size+ 1;
 	else
-	chunks_size = total_num / 50000;
-	std::cout << "chunk_size: " << chunks_size<< std::endl;
+	chunks_num = total_num / chunk_size;
+	std::cout << "chunk_num: " << chunks_num<< std::endl;
 	run_files.resize(chunks.size());
 	long long chunk_total_num = 0;
 
@@ -2330,8 +2331,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 // 归并
 void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 									  const std::string &output_prefix,
-									  int num_procs,
-									  size_t chunk_size)
+									  int num_procs)
 {
 	if (run_files.empty())
 		return;
@@ -2464,7 +2464,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2476,7 +2477,8 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 
 	int file_index = rank;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunks_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2495,7 +2497,7 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
   
 	// int start_id = -1;
 	//这里后面传入参数
-	int global_id = (rank-1)*50000;
+	int global_id = (rank-1)*chunk_size;
 	int start_global_id=global_id;
 	int start_my_id=sequences.size();
 	int chunk_id = (rank-1);
@@ -2514,19 +2516,19 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 		one.index = global_id;
 		sequences.Append(new Sequence(one));
 		global_id++;
-		if(sequences.size()%50000==0){
+		if(sequences.size()%chunk_size==0){
 			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 			chunks_id.push_back(chunk_id);
 			all_chunks.push_back(make_pair(start_global_id,global_id ));
 			chunk_id=(rank_size-1)+chunk_id;
-			global_id=(global_id-50000)+(rank_size-1)*50000;
+			global_id=(global_id-chunk_size)+(rank_size-1)*chunk_size;
 			start_global_id=global_id;
 			start_my_id=sequences.size();
 
 		}
 		
 	}
-	if(sequences.size()%50000!=0){
+	if(sequences.size()%chunk_size!=0){
 		my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 		chunks_id.push_back(chunk_id);
 		all_chunks.push_back(make_pair(start_global_id,global_id ));
@@ -4028,7 +4030,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long prefix_size;
 	
 	if (master) {
-		cerr<<"chunks_size  "<<chunks_size<<endl;
+		cerr<<"chunks_num  "<<chunks_num<<endl;
 		if (rank_size <= 1) {
 			cerr << "no workers found" << endl;
 			exit(0);
@@ -4079,7 +4081,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		one.index = sequences.size();
 		sequences.Append(new Sequence(one));
 		if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
-		if(sequences.size()%50000==0){
+		if(sequences.size()%chunk_size==0){
 			chunks_id.push_back(chunk_id);
 			all_chunks.push_back(make_pair(start_global_id,sequences.size()));
 			chunk_id++;
@@ -4090,7 +4092,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		
 	}
 	file_index=(file_index+1)%(rank_size-1);
-		for (i = 0;i < chunks_size;i++) {
+		for (i = 0;i < chunks_num;i++) {
 			int total_flag=0;
 			// cerr<<"remaining   "<<remaining<<endl;
 			bool all_done = false;
@@ -4187,7 +4189,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					for (j = all_chunks[i].first; j < all_chunks[i].second; j++)
 					{
 
-						if (!first_block&& i < chunks_size - 1 && j % 100 == 0)
+						if (!first_block&& i < chunks_num - 1 && j % 100 == 0)
 						{
 
 							for (int iii = 0; iii < rank_size - 1; ++iii)
@@ -4249,7 +4251,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Send(&remaining,1, MPI_INT, target_worker+1, 0, MPI_COMM_WORLD);
-			if (i == chunks_size- 1) {
+			if (i == chunks_num- 1) {
 				break;
 			}
 			if (!remaining)
@@ -4293,7 +4295,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					sequences.Append(new Sequence(one));
 					if (sequences[sequences.size() - 1]->swap == NULL)
 						sequences[sequences.size() - 1]->ConvertBases();
-					if (sequences.size() % 50000 == 0)
+					if (sequences.size() % chunk_size == 0)
 					{	
 						chunks_id.push_back(chunk_id);
 						all_chunks.push_back(make_pair(start_global_id, sequences.size()));
@@ -4303,7 +4305,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						break;
 					}
 				}
-				if (sequences.size() % 50000 != 0)
+				if (sequences.size() % chunk_size != 0)
 				{	cerr<<"last seq    "<<sequences[sequences.size()-1]->identifier<<endl;
 					chunks_id.push_back(chunk_id);
 					all_chunks.push_back(make_pair(start_global_id, sequences.size()));
@@ -4380,7 +4382,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	fout.close();
 	}
 	if (worker) {
-		vector<int>read_chunk(chunks_size,0);
+		vector<int>read_chunk(chunks_num,0);
 		kseq_t* seq = nullptr;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
@@ -4402,7 +4404,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)info_buf, 6, MPI_LONG, source, MPI_COMM_WORLD);
 			int soure_chunk = info_buf[0];
 			int file_index=info_buf[5];
-			start_id=soure_chunk*50000;
+			start_id=soure_chunk*chunk_size;
 			if (read_chunk[soure_chunk] == 0)
 			{
 				int id;
@@ -4436,7 +4438,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					rep_sequences.Append(new Sequence(one));
 					if (rep_sequences[rep_sequences.size() - 1]->swap == NULL)
 						rep_sequences[rep_sequences.size() - 1]->ConvertBases();
-					if (rep_sequences.size() % 50000 == 0)
+					if (rep_sequences.size() % chunk_size == 0)
 					{
 						chunk_kseq[file_index] =seq;
 						break;
@@ -4529,6 +4531,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							rep_chunk[index + 6] = -1;
 							identity_array[index / 7] = -1;
 						}
+						seq->Clear();
 					}
 					// cerr<<"red_size  "<<red_num<<endl;
 					MPI_Send(rep_chunk, size * 7, MPI_INT, source, 0, MPI_COMM_WORLD);
