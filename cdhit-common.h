@@ -456,7 +456,7 @@ struct Sequence
 	~Sequence();
 
 	void Clear();
-
+	void worker_Clear();
 	void operator=( const char *s );
 	void operator+=( const char *s );
 

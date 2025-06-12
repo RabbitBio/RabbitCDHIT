@@ -1591,16 +1591,22 @@ Sequence::~Sequence()
 	if( true_data ) delete[] true_data;
 }
 
-void Sequence::Clear()
-{
-	if( data ) delete[] data;
-	if( true_data ) delete[] true_data;
-	/* do not set size to zero here, it is need for writing output */
-	bufsize = 0;
-	data = NULL;
-	true_data = NULL;
+void Sequence::Clear() {
+    if (data) free(data);
+    if (true_data) free(true_data);
+    bufsize = 0;
+    data = nullptr;
+    true_data = nullptr;
 }
-
+void Sequence::worker_Clear() {
+    if (data) free(data);
+    if (true_data) free(true_data);
+	if( identifier ) free(identifier) ;
+    bufsize = 0;
+    data = nullptr;
+    true_data = nullptr;
+	identifier=nullptr;
+}
 void Sequence::operator=( const char *s )
 {
 	size = 0; // avoid copying;
@@ -4531,7 +4537,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							rep_chunk[index + 6] = -1;
 							identity_array[index / 7] = -1;
 						}
-						seq->Clear();
+						seq->worker_Clear();
 					}
 					// cerr<<"red_size  "<<red_num<<endl;
 					MPI_Send(rep_chunk, size * 7, MPI_INT, source, 0, MPI_COMM_WORLD);
