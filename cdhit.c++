@@ -87,7 +87,7 @@ int main(int argc, char *argv[])
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
 		// sleep(10);
 	
-		MPI_Barrier(MPI_COMM_WORLD);
+		// MPI_Barrier(MPI_COMM_WORLD);
 
 	}
 
@@ -97,11 +97,11 @@ int main(int argc, char *argv[])
 
 		// sleep(10);
 		seq_db.read_sorted_files(rank,size);
-		MPI_Barrier(MPI_COMM_WORLD);
+		// MPI_Barrier(MPI_COMM_WORLD);
 		
 
     }
-	MPI_Barrier(MPI_COMM_WORLD);
+	// MPI_Barrier(MPI_COMM_WORLD);
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
