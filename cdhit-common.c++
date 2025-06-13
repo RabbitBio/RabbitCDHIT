@@ -3984,16 +3984,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	int flag;
 	// cerr<<"frag_no    "<<frag_no<<endl;
 	// cerr<<"max_len   "<<max_len<<endl;
-	if (frag_size) {
-		frag_no = 0;
-		if (master) {
-			for (i = 0; i < seq_no; i++)
-				frag_no += (sequences[i]->size - NAA) / frag_size + 1;
-		}
-		MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
+	// if (frag_size) {
+	// 	frag_no = 0;
+	// 	if (master) {
+	// 		for (i = 0; i < seq_no; i++)
+	// 			frag_no += (sequences[i]->size - NAA) / frag_size + 1;
+	// 	}
+	// 	MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
 		
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
+	// 	MPI_Barrier(MPI_COMM_WORLD);
+	// }
 
 	if (not options.isEST)
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
@@ -4009,7 +4009,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	int N = 0;
 	if (master)
 		N = total_num;
-	MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	// Polled_Output();
 	// int K = N - 100 * T;
 
