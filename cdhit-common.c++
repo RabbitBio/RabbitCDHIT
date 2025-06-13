@@ -4349,6 +4349,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					seq->identity = identity_array[index / 7];
 				}
 				free(rep_chunk);
+				free(identity_array);
 				// cerr<<"continue_size   "<<continue_size<<endl;
 			}
 
@@ -4543,6 +4544,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					MPI_Send(rep_chunk, size * 7, MPI_INT, source, 0, MPI_COMM_WORLD);
 					MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
 					free(rep_chunk);
+					free(identity_array);
 						start++;
 						i--;
 					
