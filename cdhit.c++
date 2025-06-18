@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 		
 		
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
-	
+		// sleep(1600);
 	}
 
   
