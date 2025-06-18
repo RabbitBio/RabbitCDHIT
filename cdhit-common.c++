@@ -1592,16 +1592,16 @@ Sequence::~Sequence()
 }
 
 void Sequence::Clear() {
-    if (data) free(data);
-    if (true_data) free(true_data);
+    if (data) delete[] data;
+    if (true_data)  delete[] true_data;
     bufsize = 0;
     data = nullptr;
     true_data = nullptr;
 }
 void Sequence::worker_Clear() {
-    if (data) free(data);
-    if (true_data) free(true_data);
-	if( identifier ) free(identifier) ;
+  if( data ) delete[] data;
+	if( identifier ) delete[] identifier;
+	if( true_data ) delete[] true_data;
     bufsize = 0;
     data = nullptr;
     true_data = nullptr;
@@ -2031,163 +2031,14 @@ void SequenceDB::Read(const char *file, const Options & options,vector<SequenceM
     fclose(fin);
 }
 //元数据桶排
-void SequenceDB::SortDivideMetaTable(std::vector<SequenceMeta> &meta_table, Options &options)
-{
-    int N = meta_table.size();
-    total_letter = 0;
-    total_desc = 0;
-    max_len = 0;
-    min_len = (size_t)-1;
 
-    for (int i = 0; i < N; ++i) {
-        int len = meta_table[i].size;
-        total_letter += len;
-        if (len > max_len) max_len = len;
-        if (len < min_len) min_len = len;
-        total_desc += meta_table[i].identifier.length();
-    }
-
-    options.max_entries = max_len * MAX_TABLE_SEQ;
-    if (max_len >= 65536 && sizeof(INTs) <= 2)
-        bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
-    if (max_len > MAX_SEQ)
-        bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
-
-    std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
-    std::cout << "Total letters: " << total_letter << std::endl;
-
-    // ========================== 桶排序
-    len_n50 = (max_len + min_len) / 2;
-    long long sum = 0;
-    int M = max_len - min_len + 1;
-    Vector<int> count(M, 0);
-    Vector<int> accum(M, 0);
-    Vector<int> offset(M, 0);
-    std::vector<SequenceMeta> sorted(N);
-
-    for (int i = 0; i < N; ++i)
-        count[max_len - meta_table[i].size]++;
-
-    for (int i = 1; i < M; ++i)
-        accum[i] = accum[i - 1] + count[i - 1];
-
-    for (int i = 0; i < M; ++i) {
-        sum += (max_len - i) * count[i];
-        if (sum >= (total_letter >> 1)) {
-            len_n50 = max_len - i;
-            break;
-        }
-    }
-
-    for (int i = 0; i < N; ++i) {
-        int len = max_len - meta_table[i].size;
-        int id = accum[len] + offset[len];
-        sorted[id] = meta_table[i];
-        offset[len]++;
-    }
-
-    meta_table = std::move(sorted);
-	// std::cout << meta_table[0].size << std::endl;
-	// std::cout << meta_table[0].des_begin << std::endl;
-
-    std::cout << "MetaTable have been sorted" << std::endl;
-}
-
-//随机访存并行
-void SequenceDB::GenerateSortedRuns(const char *file, const std::vector<SequenceMeta> &meta_table, size_t chunk_size_bytes, std::vector<std::string> &run_files)
-{
-    mkdir("tmp_runs", 0755); // 创建 tmp_runs 目录
-
-    size_t num_threads = omp_get_max_threads();
-    std::vector<std::pair<size_t, size_t>> chunk_ranges;
-    size_t i = 0, N = meta_table.size();
-    while (i < N)
-    {
-        size_t chunk_total_size = 0;
-        size_t start = i;
-        while (i < N && chunk_total_size + meta_table[i].size <= chunk_size_bytes)
-        {
-            chunk_total_size += meta_table[i].size;
-            ++i;
-        }
-        if (start == i) ++i;  // 如果单个序列过大
-        chunk_ranges.emplace_back(start, i);
-    }
-
-    size_t total_chunks = chunk_ranges.size();
-    run_files.resize(total_chunks);
-
-    #pragma omp parallel for schedule(dynamic)
-    for (int run_id = 0; run_id < (int)total_chunks; ++run_id)
-    {	FILE *fin = fopen(file, "rb");
-        const auto &[start, end] = chunk_ranges[run_id];
-        std::vector<SequenceMeta> chunk(meta_table.begin() + start, meta_table.begin() + end);
-		// std::sort(chunk.begin(), chunk.end(), [](const SequenceMeta &a, const SequenceMeta &b) {
-		// 	return a.size > b.size;  
-		// });		
-        std::string run_file = "tmp_runs/run_" + std::to_string(run_id) + ".fa";
-        run_files[run_id] = run_file;
-
-        FILE *fout = fopen(run_file.c_str(), "w");
-        
-        if (!fout || !fin) continue;
-
-        char buffer[MAX_LINE_SIZE + 1];
-        for (const auto &meta : chunk)
-        {
-            fseek(fin, meta.des_begin, SEEK_SET);
-            if (fgets(buffer, MAX_LINE_SIZE, fin))
-                fprintf(fout, "%s", buffer);
-
-            int total_read = 0;
-            while (total_read < meta.size)
-            {
-                if (!fgets(buffer, MAX_LINE_SIZE, fin)) break;
-                int len = strlen(buffer);
-                if (len > 0 && buffer[0] == '>') break;
-                fprintf(fout, "%s", buffer);
-                total_read += len;
-            }
-        }
-
-        fclose(fout);
-        fclose(fin);
-    }
-}
-//顺序合并
-void SequenceDB::MergeRuns_Sequential(const std::vector<std::string> &run_files, const std::string &output_file) {
-    FILE *fout = fopen(output_file.c_str(), "w");
-    if (!fout) {
-        std::cerr << "Failed to open output file: " << output_file << std::endl;
-        return;
-    }
-
-    char buffer[MAX_LINE_SIZE + 1];
-    for (const auto &run_file : run_files) {
-        FILE *fin = fopen(run_file.c_str(), "r");
-        if (!fin) {
-            std::cerr << "Failed to open run file: " << run_file << std::endl;
-            continue;
-        }
-
-        while (fgets(buffer, MAX_LINE_SIZE, fin)) {
-            fputs(buffer, fout);
-        }
-
-        fclose(fin);
-        std::remove(run_file.c_str()); // 自动删除
-    }
-
-    fclose(fout);
-    std::cout << "[Merge Complete] Output: " << output_file << std::endl;
-}
 
 
 //外排序先读后写
 void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
 {
 	int option_l = options.min_length;
-	chunk_size=50000;
+	chunk_size=150000;
 	total_num = 0;
 	long long total_num_divede = 0;
 	string max_name = "";
@@ -2295,7 +2146,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	std::cout << "chunk_num: " << chunks_num<< std::endl;
 	run_files.resize(chunks.size());
 	long long chunk_total_num = 0;
-
+	
 #pragma omp parallel for schedule(dynamic)
 	for (int i = 0; i < (int)chunks.size(); ++i)
 	{
@@ -2310,7 +2161,6 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			continue;
 		for (const auto &p : chunk)
 		{
-			chunk_total_num++;
 			if (p.first.back() != '\n')
 			{
 				fprintf(fout, ">%s\n", p.first.c_str());
@@ -2330,8 +2180,32 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			}
 		}
 		fclose(fout);
+		
 	}
-	std::cout << "Total number: " << chunk_total_num << std::endl;
+
+	chunks.clear();
+	chunks.shrink_to_fit();
+	//  size_t total_memory = 0;
+
+    // // Calculate the memory used by the vector of vectors (chunks)
+    // total_memory += sizeof(chunks);  // memory for vector metadata (size, capacity)
+    
+    // // Iterate through each vector in chunks
+    // for (const auto& chunk : chunks) {
+    //     total_memory += sizeof(chunk);  // memory for each vector metadata
+        
+    //     // Calculate memory used by each pair in the chunk
+    //     for (const auto& p : chunk) {
+    //         total_memory += sizeof(p);  // memory for pair metadata (2 pointers)
+    //         total_memory += p.first.capacity();  // memory for the string's internal buffer
+    //         total_memory += p.second.capacity();  // memory for the string's internal buffer
+    //     }
+    // }
+
+    // cout << "Total memory used by 'chunks': " << total_memory / (1024 * 1024) << " MB" << endl;
+
+	all_lengths.clear();
+	all_lengths.shrink_to_fit();
 }
 
 // 归并
@@ -2467,7 +2341,11 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	for (const auto &fname : run_files)
 		remove(fname.c_str());
-
+	proc_files.clear();
+	std::vector<ProcFile>().swap(proc_files);
+	fps.clear();
+	std::vector<FILE *>().swap(fps);
+	pq = std::priority_queue<FastaRecord>(); 
 	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2514,9 +2392,9 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 	int len;
 	Sequence one;
 	while ((len = kseq_read(seq)) >= 0) {
-		one.identifier = strdup(seq->name.s);
+		one.identifier = str_copy(seq->name.s);
 		// cout << seq->name.s << endl;
-		one.data = strdup(seq->seq.s);
+		one.data = str_copy(seq->seq.s);
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = global_id;
@@ -2540,7 +2418,7 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 		all_chunks.push_back(make_pair(start_global_id,global_id ));
 	}
 		kseq_destroy(seq);
-	gzclose(fp);
+		gzclose(fp);
 	// if(rank==3)
 	// for(int i=0;i< chunks_id.size();i++){
 	// 	cerr<<chunks_id[i]<<endl;
@@ -3965,6 +3843,14 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	}
 	table.size = prefix_buf[prefix_size - 1];
 }
+char *SequenceDB::str_copy(const char *str)
+{
+	if (!str)
+		return nullptr;
+		char * data = new char[strlen(str) + 1];
+	strcpy(data, str);
+	return data;
+}
 void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output) {
 
 	int rank_size;
@@ -4044,7 +3930,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		ofstream fout(output);
 		int file_index=0;
 		bool first_block=true;
-		int first_size=200;
+		int first_size=500;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int last_rep_index=0;
@@ -4078,10 +3964,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 		else seq=chunk_kseq[file_index];
 		while ((len = kseq_read(seq)) >= 0) {
-		one.identifier = strdup(seq->name.s);
+		one.identifier = str_copy(seq->name.s);
 		// cout << seq->name.s << endl;
-		one.data = strdup(seq->seq.s);
-		one.true_data = strdup(seq->seq.s);
+		one.data = str_copy(seq->seq.s);
+		one.true_data = str_copy(seq->seq.s);
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = sequences.size();
@@ -4291,10 +4177,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					seq = chunk_kseq[file_index];
 				while ((len = kseq_read(seq)) >= 0)
 				{
-					one.identifier = strdup(seq->name.s);
+					one.identifier = str_copy(seq->name.s);
 					// cout << seq->name.s << endl;
-					one.data = strdup(seq->seq.s);
-					one.true_data = strdup(seq->seq.s);
+					one.data = str_copy(seq->seq.s);
+					one.true_data = str_copy(seq->seq.s);
 					one.size = len;
 					one.tot_length = len + seq->name.l;
 					one.index = sequences.size();
@@ -4348,8 +4234,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					seq->coverage[3] = rep_chunk[index + 6];
 					seq->identity = identity_array[index / 7];
 				}
-				free(rep_chunk);
-				free(identity_array);
+			
+						free(rep_chunk);
+					rep_chunk=NULL;
+					free(identity_array);
+					identity_array=NULL;
 				// cerr<<"continue_size   "<<continue_size<<endl;
 			}
 
@@ -4436,9 +4325,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					seq = chunk_kseq[file_index];
 				while ((len = kseq_read(seq)) >= 0)
 				{
-					one.identifier = strdup(seq->name.s);
+					one.identifier = str_copy(seq->name.s);
 					// cout << seq->name.s << endl;
-					one.data = strdup(seq->seq.s);
+					one.data = str_copy(seq->seq.s);
 					one.size = len;
 					one.tot_length = len + seq->name.l;
 					one.index = rep_sequences.size();
@@ -4544,7 +4433,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					MPI_Send(rep_chunk, size * 7, MPI_INT, source, 0, MPI_COMM_WORLD);
 					MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
 					free(rep_chunk);
+					rep_chunk=NULL;
 					free(identity_array);
+					identity_array=NULL;
 						start++;
 						i--;
 					

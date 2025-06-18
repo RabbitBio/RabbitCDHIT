@@ -650,6 +650,7 @@ class SequenceDB
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
 		void WriteClusterDetail(const Options& options);
+		char* str_copy(const char* str);
 		void WriteClustersSort(const char* input, const char* output, const Options& options);				  
 		void WriteClusters(const char *db, const char *newdb, const Options &options);
 		void WriteClustersgz(const char *db, const char *newdb, const Options &options);
