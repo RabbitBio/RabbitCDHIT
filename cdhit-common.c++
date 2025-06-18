@@ -2030,7 +2030,12 @@ void SequenceDB::Read(const char *file, const Options & options,vector<SequenceM
     delete[] buffer;
     fclose(fin);
 }
+<<<<<<< HEAD
 //元数据桶排
+=======
+
+
+>>>>>>> 2d0c03af3bcc2a6fdb7c16ffdf33326700df4f68
 
 
 
