@@ -2030,12 +2030,8 @@ void SequenceDB::Read(const char *file, const Options & options,vector<SequenceM
     delete[] buffer;
     fclose(fin);
 }
-<<<<<<< HEAD
-//元数据桶排
-=======
 
 
->>>>>>> 2d0c03af3bcc2a6fdb7c16ffdf33326700df4f68
 
 
 
@@ -2404,6 +2400,11 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 		one.tot_length = len + seq->name.l;
 		one.index = global_id;
 		sequences.Append(new Sequence(one));
+		delete[] one.identifier;
+    	delete[] one.data;
+   		one.identifier = nullptr;
+    	one.data = nullptr;
+
 		global_id++;
 		if(sequences.size()%chunk_size==0){
 			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
@@ -3977,6 +3978,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		one.tot_length = len + seq->name.l;
 		one.index = sequences.size();
 		sequences.Append(new Sequence(one));
+		delete[] one.identifier;
+    	delete[] one.data;
+    	delete[] one.true_data;
+    	one.identifier = nullptr;
+    	one.data = nullptr;
+    	one.true_data = nullptr;
 		if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
 		if(sequences.size()%chunk_size==0){
 			chunks_id.push_back(chunk_id);
@@ -4190,6 +4197,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					one.tot_length = len + seq->name.l;
 					one.index = sequences.size();
 					sequences.Append(new Sequence(one));
+					delete[] one.identifier;
+					delete[] one.data;
+					delete[] one.true_data;
+					one.identifier = nullptr;
+					one.data = nullptr;
+					one.true_data = nullptr;
 					if (sequences[sequences.size() - 1]->swap == NULL)
 						sequences[sequences.size() - 1]->ConvertBases();
 					if (sequences.size() % chunk_size == 0)
@@ -4312,6 +4325,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				for (int i = 0; i < rep_sequences.size(); i++)
 					delete rep_sequences[i];
 				rep_sequences.clear();
+				rep_sequences.shrink_to_fit();
+
 				Sequence one;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
 				cerr << "file_index      " << file_index << endl;
@@ -4337,6 +4352,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					one.tot_length = len + seq->name.l;
 					one.index = rep_sequences.size();
 					rep_sequences.Append(new Sequence(one));
+					delete[] one.identifier;
+					delete[] one.data;	
+					one.identifier = nullptr;
+					one.data = nullptr;
+						
 					if (rep_sequences[rep_sequences.size() - 1]->swap == NULL)
 						rep_sequences[rep_sequences.size() - 1]->ConvertBases();
 					if (rep_sequences.size() % chunk_size == 0)
@@ -4405,14 +4425,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					// cerr<<"this"<<endl;
 					int size = my_chunks[start].second - my_chunks[start].first+1;
 					// cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
-					int red_num=0;
 					int* rep_chunk = (int*)malloc(size * 7 * sizeof(int));
 					float* identity_array = (float*)malloc(size * sizeof(float));
 					for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
 						int index = (j - my_chunks[start].first)*7;
 						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT) {
-							red_num++;
+							
 							rep_chunk[index] = (int)seq->state;
 							rep_chunk[index + 1] = seq->cluster_id;
 							rep_chunk[index + 2] = seq->distance;
