@@ -594,6 +594,7 @@ class SequenceDB
 		long long total_desc;
 		size_t max_len;
 		size_t min_len;
+		size_t max_idf;
 		size_t len_n50;
 		vector<pair<int, int>>all_chunks;
 		vector<pair<int, int>>my_chunks;
@@ -613,6 +614,7 @@ class SequenceDB
 			total_desc = 0;
 			total_chunk = 0;
 			min_len = 0;
+			max_idf = 0;
 			max_len = 0;
 			len_n50 = 0;
 		}

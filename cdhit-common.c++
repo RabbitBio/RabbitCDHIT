@@ -2092,7 +2092,11 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 			max_len = len;
 			max_name = identifier;
 		}
-
+		if (seq->name.l > max_idf)
+		{
+			max_idf = seq->name.l;
+			
+		}
 		if (len < min_len)
 		{
 			min_len = len;
@@ -2136,6 +2140,7 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 	}
 	std::cout << "longest and shortest : " << max_name << " and " << min_name << std::endl;
 	std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
+	std::cout << "longest name : " << max_idf << std::endl;
 	std::cout << "Total letters: " << total_letter << std::endl;
 	std::cout << "total_num_divede: " << total_num_divede << std::endl;
 	std::cout << "Total number: " << total_num << std::endl;
@@ -2349,6 +2354,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	pq = std::priority_queue<FastaRecord>(); 
 	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -2359,9 +2365,9 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 void SequenceDB::read_sorted_files( int rank, int rank_size) {
 
-
 	int file_index = rank;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
@@ -2392,19 +2398,20 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 	kseq_t* seq = kseq_init(fp);
 	int len;
 	Sequence one;
+	char* id_ptr = new char[max_idf + 1];
+	char* data_ptr = new char[max_len + 1];
 	while ((len = kseq_read(seq)) >= 0) {
-		one.identifier = str_copy(seq->name.s);
-		// cout << seq->name.s << endl;
-		one.data = str_copy(seq->seq.s);
+ 	memcpy(id_ptr, seq->name.s, seq->name.l);
+   		id_ptr[seq->name.l] = 0;
+    	one.identifier = id_ptr;
+
+    	memcpy(data_ptr, seq->seq.s,seq->seq.l);
+    	data_ptr[seq->seq.l] = 0;
+    	one.data = data_ptr;
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = global_id;
 		sequences.Append(new Sequence(one));
-		delete[] one.identifier;
-    	delete[] one.data;
-   		one.identifier = nullptr;
-    	one.data = nullptr;
-
 		global_id++;
 		if(sequences.size()%chunk_size==0){
 			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
@@ -2418,6 +2425,10 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 		}
 		
 	}
+	// one.identifier = nullptr;
+    // one.data = nullptr;
+	// delete[] id_ptr;
+    // delete[] data_ptr;
 	if(sequences.size()%chunk_size!=0){
 		my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 		chunks_id.push_back(chunk_id);
@@ -3936,7 +3947,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		ofstream fout(output);
 		int file_index=0;
 		bool first_block=true;
-		int first_size=500;
+		int first_size=200;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int last_rep_index=0;
@@ -3969,21 +3980,25 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 		}
 		else seq=chunk_kseq[file_index];
+		char* id_ptr = new char[max_idf + 1];
+		char* data_ptr = new char[max_len + 1];
+		char* true_ptr = new char[max_len + 1];
 		while ((len = kseq_read(seq)) >= 0) {
-		one.identifier = str_copy(seq->name.s);
-		// cout << seq->name.s << endl;
-		one.data = str_copy(seq->seq.s);
-		one.true_data = str_copy(seq->seq.s);
+ 		memcpy(id_ptr, seq->name.s, seq->name.l);
+   		id_ptr[seq->name.l] = 0;
+    	one.identifier = id_ptr;
+
+    	memcpy(data_ptr, seq->seq.s,seq->seq.l);
+    	data_ptr[seq->seq.l] = 0;
+    	one.data = data_ptr;
+
+    	memcpy(true_ptr, seq->seq.s, seq->seq.l);
+    	true_ptr[seq->seq.l] = 0;
+    	one.true_data = true_ptr;
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = sequences.size();
 		sequences.Append(new Sequence(one));
-		delete[] one.identifier;
-    	delete[] one.data;
-    	delete[] one.true_data;
-    	one.identifier = nullptr;
-    	one.data = nullptr;
-    	one.true_data = nullptr;
 		if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
 		if(sequences.size()%chunk_size==0){
 			chunks_id.push_back(chunk_id);
@@ -3995,6 +4010,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 		
 	}
+	// one.identifier = nullptr;
+    // one.data = nullptr;
+	// one.true_data=nullptr;
+	// delete[] id_ptr;
+	// delete[] data_ptr;
+	// delete[] true_ptr;
 	file_index=(file_index+1)%(rank_size-1);
 		for (i = 0;i < chunks_num;i++) {
 			int total_flag=0;
@@ -4159,16 +4180,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				break;
 			}
 			if (!remaining)
-			{	
-				for(int kk=last_rep_index;kk<rep_seqs.size();kk++){
-					Sequence* seq=sequences[rep_seqs[kk]];
-					fout << ">" <<seq->identifier << "\n";
-					fout<<seq->true_data << "\n";
+			{
+				for (int kk = last_rep_index; kk < rep_seqs.size(); kk++)
+				{
+					Sequence *seq = sequences[rep_seqs[kk]];
+					fout << ">" << seq->identifier << "\n";
+					fout << seq->true_data << "\n";
 					seq->Clear();
-
 				}
 				// cerr<<"gogogog!"<<endl;
-				last_rep_index=rep_seqs.size();
+				last_rep_index = rep_seqs.size();
 				Sequence one;
 				std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
 				cerr << "master  file_index      " << file_index << endl;
@@ -4187,31 +4208,35 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 				else
 					seq = chunk_kseq[file_index];
+				char *id_ptr = new char[max_idf + 1];
+				char *data_ptr = new char[max_len + 1];
+				char *true_ptr = new char[max_len + 1];
 				while ((len = kseq_read(seq)) >= 0)
 				{
-					one.identifier = str_copy(seq->name.s);
-					// cout << seq->name.s << endl;
-					one.data = str_copy(seq->seq.s);
-					one.true_data = str_copy(seq->seq.s);
+					memcpy(id_ptr, seq->name.s, seq->name.l);
+					id_ptr[seq->name.l] = 0;
+					one.identifier = id_ptr;
+
+					memcpy(data_ptr, seq->seq.s, seq->seq.l);
+					data_ptr[seq->seq.l] = 0;
+					one.data = data_ptr;
+
+					memcpy(true_ptr, seq->seq.s, seq->seq.l);
+					true_ptr[seq->seq.l] = 0;
+					one.true_data = true_ptr;
 					one.size = len;
 					one.tot_length = len + seq->name.l;
 					one.index = sequences.size();
 					sequences.Append(new Sequence(one));
-					delete[] one.identifier;
-					delete[] one.data;
-					delete[] one.true_data;
-					one.identifier = nullptr;
-					one.data = nullptr;
-					one.true_data = nullptr;
 					if (sequences[sequences.size() - 1]->swap == NULL)
 						sequences[sequences.size() - 1]->ConvertBases();
 					if (sequences.size() % chunk_size == 0)
-					{	
+					{
 						chunks_id.push_back(chunk_id);
 						all_chunks.push_back(make_pair(start_global_id, sequences.size()));
 						chunk_id++;
 						start_global_id = sequences.size();
-						chunk_kseq[file_index] =seq;
+						chunk_kseq[file_index] = seq;
 						break;
 					}
 				}
@@ -4221,7 +4246,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					all_chunks.push_back(make_pair(start_global_id, sequences.size()));
 				}
 				file_index = (file_index + 1) % (rank_size - 1);
-				
+				// one.identifier = nullptr;
+    			// one.data = nullptr;
+				// one.true_data = nullptr;
+				// delete[] id_ptr;
+    			// delete[] data_ptr;
+				// delete[] true_ptr;
 					int continue_size=0;
 				int size = all_chunks[i + 1].second - all_chunks[i + 1].first;
 				// cerr<<"chunks size"<<all_chunks.size()<<endl;
@@ -4343,19 +4373,23 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 				else
 					seq = chunk_kseq[file_index];
+				char *id_ptr = new char[max_idf + 1];
+				char *data_ptr = new char[max_len + 1];
 				while ((len = kseq_read(seq)) >= 0)
 				{
-					one.identifier = str_copy(seq->name.s);
-					// cout << seq->name.s << endl;
-					one.data = str_copy(seq->seq.s);
+					memcpy(id_ptr, seq->name.s, seq->name.l);
+					id_ptr[seq->name.l] = 0;
+					one.identifier = id_ptr;
+
+					memcpy(data_ptr, seq->seq.s, seq->seq.l);
+					data_ptr[seq->seq.l] = 0;
+					one.data = data_ptr;
+
 					one.size = len;
 					one.tot_length = len + seq->name.l;
 					one.index = rep_sequences.size();
 					rep_sequences.Append(new Sequence(one));
-					delete[] one.identifier;
-					delete[] one.data;	
-					one.identifier = nullptr;
-					one.data = nullptr;
+			
 						
 					if (rep_sequences[rep_sequences.size() - 1]->swap == NULL)
 						rep_sequences[rep_sequences.size() - 1]->ConvertBases();
@@ -4364,10 +4398,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						chunk_kseq[file_index] =seq;
 						break;
 					}
-					
-
 				}
 				read_chunk[soure_chunk]=1;
+				// one.identifier = nullptr;
+    			// one.data = nullptr;
+				// delete[] id_ptr;
+    			// delete[] data_ptr;
 			}
 			// cerr<<"soure_chunk  "<<soure_chunk<<endl;
 			// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
@@ -4377,7 +4413,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			if (chunks_id[start] == soure_chunk + 1) {
+			if (start < chunks_id.size() && chunks_id[start] == soure_chunk + 1) {
 				// cerr<<"hi   "<<endl;
 				MPI_Recv(&remaining, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			}
