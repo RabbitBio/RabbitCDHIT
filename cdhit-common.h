@@ -450,7 +450,7 @@ struct Sequence
 	float distance;
 	int   coverage[4];
 
-	Sequence();
+	Sequence();   
 	Sequence( const Sequence & other );
 	Sequence( const Sequence & other, const Sequence & other2, int mode );
 	~Sequence();
@@ -642,10 +642,13 @@ class SequenceDB
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs);
 		void read_sorted_files( int rank, int rank_size);
-		void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output);
+		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
+		void send_cluster(
+			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
+			const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq,int *&flat_size,float *&flat_identity,int *&flat_coverage,char *&flat_identifier,int &C,int &N,int &IDLEN);
 		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index );
+							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index ,int start_global_id);
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
 							   long long *&prefix_buf, long long &indexCount_buf_size);
 		void decode_WordTable(WordTable &table, long *&info_buf,
