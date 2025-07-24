@@ -589,6 +589,7 @@ class SequenceDB
 		Vector<Sequence*>  sequences;
 		Vector<Sequence*>  rep_sequences;
 		Vector<int>        rep_seqs;
+		Vector<int>        local_rep_seqs;
 		long long total_num;
 		long long total_letter;
 		long long total_desc;
@@ -678,7 +679,8 @@ class SequenceDB
 
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
-
+		void ClusterOne( Sequence *seq, int id, WordTable & local_table,WordTable & table,
+				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		//void SelfComparing( int start, int end, WordTable & table, 
