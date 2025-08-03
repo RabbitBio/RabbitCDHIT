@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
 		seq_db.read_sorted_files(rank,size);
 
     }
-	// sleep(30);
+	// sleep(15);
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {

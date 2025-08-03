@@ -263,6 +263,9 @@ class WordTable
 		int CountWords(int aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
 				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
 				bool est=false, int min=0,int my_rank=1);
+		int CountWords_worker(int aan_no,
+    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, vector<int> &now_encodes,vector<INTs> &now_encodes_no,
+	bool est, int min);
 		void PrintAll();
 }; // END class INDEX_TBL
 struct Options
@@ -603,6 +606,8 @@ class SequenceDB
 		int total_chunk;
 		int chunk_size;
 		int chunks_num;
+		std::vector<std::vector<int>> total_encodes;
+		std::vector<std::vector<INTs>> total_encodes_no;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
 			sequences.clear(); rep_seqs.clear();
@@ -692,8 +697,11 @@ class SequenceDB
 		void ClusterTo( SequenceDB & other, const Options & optioins );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
+		int CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
 		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
 		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
+		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
+		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
 };
 
 
