@@ -1352,6 +1352,7 @@ int WordTable::AddWordCounts(int aan_no, Vector<int> & word_encodes, Vector<INTs
 	//printf( "seq %6i: ", idx );
 	for (i=0; i<aan_no; i++) {
 		if ( (k=word_encodes_no[i]) ) {
+			// assert(k<1000);
 			j = word_encodes[i];
 			if( skipN && j<0) continue; // for those has 'N'
 			NVector<IndexCount> & row = indexCounts[j];
@@ -3632,7 +3633,7 @@ int WorkingBuffer::EncodeWords( Sequence *seq, int NAA, bool est )
 		}
 		for (j=0; j<aan_no; j++) skip += (word_encodes[j] == -1);
 	}
-
+	assert(aan_no<35808);
 	std::sort( word_encodes.begin(), word_encodes.begin() + aan_no );
 	for(j=0; j<aan_no; j++) word_encodes_no[j]=1;
 	for(j=aan_no-1; j; j--) {
@@ -3930,7 +3931,8 @@ void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_i
 	//cout << info_buf[3] << " " << info_buf[4] << endl;
 
 	prefix_buf = (long long*)malloc(prefix_size * sizeof(long long));
-	indexCount_buf = (long*)malloc(indexCount_buf_size * sizeof(long));
+	posix_memalign((void**)&indexCount_buf, 4096, indexCount_buf_size * sizeof(long));
+
 	long long index = 0;
 #pragma omp parallel for num_threads(T)
 	for (int i = 0;i < prefix_size;i++) {
@@ -4146,7 +4148,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	size_t mem_need = MinimalMemory(frag_no, buffers[0].total_bytes, T, options);
 
 	size_t mem_limit = MemoryLimit(mem_need, options);
-	size_t mem, mega = 1000000;
+	size_t mem, mega = 50000;
 	
 	int remaining = 0;
 	int local_remaining=0;
@@ -4188,7 +4190,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		int output_index=0;
 		int file_index=0;
 		bool first_block=true;
-		int first_size=500;
+		int first_size=5000;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int last_rep_index=0;
@@ -4257,16 +4259,21 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	delete[] data_ptr;
 	delete[] true_ptr;
 	file_index=(file_index+1)%(rank_size-1);
+	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
+	// std::vector<int> done_flags(rank_size - 1, 0);
 		for (i = 0;i < chunks_num;i++) {
 			int total_flag=0;
 			// cerr<<"remaining   "<<remaining<<endl;
 			bool all_done = false;
+			//vector<MPI_Request> requests(rank_size-1,MPI_REQUEST_NULL);
 			vector<MPI_Request> requests(rank_size-1,0);
 			vector<int> done_flags(rank_size-1,0);
 			if (!first_block)
 				for (int ii = 0; ii < rank_size - 1; ++ii)
 				{
+					//  if (requests[i] == MPI_REQUEST_NULL) {
 					MPI_Irecv(&done_flags[ii], 1, MPI_INT, ii + 1, 999, MPI_COMM_WORLD, &requests[ii]);
+					//  }
 				}
 			// if (i > 1) break;
 			// cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
@@ -4307,6 +4314,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							if(flag){
 								total_flag+=done_flags[iii];
 								done_flags[iii]=0;
+								// requests[i] = MPI_REQUEST_NULL;
 							}
 						}
 					}
@@ -4399,7 +4407,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 										j = ks + 1;
 										if (seq->state & IS_REDUNDANT)
 											continue;
-										ClusterOne(seq, seq->index, local_word_table, word_table, params[0], buffers[0], options, my_rank);
+										ClusterOne(seq, seq->index, local_word_table, word_table, params[tid], buffers[tid], options, my_rank);
 										// if (options.store_disk && (seq->state & IS_REDUNDANT))
 										// 	seq->SwapOut();
 										if (may_stop and local_word_table.sequences.size() >= 100)
@@ -4554,6 +4562,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								{
 									total_flag += done_flags[iii];
 									done_flags[iii] = 0;
+									//   requests[i] = MPI_REQUEST_NULL;
 								}
 							}
 						}
@@ -4731,7 +4740,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 											j = ks+1 ;
 											if (seq->state & IS_REDUNDANT)
 												continue;
-											ClusterOne(seq, seq->index, local_word_table,word_table, params[0], buffers[0], options,my_rank);
+											ClusterOne(seq, seq->index, local_word_table,word_table, params[tid], buffers[tid], options,my_rank);
 											// if (options.store_disk && (seq->state & IS_REDUNDANT))
 											// 	seq->SwapOut();
 											if (may_stop and local_word_table.sequences.size() >= 100)
@@ -4966,6 +4975,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			if (i == total_chunk) {
 				info_buf[1]=0;
 			}
+			// cout<<"reach barrier from Rank   "<<my_rank<<endl;
 			MPI_Barrier(MPI_COMM_WORLD);
 			
 			MPI_Bcast((void*)info_buf, 6, MPI_LONG, source, MPI_COMM_WORLD);
@@ -4974,7 +4984,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
+			const size_t bcast_block_size = 512 * 1024 * 1024/sizeof(long);
+			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
+			for (size_t offset = 0; offset <  indexCount_buf_size; offset +=bcast_block_size) {
+    		size_t size = min(bcast_block_size,  indexCount_buf_size - offset);
+    		MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
+			}
+			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast(&remaining,1, MPI_INT,  source, MPI_COMM_WORLD);
 	
 			if (!remaining)
@@ -5230,6 +5246,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		clstr_fout.close();
 		local_last_table.Clear();
 		local_word_table.Clear();
+		free(info_buf);
+		free(cluster_id_buf);
+		free(seqs_suffix_buf);
+		free(prefix_buf);
+		free(indexCount_buf);
+		info_buf = NULL;
+		cluster_id_buf = NULL;
+		seqs_suffix_buf = NULL;
+		prefix_buf = NULL;
+		indexCount_buf = NULL;
 		
 	}
 
@@ -5248,7 +5274,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		int read_stop=0;
 		while(1){
 			// if (round > 1) break;
-			
+			// cout<<"reach barrier from Rank   "<<my_rank<<endl;
 			MPI_Barrier(MPI_COMM_WORLD);
 			int done_flag=0;
 			int now_rank=0;
@@ -5321,7 +5347,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
+			const size_t bcast_block_size = 512 * 1024 * 1024/sizeof(long);
+			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
+			for (size_t offset = 0; offset < indexCount_buf_size; offset +=bcast_block_size) {
+    		size_t size = min(bcast_block_size, indexCount_buf_size - offset);
+    		MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
+			}
+			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
 			record+=info_buf[1];
 
 				// cerr<<"hi   "<<endl;
@@ -5334,6 +5366,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			int remain_chunks = all_chunks.size() - start;
 
 			if(remain_chunks==0){
+				
 				if(info_buf[1]==0)
 				break;
 			// cerr<<"pass  "<<endl;
