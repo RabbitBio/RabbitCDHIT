@@ -23,7 +23,7 @@ ifeq ($(zlib),no)
   CCFLAGS += 
   LDFLAGS += -o
 else
-  CCFLAGS += -DWITH_ZLIB
+  CCFLAGS += -DWITH_ZLIB -g
   LDFLAGS += -lz -o
 endif
 

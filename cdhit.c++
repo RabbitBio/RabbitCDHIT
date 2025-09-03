@@ -25,6 +25,7 @@
 #include <numeric>
 #include <mpi.h>
 #include <fstream>
+#include <chrono>
 Options options;
 SequenceDB seq_db;
 
@@ -81,10 +82,13 @@ int main(int argc, char *argv[])
 		// seq_db.MergeRuns_Sequential(run_files, "final_sorted_1.fa");
 
 		//外部排序
+		 auto start = std::chrono::high_resolution_clock::now();
 		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
 		
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
-		
+		auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
 	}
 
   
@@ -93,7 +97,7 @@ int main(int argc, char *argv[])
 		seq_db.read_sorted_files(rank,size);
 
     }
-	sleep(15);
+	
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {

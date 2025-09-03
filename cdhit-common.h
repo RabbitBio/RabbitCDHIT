@@ -428,7 +428,7 @@ struct Sequence
 	int   size;
 	int   bufsize;
     int   size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
-
+	int table_idx;
 	//uint32_t stats;
 
 	// if swap != NULL, the sequence is stored in file.
@@ -517,6 +517,11 @@ enum { DP_BACK_NONE=0, DP_BACK_LEFT_TOP=1, DP_BACK_LEFT=2, DP_BACK_TOP=3 };
 struct WorkingBuffer
 {
 	Vector<int>  taap;
+	vector<std::pair<int,int>> thread_edges;
+	vector<int> visited;
+	vector<std::pair<int,int>>out_pairs;
+	vector<int> counts;
+	vector<vector<pair<int,int>>> local_tables;
 	Vector<int>  word_encodes;
 	Vector<int>  word_encodes_backup;
 	Vector<INTs> word_encodes_no;
@@ -532,51 +537,109 @@ struct WorkingBuffer
 	Vector<int>  diag_score2;
 	Vector<int> aan_list_comp;
 	Vector<char> seqi_comp;
+	
 	int total_bytes;
 
 	WorkingBuffer( size_t frag=0, size_t maxlen=0, const Options & options=Options() ){
 		Set( frag, maxlen, options );
 		seqi_comp.resize( MAX_SEQ );
 	}
-	void Set( size_t frag, size_t maxlen, const Options & options ){
+	WorkingBuffer(size_t frag , size_t maxlen , size_t NAAN, const Options &options = Options())
+	{
+		Set(frag, maxlen, NAAN, options);
+		seqi_comp.resize(MAX_SEQ);
+	}
+	void Set(size_t frag, size_t maxlen, const Options &options)
+	{
 		bool est = options.isEST;
-		size_t m = MAX_UAA*MAX_UAA;
+		size_t m = MAX_UAA * MAX_UAA;
 		size_t max_len = maxlen;
-		size_t band = max_len*max_len;
-		if( est ) m = m * m;
-		if( band > options.band_width ) band = options.band_width;
-		taap.resize( m );
-		aap_list.resize( max_len );
-		aap_begin.resize( m );
-		//indexCounts.resize( max_len );
-		word_encodes.resize( max_len );
-		word_encodes_no.resize( max_len );
-		word_encodes_backup.resize( max_len );
+		size_t band = max_len * max_len;
+		if (est)
+			m = m * m;
+		if (band > options.band_width)
+			band = options.band_width;
+		taap.resize(m);
+		aap_list.resize(max_len);
+		aap_begin.resize(m);
+		// indexCounts.resize( max_len );
+		word_encodes.resize(max_len);
+		word_encodes_no.resize(max_len);
+		word_encodes_backup.resize(max_len);
 		/* each table can not contain more than MAX_TABLE_SEQ representatives or fragments! */
-		if( frag > MAX_TABLE_SEQ ) frag = MAX_TABLE_SEQ;
-		lookCounts.Resize( frag + 2 );
-		indexMapping.Resize( frag + 2 );
-		diag_score.resize( MAX_DIAG );
-		diag_score2.resize( MAX_DIAG );
-		aan_list_comp.resize( max_len );
+		if (frag > MAX_TABLE_SEQ)
+			frag = MAX_TABLE_SEQ;
+		lookCounts.Resize(frag + 2);
+		indexMapping.Resize(frag + 2);
+		diag_score.resize(MAX_DIAG);
+		diag_score2.resize(MAX_DIAG);
+		aan_list_comp.resize(max_len);
 		total_bytes = max_len;
-		total_bytes += taap.size()*sizeof(int);
-		total_bytes += word_encodes.size()*sizeof(int);
-		total_bytes += word_encodes_backup.size()*sizeof(int);
-		total_bytes += diag_score.size()*sizeof(int);
-		total_bytes += diag_score2.size()*sizeof(int);
-		total_bytes += aan_list_comp.size()*sizeof(int);
-		total_bytes += word_encodes_no.size()*sizeof(INTs);
-		total_bytes += aap_list.size()*sizeof(INTs);
-		total_bytes += aap_begin.size()*sizeof(INTs);
-		total_bytes += indexMapping.Size()*sizeof(uint32_t);
-		//total_bytes += indexCounts.size()*sizeof(IndexCount);
-		total_bytes += lookCounts.Size()*sizeof(IndexCount);
-		total_bytes += max_len*(band*sizeof(int)+sizeof(VectorInt));
-		total_bytes += max_len*(band*sizeof(int)+sizeof(VectorInt64));
+		total_bytes += taap.size() * sizeof(int);
+		total_bytes += word_encodes.size() * sizeof(int);
+		total_bytes += word_encodes_backup.size() * sizeof(int);
+		total_bytes += diag_score.size() * sizeof(int);
+		total_bytes += diag_score2.size() * sizeof(int);
+		total_bytes += aan_list_comp.size() * sizeof(int);
+		total_bytes += word_encodes_no.size() * sizeof(INTs);
+		total_bytes += aap_list.size() * sizeof(INTs);
+		total_bytes += aap_begin.size() * sizeof(INTs);
+		total_bytes += indexMapping.Size() * sizeof(uint32_t);
+		// total_bytes += indexCounts.size()*sizeof(IndexCount);
+		total_bytes += lookCounts.Size() * sizeof(IndexCount);
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt));
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt64));
+	}
+	void Set(size_t frag, size_t maxlen, size_t NAAN, const Options &options)
+	{
+		bool est = options.isEST;
+		size_t m = MAX_UAA * MAX_UAA;
+		size_t max_len = maxlen;
+		size_t band = max_len * max_len;
+		if (est)
+			m = m * m;
+		if (band > options.band_width)
+			band = options.band_width;
+		taap.resize(m);
+		aap_list.resize(max_len);
+		aap_begin.resize(m);
+		local_tables.resize(NAAN);
+		// cerr<<"NAAN"<<NAAN<<endl;
+		// indexCounts.resize( max_len );
+		word_encodes.resize(max_len);
+		word_encodes_no.resize(max_len);
+		word_encodes_backup.resize(max_len);
+		thread_edges.reserve(1 << 20);
+		visited.reserve(1 << 14);
+		counts.assign(frag + 2, 0);
+
+		/* each table can not contain more than MAX_TABLE_SEQ representatives or fragments! */
+		if (frag > MAX_TABLE_SEQ)
+			frag = MAX_TABLE_SEQ;
+		lookCounts.Resize(frag + 2);
+		indexMapping.Resize(frag + 2);
+		diag_score.resize(MAX_DIAG);
+		diag_score2.resize(MAX_DIAG);
+		aan_list_comp.resize(max_len);
+		total_bytes = max_len;
+		total_bytes += taap.size() * sizeof(int);
+		total_bytes += word_encodes.size() * sizeof(int);
+		total_bytes += word_encodes_backup.size() * sizeof(int);
+		total_bytes += diag_score.size() * sizeof(int);
+		total_bytes += diag_score2.size() * sizeof(int);
+		total_bytes += aan_list_comp.size() * sizeof(int);
+		total_bytes += word_encodes_no.size() * sizeof(INTs);
+		total_bytes += aap_list.size() * sizeof(INTs);
+		total_bytes += aap_begin.size() * sizeof(INTs);
+		total_bytes += indexMapping.Size() * sizeof(uint32_t);
+		// total_bytes += indexCounts.size()*sizeof(IndexCount);
+		total_bytes += lookCounts.Size() * sizeof(IndexCount);
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt));
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt64));
 	}
 
 	int EncodeWords( Sequence *seq, int NA, bool est = false );
+	int CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, bool est, int min);
 	void ComputeAAP( const char *seqi, int size );
 	void ComputeAAP2( const char *seqi, int size );
 };
@@ -652,12 +715,12 @@ class SequenceDB
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
 			const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq,int *&flat_size,float *&flat_identity,int *&flat_coverage,char *&flat_identifier,int &C,int &N,int &IDLEN);
-		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
+		void encode_WordTable( std::vector<std::vector<std::pair<int,int>>>& table, long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index ,int start_global_id);
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
 							   long long *&prefix_buf, long long &indexCount_buf_size);
-		void decode_WordTable(WordTable &table, long *&info_buf,
+		void decode_WordTable(WordTable &table, int start,long *&info_buf,
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
 		void WriteClusterDetail(const Options& options);
@@ -688,6 +751,8 @@ class SequenceDB
 				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		void ClusterOne_Test(Sequence *seq, int id, WordTable &table,
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options);
 		//void SelfComparing( int start, int end, WordTable & table, 
 		//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
 
@@ -701,6 +766,9 @@ class SequenceDB
 		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
 		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
 		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
+		int  CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+
 		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
 };
 
