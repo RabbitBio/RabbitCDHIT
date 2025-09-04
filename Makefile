@@ -27,6 +27,8 @@ else
   LDFLAGS += -lz -o
 endif
 
+CCFLAGS += -DREADY
+
 # support debugging
 # in command line:
 # make debug=yes
@@ -41,7 +43,9 @@ ifdef MAX_SEQ
 CCFLAGS += -DMAX_SEQ=$(MAX_SEQ)
 endif
 
-PROGS = cd-hit cd-hit-est cd-hit-2d cd-hit-est-2d cd-hit-div cd-hit-454
+PROGS = cd-hit
+
+# PROGS = cd-hit cd-hit-est cd-hit-2d cd-hit-est-2d cd-hit-div cd-hit-454
 
 # Propagate hardening flags
 CCFLAGS := $(CPPFLAGS) $(CCFLAGS) $(CXXFLAGS)
@@ -98,6 +102,9 @@ cdhit-div.o: cdhit-div.c++ cdhit-common.h
 
 cdhit-454.o: cdhit-454.c++ cdhit-common.h
 	$(CC) $(CCFLAGS) cdhit-454.c++ -c
+
+# extern-sort.o: extern_sort.c++ extern_sort.h
+# 	$(CC) $(CCFLAGS) extern_sort.c++ -c
 
 PREFIX ?= /usr/local/bin
 

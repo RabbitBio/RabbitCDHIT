@@ -53,9 +53,14 @@
 #include<zlib.h>
 // #endif
 
+#include <chrono>
+
 #include<valarray>
 #include<vector>
 #include<map>
+
+#include "json.hpp"
+#include <filesystem>
 
 #define CDHIT_VERSION  "4.8.1"
 
@@ -105,78 +110,78 @@ KSEQ_INIT(gzFile, gzread)
 template<class TYPE>
 class Vector : public vector<TYPE>
 {
-	public:
-		Vector() : vector<TYPE>(){}
-		Vector( size_t size ) : vector<TYPE>( size ){}
-		Vector( size_t size, const TYPE & deft ) : vector<TYPE>( size, deft ){}
+public:
+	Vector() : vector<TYPE>() {}
+	Vector(size_t size) : vector<TYPE>(size) {}
+	Vector(size_t size, const TYPE& deft) : vector<TYPE>(size, deft) {}
 
-		void Append( const TYPE & item ){
-			size_t n = this->size();
-			if( n + 1 >= this->capacity() ) this->reserve( n + n/5 + 1 );
-			this->push_back( item );
-		}
-		int size()const{ return (int)vector<TYPE>::size(); }
+	void Append(const TYPE& item) {
+		size_t n = this->size();
+		if (n + 1 >= this->capacity()) this->reserve(n + n / 5 + 1);
+		this->push_back(item);
+	}
+	int size()const { return (int)vector<TYPE>::size(); }
 };
 
 // for primitive types only
 template<class TYPE>
 class NVector
 {
-	public:
-		TYPE   *items;
-		int     size;
-		int     capacity;
+public:
+	TYPE* items;
+	int     size;
+	int     capacity;
 
-		NVector(){ size = capacity = 0; items = NULL; }
-		NVector( int n, const TYPE & v=TYPE() ){ 
-			size = capacity = 0; items = NULL; 
-			Resize( n, v );
+	NVector() { size = capacity = 0; items = NULL; }
+	NVector(int n, const TYPE& v = TYPE()) {
+		size = capacity = 0; items = NULL;
+		Resize(n, v);
+	}
+	NVector(const NVector& other) {
+		size = capacity = 0; items = NULL;
+		if (other.items) {
+			Resize(other.size);
+			memcpy(items, other.items, other.size * sizeof(TYPE));
 		}
-		NVector( const NVector & other ){
-			size = capacity = 0; items = NULL; 
-			if( other.items ){
-				Resize( other.size );
-				memcpy( items, other.items, other.size * sizeof(TYPE) );
-			}
-		}
+	}
 
-		~NVector(){ if( items ) free( items ); }
+	~NVector() { if (items) free(items); }
 
-		int  Size()const{ return size; }
-		void Clear(){
-			if( items ) free( items );
-			size = capacity = 0; items = NULL; 
-		}
+	int  Size()const { return size; }
+	void Clear() {
+		if (items) free(items);
+		size = capacity = 0; items = NULL;
+	}
 
-		void Resize( int n, const TYPE & value=TYPE() ){
-			if( n == size && capacity > 0 ) return;
-			int i;
-			// When resize() is called, probably this is the intended size,
-			// and will not be changed frequently.
-			if( n != capacity ){
-				capacity = n;
-				items = (TYPE*)realloc( items, capacity*sizeof(TYPE) );
-			}
-			for(i=size; i<n; i++ ) items[i] = value;
-			size = n;
+	void Resize(int n, const TYPE& value = TYPE()) {
+		if (n == size && capacity > 0) return;
+		int i;
+		// When resize() is called, probably this is the intended size,
+		// and will not be changed frequently.
+		if (n != capacity) {
+			capacity = n;
+			items = (TYPE*)realloc(items, capacity * sizeof(TYPE));
 		}
-		void Append( const TYPE & item ){
-			if( size + 1 >= capacity ){
-				capacity = size + size/5 + 1;
-				items = (TYPE*)realloc( items, capacity*sizeof(TYPE) );
-			}
-			items[size] = item;
-			size ++;
+		for (i = size; i < n; i++) items[i] = value;
+		size = n;
+	}
+	void Append(const TYPE& item) {
+		if (size + 1 >= capacity) {
+			capacity = size + size / 5 + 1;
+			items = (TYPE*)realloc(items, capacity * sizeof(TYPE));
 		}
+		items[size] = item;
+		size++;
+	}
 
-		TYPE& operator[]( const int i ){
-			//if( i <0 or i >= size ) printf( "out of range\n" );
-			return items[i];
-		}
-		TYPE& operator[]( const int i )const{
-			//if( i <0 or i >= size ) printf( "out of range\n" );
-			return items[i];
-		}
+	TYPE& operator[](const int i) {
+		//if( i <0 or i >= size ) printf( "out of range\n" );
+		return items[i];
+	}
+	TYPE& operator[](const int i)const {
+		//if( i <0 or i >= size ) printf( "out of range\n" );
+		return items[i];
+	}
 };
 typedef NVector<int>      VectorInt;
 typedef Vector<VectorInt> MatrixInt;
@@ -186,19 +191,19 @@ typedef Vector<VectorInt64> MatrixInt64;
 
 ////////// Class definition //////////
 class ScoreMatrix { //Matrix
-	private:
+private:
 
-	public:
-		int matrix[MAX_AA][MAX_AA];
-		int gap, ext_gap;
+public:
+	int matrix[MAX_AA][MAX_AA];
+	int gap, ext_gap;
 
-		ScoreMatrix();
-		void init();
-		void set_gap(int gap1, int ext_gap1);
-		void set_matrix(int *mat1);
-		void set_to_na();
-		void set_match( int score );
-		void set_mismatch( int score );
+	ScoreMatrix();
+	void init();
+	void set_gap(int gap1, int ext_gap1);
+	void set_matrix(int* mat1);
+	void set_to_na();
+	void set_match(int score);
+	void set_mismatch(int score);
 }; // END class ScoreMatrix
 
 
@@ -206,21 +211,21 @@ typedef NVector<INTs>      VectorIntX;
 typedef Vector<VectorIntX> MatrixIntX;
 
 
-extern int NAA1 ;
-extern int NAA2 ;
-extern int NAA3 ;
-extern int NAA4 ;
-extern int NAA5 ;
-extern int NAA6 ;
-extern int NAA7 ;
-extern int NAA8 ;
-extern int NAA9 ;
+extern int NAA1;
+extern int NAA2;
+extern int NAA3;
+extern int NAA4;
+extern int NAA5;
+extern int NAA6;
+extern int NAA7;
+extern int NAA8;
+extern int NAA9;
 extern int NAA10;
 extern int NAA11;
 extern int NAA12;
 extern int NAAN_array[13];
 
-void InitNAA( int max );
+void InitNAA(int max);
 
 
 extern int naa_stat_start_percent;
@@ -231,42 +236,42 @@ struct IndexCount
 	int index;
 	int count;
 
-	IndexCount( int i=0, int c=0 ){ index = i, count = c; }
+	IndexCount(int i = 0, int c = 0) { index = i, count = c; }
 };
 
 struct Sequence;
 
 class WordTable
 {
-	private:
-	public:
-		Vector<NVector<IndexCount> > indexCounts; // hold index and word counts of seqs
-		Vector<Sequence*>            sequences;
-		int     NAA;                // length of word  k-mer 的长度（word size）
-		int     NAAN;               // rows of table 表的行数（通常为 4^k 或 20^k）
-		char    is_aa;              // aa is for prot 是否是氨基酸序列
-		size_t  size;				//表中 word 总数
-		int     frag_count;
+private:
+public:
+	Vector<NVector<IndexCount> > indexCounts; // hold index and word counts of seqs
+	Vector<Sequence*>            sequences;
+	int     NAA;                // length of word  k-mer 的长度（word size）
+	int     NAAN;               // rows of table 表的行数（通常为 4^k 或 20^k）
+	char    is_aa;              // aa is for prot 是否是氨基酸序列
+	size_t  size;				//表中 word 总数
+	int     frag_count;
 
-	public:
-		WordTable( int naa=0, int naan=0 );
-		void Init(int, int);
-		void Clear();
-		void SetDNA();
-		int  AddWordCounts( NVector<IndexCount> & counts, Sequence *seq, bool skipN=false);
-		int  AddWordCountsFrag( NVector<IndexCount> & counts, int frag, int frag_size, int repfrag );
+public:
+	WordTable(int naa = 0, int naan = 0);
+	void Init(int, int);
+	void Clear();
+	void SetDNA();
+	int  AddWordCounts(NVector<IndexCount>& counts, Sequence* seq, bool skipN = false);
+	int  AddWordCountsFrag(NVector<IndexCount>& counts, int frag, int frag_size, int repfrag);
 
-		int  AddWordCounts(int aan_no, Vector<int> & word_encodes, 
-				Vector<INTs> & word_encodes_no, int idx, bool skipN=false);
-		int AddWordCountsFrag( int aan_no, Vector<int> & word_encodes, 
-				Vector<INTs> & word_encodes_no, int frag, int frag_size );
-		int CountWords(int aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
-				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
-				bool est=false, int min=0,int my_rank=1);
-		int CountWords_worker(int aan_no,
-    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, vector<int> &now_encodes,vector<INTs> &now_encodes_no,
-	bool est, int min);
-		void PrintAll();
+	int  AddWordCounts(int aan_no, Vector<int>& word_encodes,
+		Vector<INTs>& word_encodes_no, int idx, bool skipN = false);
+	int AddWordCountsFrag(int aan_no, Vector<int>& word_encodes,
+		Vector<INTs>& word_encodes_no, int frag, int frag_size);
+	int CountWords(int aan_no, Vector<int>& aan_list, Vector<INTs>& aan_list_no,
+		NVector<IndexCount>& lookCounts, NVector<uint32_t>& indexMapping,
+		bool est = false, int min = 0, int my_rank = 1);
+	int CountWords_worker(int aan_no,
+		NVector<IndexCount>& lookCounts, NVector<uint32_t>& indexMapping, vector<int>& now_encodes, vector<INTs>& now_encodes_no,
+		bool est, int min);
+	void PrintAll();
 }; // END class INDEX_TBL
 struct Options
 {
@@ -302,9 +307,9 @@ struct Options
 	int     option_r;
 	int     threads;
 	int     PE_mode;     // -P
-    int     trim_len;    // -cx
-    int     trim_len_R2; // -cy
-    int     align_pos;   // -ap for alignment position
+	int     trim_len;    // -cx
+	int     trim_len_R2; // -cy
+	int     align_pos;   // -ap for alignment position
 
 	size_t  max_entries;
 	size_t  max_sequences;
@@ -323,11 +328,11 @@ struct Options
 	string  input2_pe;
 	string  output;
 	string  output_pe;
-        
-    int     sort_output;  // -sc
-    int     sort_outputf; // -sf
 
-	Options(){
+	int     sort_output;  // -sc
+	int     sort_outputf; // -sf
+
+	Options() {
 		backupFile = false;
 		useIdentity = false;
 		useDistance = false;
@@ -359,38 +364,38 @@ struct Options
 		min_control = 0;
 		max_indel = 1;
 		print = 0;
-		option_r  = 1;
+		option_r = 1;
 		frag_size = 0;
 		des_len = 20;
 		threads = 1;
-        PE_mode = 0;
-        trim_len = 0;
-        trim_len_R2 = 0;
-        align_pos = 0;
-        sort_output = 0;
-        sort_outputf = 0;
+		PE_mode = 0;
+		trim_len = 0;
+		trim_len_R2 = 0;
+		align_pos = 0;
+		sort_output = 0;
+		sort_outputf = 0;
 		max_entries = 0;
-		max_sequences = 1<<20;
+		max_sequences = 1 << 20;
 		mem_limit = 100000000;
 	};
 
-	bool SetOptionCommon( const char *flag, const char *value );
-	bool SetOption( const char *flag, const char *value );
-	bool SetOption2D( const char *flag, const char *value );
-	bool SetOptionEST( const char *flag, const char *value );
-	bool SetOptions( int argc, char *argv[], bool twodata=false, bool est=false );
+	bool SetOptionCommon(const char* flag, const char* value);
+	bool SetOption(const char* flag, const char* value);
+	bool SetOption2D(const char* flag, const char* value);
+	bool SetOptionEST(const char* flag, const char* value);
+	bool SetOptions(int argc, char* argv[], bool twodata = false, bool est = false);
 
 	void Validate();
-	void ComputeTableLimits( int min_len, int max_len, int typical_len, size_t mem_need );
+	void ComputeTableLimits(int min_len, int max_len, int typical_len, size_t mem_need);
 
 	void Print();
 };
 
-void bomb_error(const char *message);
+void bomb_error(const char* message);
 
 struct SequenceMeta {
-    int size;
-    long des_begin;
+	int size;
+	long des_begin;
 	string identifier;
 
 };
@@ -399,10 +404,10 @@ struct FastaRecord {
 	std::string desc;
 	std::string seq;
 	size_t file_id;
-	
+
 	bool operator<(const FastaRecord& other) const {
 		// 最大堆：按序列长度降序排列
-		if(seq.size()!=other.seq.size()) return seq.size() < other.seq.size();
+		if (seq.size() != other.seq.size()) return seq.size() < other.seq.size();
 		else return file_id > other.file_id;
 	}
 };
@@ -415,35 +420,35 @@ struct FileContext {
 	bool eof = false;
 };
 struct compare {
-    bool operator()(const IndexCount& a, const IndexCount& b) const {
-        return a.count > b.count; // 小顶堆，count 小的优先
-    }
+	bool operator()(const IndexCount& a, const IndexCount& b) const {
+		return a.count > b.count; // 小顶堆，count 小的优先
+	}
 };
 struct Sequence
 {
 	// real sequence, if it is not stored swap file:
-	char *data;
+	char* data;
 	// length of the sequence:
-	char *true_data;
+	char* true_data;
 	int   size;
 	int   bufsize;
-    int   size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
+	int   size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
 
 	//uint32_t stats;
 
 	// if swap != NULL, the sequence is stored in file.
 	// swap is opened as temporary file, which will be deleted automatically
 	// after the program is finished:
-	FILE *swap;
+	FILE* swap;
 	// stream offset of the sequence:
 	int   offset;
 
 	// stream offset of the description string in the database:
 	size_t   des_begin, des_begin2;
-    // total record length
-    int   tot_length, tot_length2;
+	// total record length
+	int   tot_length, tot_length2;
 
-	char *identifier;
+	char* identifier;
 
 	// index of the sequence in the original database:
 	int   index;
@@ -453,28 +458,28 @@ struct Sequence
 	float distance;
 	int   coverage[4];
 
-	Sequence();   
-	Sequence( const Sequence & other );
-	Sequence( const Sequence & other, const Sequence & other2, int mode );
+	Sequence();
+	Sequence(const Sequence& other);
+	Sequence(const Sequence& other, const Sequence& other2, int mode);
 	~Sequence();
 
 	void Clear();
 	void worker_Clear();
-	void operator=( const char *s );
-	void operator+=( const char *s );
+	void operator=(const char* s);
+	void operator+=(const char* s);
 
-	void Resize( int n );
-	void Reserve( int n );
+	void Resize(int n);
+	void Reserve(int n);
 
-	void Swap( Sequence & other );
+	void Swap(Sequence& other);
 	int Format();
 
 	void ConvertBases();
-    void trim(int trim_len);
+	void trim(int trim_len);
 
 	void SwapIn();
 	void SwapOut();
-	void PrintInfo( int id, FILE *fout, const Options & options, char *buf );
+	void PrintInfo(int id, FILE* fout, const Options& options, char* buf);
 };
 
 struct WorkingParam
@@ -485,34 +490,34 @@ struct WorkingParam
 	int    len_upper_bound;
 	int    len_lower_bound;
 
-	WorkingParam( double a1=0, double a2=0, double an=0 ){
-		Set( a1, a2, an );
+	WorkingParam(double a1 = 0, double a2 = 0, double an = 0) {
+		Set(a1, a2, an);
 	}
-	void Set( double a1=0, double a2=0, double an=0 ){
+	void Set(double a1 = 0, double a2 = 0, double an = 0) {
 		aa1_cutoff = a1;
 		aas_cutoff = a2;
 		aan_cutoff = an;
-		len_upper_bound = 0;  
+		len_upper_bound = 0;
 		len_lower_bound = 0;
 	}
 
-	int len_eff; 
+	int len_eff;
 	int aln_cover_flag;
 	int min_aln_lenS;
 	int min_aln_lenL;
-	int required_aa1; 
+	int required_aa1;
 	int required_aas; /* or aa2 */
 	int required_aan;
 
-	void ControlShortCoverage( int len, const Options & option );
-	void ControlLongCoverage( int len, const Options & option );
-	void ComputeRequiredBases( int NAA, int ss, const Options & option );
+	void ControlShortCoverage(int len, const Options& option);
+	void ControlLongCoverage(int len, const Options& option);
+	void ComputeRequiredBases(int NAA, int ss, const Options& option);
 };
 
 //#define MAX_TABLE_SEQ (1<<22)
 #define MAX_TABLE_SEQ 4000000
 
-enum { DP_BACK_NONE=0, DP_BACK_LEFT_TOP=1, DP_BACK_LEFT=2, DP_BACK_TOP=3 };
+enum { DP_BACK_NONE = 0, DP_BACK_LEFT_TOP = 1, DP_BACK_LEFT = 2, DP_BACK_TOP = 3 };
 
 struct WorkingBuffer
 {
@@ -525,7 +530,7 @@ struct WorkingBuffer
 	//Vector<IndexCount>  indexCounts;
 	priority_queue<IndexCount, vector<IndexCount>, compare> minHeap;
 	NVector<IndexCount>  lookCounts;
-	NVector<uint32_t>    indexMapping;    
+	NVector<uint32_t>    indexMapping;
 	MatrixInt64  score_mat;
 	MatrixInt    back_mat;
 	Vector<int>  diag_score;
@@ -534,51 +539,51 @@ struct WorkingBuffer
 	Vector<char> seqi_comp;
 	int total_bytes;
 
-	WorkingBuffer( size_t frag=0, size_t maxlen=0, const Options & options=Options() ){
-		Set( frag, maxlen, options );
-		seqi_comp.resize( MAX_SEQ );
+	WorkingBuffer(size_t frag = 0, size_t maxlen = 0, const Options& options = Options()) {
+		Set(frag, maxlen, options);
+		seqi_comp.resize(MAX_SEQ);
 	}
-	void Set( size_t frag, size_t maxlen, const Options & options ){
+	void Set(size_t frag, size_t maxlen, const Options& options) {
 		bool est = options.isEST;
-		size_t m = MAX_UAA*MAX_UAA;
+		size_t m = MAX_UAA * MAX_UAA;
 		size_t max_len = maxlen;
-		size_t band = max_len*max_len;
-		if( est ) m = m * m;
-		if( band > options.band_width ) band = options.band_width;
-		taap.resize( m );
-		aap_list.resize( max_len );
-		aap_begin.resize( m );
+		size_t band = max_len * max_len;
+		if (est) m = m * m;
+		if (band > options.band_width) band = options.band_width;
+		taap.resize(m);
+		aap_list.resize(max_len);
+		aap_begin.resize(m);
 		//indexCounts.resize( max_len );
-		word_encodes.resize( max_len );
-		word_encodes_no.resize( max_len );
-		word_encodes_backup.resize( max_len );
+		word_encodes.resize(max_len);
+		word_encodes_no.resize(max_len);
+		word_encodes_backup.resize(max_len);
 		/* each table can not contain more than MAX_TABLE_SEQ representatives or fragments! */
-		if( frag > MAX_TABLE_SEQ ) frag = MAX_TABLE_SEQ;
-		lookCounts.Resize( frag + 2 );
-		indexMapping.Resize( frag + 2 );
-		diag_score.resize( MAX_DIAG );
-		diag_score2.resize( MAX_DIAG );
-		aan_list_comp.resize( max_len );
+		if (frag > MAX_TABLE_SEQ) frag = MAX_TABLE_SEQ;
+		lookCounts.Resize(frag + 2);
+		indexMapping.Resize(frag + 2);
+		diag_score.resize(MAX_DIAG);
+		diag_score2.resize(MAX_DIAG);
+		aan_list_comp.resize(max_len);
 		total_bytes = max_len;
-		total_bytes += taap.size()*sizeof(int);
-		total_bytes += word_encodes.size()*sizeof(int);
-		total_bytes += word_encodes_backup.size()*sizeof(int);
-		total_bytes += diag_score.size()*sizeof(int);
-		total_bytes += diag_score2.size()*sizeof(int);
-		total_bytes += aan_list_comp.size()*sizeof(int);
-		total_bytes += word_encodes_no.size()*sizeof(INTs);
-		total_bytes += aap_list.size()*sizeof(INTs);
-		total_bytes += aap_begin.size()*sizeof(INTs);
-		total_bytes += indexMapping.Size()*sizeof(uint32_t);
+		total_bytes += taap.size() * sizeof(int);
+		total_bytes += word_encodes.size() * sizeof(int);
+		total_bytes += word_encodes_backup.size() * sizeof(int);
+		total_bytes += diag_score.size() * sizeof(int);
+		total_bytes += diag_score2.size() * sizeof(int);
+		total_bytes += aan_list_comp.size() * sizeof(int);
+		total_bytes += word_encodes_no.size() * sizeof(INTs);
+		total_bytes += aap_list.size() * sizeof(INTs);
+		total_bytes += aap_begin.size() * sizeof(INTs);
+		total_bytes += indexMapping.Size() * sizeof(uint32_t);
 		//total_bytes += indexCounts.size()*sizeof(IndexCount);
-		total_bytes += lookCounts.Size()*sizeof(IndexCount);
-		total_bytes += max_len*(band*sizeof(int)+sizeof(VectorInt));
-		total_bytes += max_len*(band*sizeof(int)+sizeof(VectorInt64));
+		total_bytes += lookCounts.Size() * sizeof(IndexCount);
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt));
+		total_bytes += max_len * (band * sizeof(int) + sizeof(VectorInt64));
 	}
 
-	int EncodeWords( Sequence *seq, int NA, bool est = false );
-	void ComputeAAP( const char *seqi, int size );
-	void ComputeAAP2( const char *seqi, int size );
+	int EncodeWords(Sequence* seq, int NA, bool est = false);
+	void ComputeAAP(const char* seqi, int size);
+	void ComputeAAP2(const char* seqi, int size);
 };
 extern Vector<int>  Comp_AAN_idx;
 extern ScoreMatrix  mat;
@@ -586,159 +591,169 @@ extern ScoreMatrix  mat;
 
 class SequenceDB
 {
-	public:
+public:
 
-		int NAAN;
-		Vector<Sequence*>  sequences;
-		Vector<Sequence*>  rep_sequences;
-		Vector<int>        rep_seqs;
-		Vector<int>        local_rep_seqs;
-		long long total_num;
-		long long total_letter;
-		long long total_desc;
-		size_t max_len;
-		size_t min_len;
-		size_t max_idf;
-		size_t len_n50;
-		vector<pair<int, int>>all_chunks;
-		vector<pair<int, int>>my_chunks;
-		vector<int> chunks_id;
-		int total_chunk;
-		int chunk_size;
-		int chunks_num;
-		std::vector<std::vector<int>> total_encodes;
-		std::vector<std::vector<INTs>> total_encodes_no;
-		void Clear(){
-			for(int i=0; i<sequences.size(); i++) delete sequences[i];
-			sequences.clear(); rep_seqs.clear();
-		}
+	int NAAN;
+	Vector<Sequence*>  sequences;
+	Vector<Sequence*>  rep_sequences;
+	Vector<int>        rep_seqs;
+	Vector<int>        local_rep_seqs;
+	long long total_num;
+	long long total_letter;
+	long long total_desc;
+	size_t max_len;
+	size_t min_len;
+	size_t max_idf;
+	size_t len_n50;
+	vector<pair<int, int>>all_chunks;
+	vector<pair<int, int>>my_chunks;
+	vector<int> chunks_id;
+	int total_chunk;
+	int chunk_size;
+	int chunks_num;
+	std::vector<std::vector<int>> total_encodes;
+	std::vector<std::vector<INTs>> total_encodes_no;
+	void Clear() {
+		for (int i = 0; i < sequences.size(); i++) delete sequences[i];
+		sequences.clear(); rep_seqs.clear();
+	}
 
-		SequenceDB(){
-			total_num = 0;
-			chunk_size = 0;
-			total_letter = 0;
-			total_desc = 0;
-			total_chunk = 0;
-			min_len = 0;
-			max_idf = 0;
-			max_len = 0;
-			len_n50 = 0;
-		}
-		~SequenceDB(){ Clear(); }
+	SequenceDB() {
+		total_num = 0;
+		chunk_size = 0;
+		total_letter = 0;
+		total_desc = 0;
+		total_chunk = 0;
+		min_len = 0;
+		max_idf = 0;
+		max_len = 0;
+		len_n50 = 0;
+	}
+	~SequenceDB() { Clear(); }
 
-		void Read( const char *file, const Options & options );
-		//add new :元数据读取
-		void Read(const char *file, const Options & options,vector<SequenceMeta>&meta_table);
-		//add new :元数据桶排
-		void SortDivideMetaTable(std::vector<SequenceMeta> &meta_table, Options &options);
-		//随机访存并行
-		void GenerateSortedRuns(const char *file, const std::vector<SequenceMeta> &meta_table,size_t chunk_size_bytes, std::vector<std::string> &run_files);
-		//顺序合并
-		void MergeRuns_Sequential(const std::vector<std::string> &run_files, const std::string &output_file);
+	void Read(const char* file, const Options& options);
+	//add new :元数据读取
+	void Read(const char* file, const Options& options, vector<SequenceMeta>& meta_table);
+	//add new :元数据桶排
+	void SortDivideMetaTable(std::vector<SequenceMeta>& meta_table, Options& options);
+	//随机访存并行
+	void GenerateSortedRuns(const char* file, const std::vector<SequenceMeta>& meta_table, size_t chunk_size_bytes, std::vector<std::string>& run_files);
+	//顺序合并
+	void MergeRuns_Sequential(const std::vector<std::string>& run_files, const std::string& output_file);
 
-		void Readgz( const char *file, const Options & options );
+	void Readgz(const char* file, const Options& options);
 
-		void Read( const char *file, const char *file2, const Options & options );
-		void Readgz( const char *file, const char *file2, const Options & options );
-		
+	void Read(const char* file, const char* file2, const Options& options);
+	void Readgz(const char* file, const char* file2, const Options& options);
+
+
+	//外排序先读后写
+	void GenerateSorted_Parallel(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options);
+
+	void Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options);
 	
-		//外排序先读后写
-		void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,Options &options);
-		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
-		//归并
-		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs);
-		void read_sorted_files( int rank, int rank_size);
-		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
-		void send_cluster(
-			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
-			const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq,int *&flat_size,float *&flat_identity,int *&flat_coverage,char *&flat_identifier,int &C,int &N,int &IDLEN);
-		void encode_WordTable(WordTable &table, long *&info_buf, int chunk_id, int start, int end,
-							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index ,int start_global_id);
-		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
-							   long long *&prefix_buf, long long &indexCount_buf_size);
-		void decode_WordTable(WordTable &table, long *&info_buf,
-							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
-		void WriteClusterDetail(const Options& options);
-		char* str_copy(const char* str);
-		void WriteClustersSort(const char* input, const char* output, const Options& options);				  
-		void WriteClusters(const char *db, const char *newdb, const Options &options);
-		void WriteClustersgz(const char *db, const char *newdb, const Options &options);
+	void WriteToJSON(const std::string& file, const std::string& output_dir, const std::string& output_prefix, int num_procs);
 
-		void WriteClusters( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
-		void WriteClustersgz( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options );
+	void ReadJsonInfo(const std::string& file,const std::string& output_dir,Options& options,bool master);
 
-		void WriteExtra1D( const Options & options );
-		void WriteExtra2D( SequenceDB & other, const Options & options );
-		void DivideSave( const char *db, const char *newdb, int n, const Options & options );
+	void MergeSortedRuns_KWay(const std::vector<std::string>& run_files, const std::string& output_prefix, int num_procs);
 
-		void SwapIn( int seg, bool reponly=false );
-		void SwapOut( int seg );
+	void read_sorted_files(int rank, int rank_size,bool mpi_status=true);
+	
+	
+	char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
+	//归并
+	void DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank, const char* output);
+	void send_cluster(
+		const std::vector<std::vector<std::string>>& clusters_identifier, const std::vector<std::vector<int>>& clusters_size, const std::vector<std::vector<float>>& clusters_identity,
+		const std::vector<std::vector<int>>& clusters_coverage, int*& prefix_seq, int*& flat_size, float*& flat_identity, int*& flat_coverage, char*& flat_identifier, int& C, int& N, int& IDLEN);
+	void encode_WordTable(WordTable& table, long*& info_buf, int chunk_id, int start, int end,
+		long*& cluster_id_buf, long*& suffix_buf,
+		long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size, int send_file_index, int start_global_id);
+	void prepare_to_decode(WordTable& table, long*& info_buf, long*& cluster_id_buf, long*& suffix_buf, long*& indexCount_buf,
+		long long*& prefix_buf, long long& indexCount_buf_size);
+	void decode_WordTable(WordTable& table, long*& info_buf,
+		long*& cluster_id_buf, long*& suffix_buf,
+		long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size, long start_id);
+	void WriteClusterDetail(const Options& options);
+	char* str_copy(const char* str);
+	void WriteClustersSort(const char* input, const char* output, const Options& options);
+	void WriteClusters(const char* db, const char* newdb, const Options& options);
+	void WriteClustersgz(const char* db, const char* newdb, const Options& options);
 
-		//void Sort( int first, int last );
-		void SortDivide( Options & options, bool sort=true );
-		void MakeWordTable( const Options & optioins );
+	void WriteClusters(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options);
+	void WriteClustersgz(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options);
 
-		size_t MinimalMemory( int frag_no, int bsize, int T, const Options & options, size_t extra=0 );
+	void WriteExtra1D(const Options& options);
+	void WriteExtra2D(SequenceDB& other, const Options& options);
+	void DivideSave(const char* db, const char* newdb, int n, const Options& options);
 
-		void ClusterOne( Sequence *seq, int id, WordTable & table,
-				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
-		void ClusterOne( Sequence *seq, int id, WordTable & local_table,WordTable & table,
-				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
-		void ClusterOne( Sequence *seq, int id, WordTable & table,
-				WorkingParam & param, WorkingBuffer & buf, const Options & options );
-		//void SelfComparing( int start, int end, WordTable & table, 
-		//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
+	void SwapIn(int seg, bool reponly = false);
+	void SwapOut(int seg);
 
-		void ComputeDistance( const Options & options );
-		void DoClustering( const Options & options );
-		void DoClustering( int T, const Options & options );
-		void ClusterTo( SequenceDB & other, const Options & optioins );
-		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
-		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
-		int CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
-		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
-		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
-		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
-		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
+	//void Sort( int first, int last );
+	void SortDivide(Options& options, bool sort = true);
+	void MakeWordTable(const Options& optioins);
+
+	size_t MinimalMemory(int frag_no, int bsize, int T, const Options& options, size_t extra = 0);
+
+	void ClusterOne(Sequence* seq, int id, WordTable& table,
+		WorkingParam& param, WorkingBuffer& buf, const Options& options, int my_rank);
+	void ClusterOne(Sequence* seq, int id, WordTable& local_table, WordTable& table,
+		WorkingParam& param, WorkingBuffer& buf, const Options& options, int my_rank);
+	void ClusterOne(Sequence* seq, int id, WordTable& table,
+		WorkingParam& param, WorkingBuffer& buf, const Options& options);
+	//void SelfComparing( int start, int end, WordTable & table, 
+	//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
+
+	void ComputeDistance(const Options& options);
+	void DoClustering(const Options& options);
+	void DoClustering(int T, const Options& options);
+	void ClusterTo(SequenceDB& other, const Options& optioins);
+	int  CheckOne(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
+	int  CheckOne(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt, int my_rank);
+	int CheckOne_worker(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int id);
+	int  CheckOneEST(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt);
+	int  CheckOneAA(Sequence* seq, WordTable& tab, WorkingParam& par, WorkingBuffer& buf, const Options& opt, int my_rank);
+	int CheckOneAA_worker(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int id);
+	void Encodeseqs(Sequence* seq, int NAA, int id, bool est);
 };
 
 
-int print_usage (char *arg);
-void bomb_error(const char *message);
-void bomb_error(const char *message, const char *message2);
-void bomb_warning(const char *message);
-void bomb_warning(const char *message, const char *message2);
-void format_seq(char *seq);
-int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, 
-		WorkingBuffer & buffer, int &best_sum,
-		int band_width, int &band_left, int &band_center, int &band_right, int required_aa1);
-int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, 
-		WorkingBuffer & buffer, int &best_sum,
-		int band_width, int &band_left, int &band_center, int &band_right, int required_aa1);
-int local_band_align( char query[], char ref[], int qlen, int rlen, ScoreMatrix &mat, 
-		int &best_score, int &iden_no, int &alnln, float &dist, int *alninfo,
-		int band_left, int band_center, int band_right, WorkingBuffer & buffer);
+int print_usage(char* arg);
+void bomb_error(const char* message);
+void bomb_error(const char* message, const char* message2);
+void bomb_warning(const char* message);
+void bomb_warning(const char* message, const char* message2);
+void format_seq(char* seq);
+int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2,
+	WorkingBuffer& buffer, int& best_sum,
+	int band_width, int& band_left, int& band_center, int& band_right, int required_aa1);
+int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2,
+	WorkingBuffer& buffer, int& best_sum,
+	int band_width, int& band_left, int& band_center, int& band_right, int required_aa1);
+int local_band_align(char query[], char ref[], int qlen, int rlen, ScoreMatrix& mat,
+	int& best_score, int& iden_no, int& alnln, float& dist, int* alninfo,
+	int band_left, int band_center, int band_right, WorkingBuffer& buffer);
 
-void strrev(char *p);
-int print_usage_2d (char *arg);
-int print_usage_est (char *arg);
-int print_usage_div (char *arg);
-int print_usage_est_2d (char *arg);
+void strrev(char* p);
+int print_usage_2d(char* arg);
+int print_usage_est(char* arg);
+int print_usage_div(char* arg);
+int print_usage_est_2d(char* arg);
 
-int upper_bound_length_rep(int len, const Options & options );
-void cal_aax_cutoff (double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff,
-		double NR_clstr, int tolerance, int naa_stat_start_percent,
-		int naa_stat[5][61][4], int NAA);
-void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff,
-		int tolerance, int naa_stat_start_percent,
-		int naa_stat[5][61][4], int NAA, int iden);
+int upper_bound_length_rep(int len, const Options& options);
+void cal_aax_cutoff(double& aa1_cutoff, double& aa2_cutoff, double& aan_cutoff,
+	double NR_clstr, int tolerance, int naa_stat_start_percent,
+	int naa_stat[5][61][4], int NAA);
+void update_aax_cutoff(double& aa1_cutoff, double& aa2_cutoff, double& aan_cutoff,
+	int tolerance, int naa_stat_start_percent,
+	int naa_stat[5][61][4], int NAA, int iden);
 
-int calc_ann_list(int len, char *seqi, int NAA, int& aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, bool est=false);
+int calc_ann_list(int len, char* seqi, int NAA, int& aan_no, Vector<int>& aan_list, Vector<INTs>& aan_list_no, bool est = false);
 
 float current_time();
 
 //some functions from very old cd-hit
-int quick_sort_idx(int *a, int *idx, int lo0, int hi0 );
-int quick_sort_idxr(int *a, int *idx, int lo0, int hi0 );
+int quick_sort_idx(int* a, int* idx, int lo0, int hi0);
+int quick_sort_idxr(int* a, int* idx, int lo0, int hi0);

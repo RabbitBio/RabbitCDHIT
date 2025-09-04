@@ -71,29 +71,28 @@ int main(int argc, char *argv[])
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
-	
+#ifndef READY
 	if (rank == 0) {
-		
-		// 元数据排序
-		// seq_db.Read( db_in.c_str(), options ,meta_table);
-        // seq_db.SortDivideMetaTable(meta_table, options );
-		// seq_db.GenerateSortedRuns(db_in.c_str(), meta_table, 10 * 1024 * 1024, run_files);  // 50MB per chunk
-		// seq_db.MergeRuns_Sequential(run_files, "final_sorted_1.fa");
-
 		//外部排序
-		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
-		
+		size_t min_file_size = 512ull * 1024 * 1024;
+		// seq_db.GenerateSorted_Parallel(db_in.c_str(), min_file_size , run_files,options);
+		seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options);
+		mkdir("output", 0755);
 		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
-		
 	}
-
   
 	else {
-		
-		seq_db.read_sorted_files(rank,size);
-
+		// std::cout<<"Ready to read file!\n";
+		seq_db.read_sorted_files(rank,size,true);
     }
-	sleep(15);
+	MPI_Barrier(MPI_COMM_WORLD);
+#else
+	seq_db.ReadJsonInfo("info.json","output/",options,master);
+	if(!master){
+		seq_db.read_sorted_files(rank,size,false);
+	}
+#endif
+	MPI_Barrier(MPI_COMM_WORLD);
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
@@ -107,7 +106,4 @@ int main(int argc, char *argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 	MPI_Finalize();
 	return 0;
-
-	
-
-}  
+}

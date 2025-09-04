@@ -48,14 +48,14 @@
 #endif
 
 //class function definition
-const char aa[] = {"ARNDCQEGHILKMFPSTWYVBZX"};
+const char aa[] = { "ARNDCQEGHILKMFPSTWYVBZX" };
 //{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,2,6,20};
-int aa2idx[] = {0, 2, 4, 3, 6, 13,7, 8, 9,20,11,10,12, 2,20,14,
-                5, 1,15,16,20,19,17,20,18, 6};
-    // idx for  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P
-    //          Q  R  S  T  U  V  W  X  Y  Z
-    // so  aa2idx[ X - 'A'] => idx_of_X, eg aa2idx['A' - 'A'] => 0,
-    // and aa2idx['M'-'A'] => 12
+int aa2idx[] = { 0, 2, 4, 3, 6, 13,7, 8, 9,20,11,10,12, 2,20,14,
+				5, 1,15,16,20,19,17,20,18, 6 };
+// idx for  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P
+//          Q  R  S  T  U  V  W  X  Y  Z
+// so  aa2idx[ X - 'A'] => idx_of_X, eg aa2idx['A' - 'A'] => 0,
+// and aa2idx['M'-'A'] => 12
 
 int BLOSUM62[] = {
   4,                                                                  // A
@@ -81,17 +81,17 @@ int BLOSUM62[] = {
  -2,-1, 3, 4,-3, 0, 1,-1, 0,-3,-4, 0,-3,-3,-2, 0,-1,-4,-3,-3, 4,      // B
  -1, 0, 0, 1,-3, 3, 4,-2, 0,-3,-3, 1,-1,-3,-1, 0,-1,-3,-2,-2, 1, 4,   // Z
   0,-1,-1,-1,-2,-1,-1,-1,-1,-1,-1,-1,-1,-1,-2, 0, 0,-2,-1,-1,-1,-1,-1 // X
-//A  R  N  D  C  Q  E  G  H  I  L  K  M  F  P  S  T  W  Y  V  B  Z  X
-//0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19  2  6 20
+  //A  R  N  D  C  Q  E  G  H  I  L  K  M  F  P  S  T  W  Y  V  B  Z  X
+  //0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19  2  6 20
 };
 
 
-int na2idx[] = {0, 4, 1, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-                4, 4, 4, 3, 3, 4, 4, 4, 4, 4};
-    // idx for  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P
-    //          Q  R  S  T  U  V  W  X  Y  Z
-    // so aa2idx[ X - 'A'] => idx_of_X, eg aa2idx['A' - 'A'] => 0,
-    // and aa2idx['M'-'A'] => 4
+int na2idx[] = { 0, 4, 1, 4, 4, 4, 2, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+				4, 4, 4, 3, 3, 4, 4, 4, 4, 4 };
+// idx for  A  B  C  D  E  F  G  H  I  J  K  L  M  N  O  P
+//          Q  R  S  T  U  V  W  X  Y  Z
+// so aa2idx[ X - 'A'] => idx_of_X, eg aa2idx['A' - 'A'] => 0,
+// and aa2idx['M'-'A'] => 4
 int BLOSUM62_na[] = {
   2,                  // A
  -2, 2,               // C
@@ -100,37 +100,37 @@ int BLOSUM62_na[] = {
  -2,-2,-2, 1, 2,      // U
  -2,-2,-2,-2,-2, 1,   // N
   0, 0, 0, 0, 0, 0, 1 // X
-//A  C  G  T  U  N  X
-//0  1  2  3  3  4  5
+  //A  C  G  T  U  N  X
+  //0  1  2  3  3  4  5
 };
 
 void setaa_to_na();
 
 struct TempFile
 {
-	FILE *file;
+	FILE* file;
 	char buf[512];
 
-	TempFile( const char *dir = NULL ){
-		int len = dir ? strlen( dir ) : 0;
-		assert( len < 400 );
+	TempFile(const char* dir = NULL) {
+		int len = dir ? strlen(dir) : 0;
+		assert(len < 400);
 		buf[0] = 0;
-		if( len ){
-			strcat( buf, dir );
-			if( buf[len-1] != '/' && buf[len-1] != '\\' ){
+		if (len) {
+			strcat(buf, dir);
+			if (buf[len - 1] != '/' && buf[len - 1] != '\\') {
 				buf[len] = '/';
 				len += 1;
 			}
 		}
-		strcat( buf, "cdhit.temp." );
+		strcat(buf, "cdhit.temp.");
 		len += 11;
-		sprintf( buf + len, "%p", this );
-		file = fopen( buf, "w+" );
+		sprintf(buf + len, "%p", this);
+		file = fopen(buf, "w+");
 	}
-	~TempFile(){
-		if( file ){
-			fclose( file );
-			remove( buf );
+	~TempFile() {
+		if (file) {
+			fclose(file);
+			remove(buf);
 		}
 	}
 };
@@ -139,67 +139,67 @@ struct TempFiles
 {
 	NVector<TempFile*> files;
 
-	~TempFiles(){ Clear(); }
+	~TempFiles() { Clear(); }
 
-	void Clear(){
+	void Clear() {
 		int i;
-		#pragma omp critical
-		{	
+	#pragma omp critical
+		{
 			//  cerr << "files.size     " << files.size << endl;
-        for(i = 0; i < files.size; i++) {
-            if (files[i]) {
-                cerr << "Deleting temporary file: " << files[i]->buf << endl; // 输出临时文件的路径
-                delete files[i];
-            }
-        }
+			for (i = 0; i < files.size; i++) {
+				if (files[i]) {
+					cerr << "Deleting temporary file: " << files[i]->buf << endl; // 输出临时文件的路径
+					delete files[i];
+				}
+			}
 		}
 	}
 };
 
-const char *temp_dir = "";
+const char* temp_dir = "";
 TempFiles temp_files;
 
-FILE* OpenTempFile( const char *dir = NULL )
+FILE* OpenTempFile(const char* dir = NULL)
 {
-	TempFile *file = new TempFile( dir );
-	#pragma omp critical
+	TempFile* file = new TempFile(dir);
+#pragma omp critical
 	{
 		// cerr<<"caonima"<<endl;
-		temp_files.files.Append( file );
+		temp_files.files.Append(file);
 	}
 	return file->file;
 }
 static void CleanUpTempFiles()
 {
-	if( temp_files.files.Size() ) printf( "Clean up temporary files ...\n" );
+	if (temp_files.files.Size()) printf("Clean up temporary files ...\n");
 	temp_files.Clear();
 }
 
-int NAA1 ;
-int NAA2 ;
-int NAA3 ;
-int NAA4 ;
-int NAA5 ;
-int NAA6 ;
-int NAA7 ;
-int NAA8 ;
-int NAA9 ;
+int NAA1;
+int NAA2;
+int NAA3;
+int NAA4;
+int NAA5;
+int NAA6;
+int NAA7;
+int NAA8;
+int NAA9;
 int NAA10;
 int NAA11;
 int NAA12;
 int NAAN_array[13] = { 1 };
 
-void InitNAA( int max )
+void InitNAA(int max)
 {
-	NAA1  = NAAN_array[1]  = max;
-	NAA2  = NAAN_array[2]  = NAA1 * NAA1;
-	NAA3  = NAAN_array[3]  = NAA1 * NAA2;
-	NAA4  = NAAN_array[4]  = NAA2 * NAA2;
-	NAA5  = NAAN_array[5]  = NAA2 * NAA3;
-	NAA6  = NAAN_array[6]  = NAA3 * NAA3;
-	NAA7  = NAAN_array[7]  = NAA3 * NAA4;
-	NAA8  = NAAN_array[8]  = NAA4 * NAA4;
-	NAA9  = NAAN_array[9]  = NAA4 * NAA5;
+	NAA1 = NAAN_array[1] = max;
+	NAA2 = NAAN_array[2] = NAA1 * NAA1;
+	NAA3 = NAAN_array[3] = NAA1 * NAA2;
+	NAA4 = NAAN_array[4] = NAA2 * NAA2;
+	NAA5 = NAAN_array[5] = NAA2 * NAA3;
+	NAA6 = NAAN_array[6] = NAA3 * NAA3;
+	NAA7 = NAAN_array[7] = NAA3 * NAA4;
+	NAA8 = NAAN_array[8] = NAA4 * NAA4;
+	NAA9 = NAAN_array[9] = NAA4 * NAA5;
 	NAA10 = NAAN_array[10] = NAA5 * NAA5;
 	NAA11 = NAAN_array[11] = NAA5 * NAA6;
 	NAA12 = NAAN_array[12] = NAA6 * NAA6;
@@ -209,184 +209,190 @@ extern Options options;
 ScoreMatrix mat;
 Vector<int> Comp_AAN_idx;
 
-void make_comp_iseq(int len, char *iseq_comp, char *iseq)
+void make_comp_iseq(int len, char* iseq_comp, char* iseq)
 {
-	int i, c[6] = {3,2,1,0,4,5};
-	for (i=0; i<len; i++) iseq_comp[i] = c[ (int)iseq[len-i-1] ];
+	int i, c[6] = { 3,2,1,0,4,5 };
+	for (i = 0; i < len; i++) iseq_comp[i] = c[(int)iseq[len - i - 1]];
 } // make_comp_iseq
 
-bool Options::SetOptionCommon( const char *flag, const char *value )
+bool Options::SetOptionCommon(const char* flag, const char* value)
 {
-	int intval = atoi( value );
-	if      (strcmp(flag, "-i" ) == 0) input = value;
-	else if (strcmp(flag, "-j" ) == 0) input_pe = value;
-	else if (strcmp(flag, "-o" ) == 0) output = value;
+	int intval = atoi(value);
+	if (strcmp(flag, "-i") == 0) input = value;
+	else if (strcmp(flag, "-j") == 0) input_pe = value;
+	else if (strcmp(flag, "-o") == 0) output = value;
 	else if (strcmp(flag, "-op") == 0) output_pe = value;
-	else if (strcmp(flag, "-M" ) == 0) max_memory  = atoll(value) * 1000000;
-	else if (strcmp(flag, "-l" ) == 0) min_length  = intval;
-	else if (strcmp(flag, "-c" ) == 0) cluster_thd  = atof(value), useIdentity = true;
-	else if (strcmp(flag, "-D" ) == 0) distance_thd  = atof(value), useDistance = true;
-	else if (strcmp(flag, "-b" ) == 0) band_width  = intval;
-	else if (strcmp(flag, "-n" ) == 0) NAA       = intval;
-	else if (strcmp(flag, "-d" ) == 0) des_len   = intval;
-	else if (strcmp(flag, "-s" ) == 0) diff_cutoff  = atof(value);
-	else if (strcmp(flag, "-S" ) == 0) diff_cutoff_aa  = intval;
-	else if (strcmp(flag, "-B" ) == 0) store_disk  = intval;
-	else if (strcmp(flag, "-P" ) == 0) PE_mode  = intval;
+	else if (strcmp(flag, "-M") == 0) max_memory = atoll(value) * 1000000;
+	else if (strcmp(flag, "-l") == 0) min_length = intval;
+	else if (strcmp(flag, "-c") == 0) cluster_thd = atof(value), useIdentity = true;
+	else if (strcmp(flag, "-D") == 0) distance_thd = atof(value), useDistance = true;
+	else if (strcmp(flag, "-b") == 0) band_width = intval;
+	else if (strcmp(flag, "-n") == 0) NAA = intval;
+	else if (strcmp(flag, "-d") == 0) des_len = intval;
+	else if (strcmp(flag, "-s") == 0) diff_cutoff = atof(value);
+	else if (strcmp(flag, "-S") == 0) diff_cutoff_aa = intval;
+	else if (strcmp(flag, "-B") == 0) store_disk = intval;
+	else if (strcmp(flag, "-P") == 0) PE_mode = intval;
 	else if (strcmp(flag, "-cx") == 0) trim_len = intval;
 	else if (strcmp(flag, "-cy") == 0) trim_len_R2 = intval;
 	else if (strcmp(flag, "-ap") == 0) align_pos = intval;
 	else if (strcmp(flag, "-sc") == 0) sort_output = intval;
 	else if (strcmp(flag, "-sf") == 0) sort_outputf = intval;
-	else if (strcmp(flag, "-p" ) == 0) print  = intval;
-	else if (strcmp(flag, "-g" ) == 0) cluster_best  = intval;
-	else if (strcmp(flag, "-G" ) == 0) global_identity  = intval;
+	else if (strcmp(flag, "-p") == 0) print = intval;
+	else if (strcmp(flag, "-g") == 0) cluster_best = intval;
+	else if (strcmp(flag, "-G") == 0) global_identity = intval;
 	else if (strcmp(flag, "-aL") == 0) long_coverage = atof(value);
 	else if (strcmp(flag, "-AL") == 0) long_control = intval;
 	else if (strcmp(flag, "-aS") == 0) short_coverage = atof(value);
 	else if (strcmp(flag, "-AS") == 0) short_control = intval;
-	else if (strcmp(flag, "-A" ) == 0) min_control  = intval;
+	else if (strcmp(flag, "-A") == 0) min_control = intval;
 	else if (strcmp(flag, "-uL") == 0) long_unmatch_per = atof(value);
 	else if (strcmp(flag, "-uS") == 0) short_unmatch_per = atof(value);
 	else if (strcmp(flag, "-U") == 0) unmatch_len = intval;
-	else if (strcmp(flag, "-tmp" ) == 0) temp_dir  = value;
-	else if (strcmp(flag, "-bak" ) == 0) backupFile  = intval;
-	else if (strcmp(flag, "-T" ) == 0){
-#ifndef NO_OPENMP
+	else if (strcmp(flag, "-tmp") == 0) temp_dir = value;
+	else if (strcmp(flag, "-bak") == 0) backupFile = intval;
+	else if (strcmp(flag, "-T") == 0) {
+	#ifndef NO_OPENMP
 		int cpu = omp_get_num_procs();
-		threads  = intval;
-		if( threads > cpu ){
+		threads = intval;
+		if (threads > cpu) {
 			threads = cpu;
-			printf( "Warning: total number of CPUs in the system is %i\n", cpu );
-		}else if( threads < 0 ){
+			printf("Warning: total number of CPUs in the system is %i\n", cpu);
+		}
+		else if (threads < 0) {
 			threads += cpu;
-			if( threads < 0 ) threads = 0;
+			if (threads < 0) threads = 0;
 		}
-		if( threads == 0 ){
+		if (threads == 0) {
 			threads = cpu;
-			printf( "total number of CPUs in the system is %i\n", cpu );
+			printf("total number of CPUs in the system is %i\n", cpu);
 		}
-		if( threads != intval ) printf( "Actual number of CPUs to be used: %i\n\n", threads );
-#else
-		printf( "Option -T is ignored: multi-threading with OpenMP is NOT enabled!\n" );
-#endif
-	}else return false;
-	return true;
-}
-bool Options::SetOption( const char *flag, const char *value )
-{
-	if( is454 ){
-		if( strcmp(flag, "-s") == 0 ) return false;
-		else if( strcmp(flag, "-S") == 0 ) return false;
-		else if( strcmp(flag, "-G") == 0 ) return false;
-		else if( strcmp(flag, "-A") == 0 ) return false;
-		else if( strcmp(flag, "-r") == 0 ) return false;
-		else if( strcmp(flag, "-D") == 0 ){ max_indel = atoi(value); return true; }
+		if (threads != intval) printf("Actual number of CPUs to be used: %i\n\n", threads);
+	#else
+		printf("Option -T is ignored: multi-threading with OpenMP is NOT enabled!\n");
+	#endif
 	}
-	if( SetOptionCommon( flag, value ) ) return true;
-	if (strcmp(flag, "-t" ) == 0) tolerance = atoi(value);
-	else if (strcmp(flag, "-F" ) == 0) frag_size = atoi(value);
-	else if (has2D && SetOption2D( flag, value ) ) return true;
-	else if (isEST && SetOptionEST( flag, value ) ) return true;
 	else return false;
 	return true;
 }
-bool Options::SetOption2D( const char *flag, const char *value )
+bool Options::SetOption(const char* flag, const char* value)
 {
-	if( SetOptionCommon( flag, value ) ) return true;
-	if (strcmp(flag, "-i2" ) == 0) input2 = value;
-        else if (strcmp(flag, "-j2" ) == 0) input2_pe = value;
+	if (is454) {
+		if (strcmp(flag, "-s") == 0) return false;
+		else if (strcmp(flag, "-S") == 0) return false;
+		else if (strcmp(flag, "-G") == 0) return false;
+		else if (strcmp(flag, "-A") == 0) return false;
+		else if (strcmp(flag, "-r") == 0) return false;
+		else if (strcmp(flag, "-D") == 0) { max_indel = atoi(value); return true; }
+	}
+	if (SetOptionCommon(flag, value)) return true;
+	if (strcmp(flag, "-t") == 0) tolerance = atoi(value);
+	else if (strcmp(flag, "-F") == 0) frag_size = atoi(value);
+	else if (has2D && SetOption2D(flag, value)) return true;
+	else if (isEST && SetOptionEST(flag, value)) return true;
+	else return false;
+	return true;
+}
+bool Options::SetOption2D(const char* flag, const char* value)
+{
+	if (SetOptionCommon(flag, value)) return true;
+	if (strcmp(flag, "-i2") == 0) input2 = value;
+	else if (strcmp(flag, "-j2") == 0) input2_pe = value;
 	else if (strcmp(flag, "-s2") == 0) diff_cutoff2 = atof(value);
 	else if (strcmp(flag, "-S2") == 0) diff_cutoff_aa2 = atoi(value);
 	else return false;
 	return true;
 }
-bool Options::SetOptionEST( const char *flag, const char *value )
+bool Options::SetOptionEST(const char* flag, const char* value)
 {
 	NAA_top_limit = 12;
-	if( SetOptionCommon( flag, value ) ) return true;
-	if (strcmp(flag, "-r" ) == 0) option_r  = atoi(value); 
+	if (SetOptionCommon(flag, value)) return true;
+	if (strcmp(flag, "-r") == 0) option_r = atoi(value);
 	else if (strcmp(flag, "-gap") == 0) mat.gap = MAX_SEQ * atoi(value);
 	else if (strcmp(flag, "-gap-ext") == 0) mat.ext_gap = MAX_SEQ * atoi(value);
-	else if (strcmp(flag, "-match") == 0) mat.set_match( atoi(value) );
-	else if (strcmp(flag, "-mismatch") == 0) mat.set_mismatch( atoi(value) );
-	else if (strcmp(flag, "-mask") == 0){
+	else if (strcmp(flag, "-match") == 0) mat.set_match(atoi(value));
+	else if (strcmp(flag, "-mismatch") == 0) mat.set_mismatch(atoi(value));
+	else if (strcmp(flag, "-mask") == 0) {
 		string letters = value;
 		int i, n = letters.size();
-		for(i=0; i<n; i++){
-			char ch = toupper( letters[i] );
-			if( ch < 'A' || ch > 'Z' ) continue;
-			na2idx[ ch - 'A' ] = 5;
+		for (i = 0; i < n; i++) {
+			char ch = toupper(letters[i]);
+			if (ch < 'A' || ch > 'Z') continue;
+			na2idx[ch - 'A'] = 5;
 		}
 		setaa_to_na();
-	}else return false;
+	}
+	else return false;
 	return true;
 }
-bool Options::SetOptions( int argc, char *argv[], bool twod, bool est )
+bool Options::SetOptions(int argc, char* argv[], bool twod, bool est)
 {
 	int i, n;
 	char date[100];
-	strcpy( date, __DATE__ );
-	n = strlen( date );
-	for(i=1; i<n; i++) if( date[i-1] == ' ' and date[i] == ' ' ) date[i] = '0';
-	printf( "================================================================\n" );
-	printf( "Program: CD-HIT, V" CDHIT_VERSION WITH_OPENMP ", %s, " __TIME__ "\n", date );
-	printf( "Command:" );
+	strcpy(date, __DATE__);
+	n = strlen(date);
+	for (i = 1; i < n; i++) if (date[i - 1] == ' ' and date[i] == ' ') date[i] = '0';
+	printf("================================================================\n");
+	printf("Program: CD-HIT, V" CDHIT_VERSION WITH_OPENMP ", %s, " __TIME__ "\n", date);
+	printf("Command:");
 	n = 9;
-	for(i=0; i<argc; i++){
-		n += strlen( argv[i] ) + 1;
-		if( n >= 64 ){
-			printf( "\n         %s", argv[i] );
-			n = strlen( argv[i] ) + 9;
-		}else{
-			printf( " %s", argv[i] );
+	for (i = 0; i < argc; i++) {
+		n += strlen(argv[i]) + 1;
+		if (n >= 64) {
+			printf("\n         %s", argv[i]);
+			n = strlen(argv[i]) + 9;
+		}
+		else {
+			printf(" %s", argv[i]);
 		}
 	}
-	printf( "\n\n" );
+	printf("\n\n");
 	time_t tm = time(NULL);
-	printf( "Started: %s", ctime(&tm) );
-	printf( "================================================================\n" );
-	printf( "                            Output                              \n" );
-	printf( "----------------------------------------------------------------\n" );
+	printf("Started: %s", ctime(&tm));
+	printf("================================================================\n");
+	printf("                            Output                              \n");
+	printf("----------------------------------------------------------------\n");
 	has2D = twod;
 	isEST = est;
-	for (i=1; i+1<argc; i+=2) if ( SetOption( argv[i], argv[i+1] ) == 0) return false;
-	if( i < argc ) return false;
+	for (i = 1; i + 1 < argc; i += 2) if (SetOption(argv[i], argv[i + 1]) == 0) return false;
+	if (i < argc) return false;
 
-	atexit( CleanUpTempFiles );
+	atexit(CleanUpTempFiles);
 	return true;
 }
 void Options::Validate()
 {
-	if( useIdentity and useDistance ) bomb_error( "can not use both identity cutoff and distance cutoff" );
-	if( useDistance ){
+	if (useIdentity and useDistance) bomb_error("can not use both identity cutoff and distance cutoff");
+	if (useDistance) {
 		if ((distance_thd > 1.0) || (distance_thd < 0.0)) bomb_error("invalid distance threshold");
-	}else if( isEST ){
+	}
+	else if (isEST) {
 		if ((cluster_thd > 1.0) || (cluster_thd < 0.8)) bomb_error("invalid clstr threshold, should >=0.8");
-	}else{
+	}
+	else {
 		if ((cluster_thd > 1.0) || (cluster_thd < 0.4)) bomb_error("invalid clstr");
 	}
 
-        if (input.size()  == 0) bomb_error("no input file");
-        if (output.size() == 0) bomb_error("no output file");
-        if (PE_mode) {
-          if (input_pe.size()  == 0) bomb_error("no input file for R2 sequences in PE mode");
-          if (output_pe.size() == 0) bomb_error("no output file for R2 sequences in PE mode");
-        }
-        if (isEST && (align_pos==1)) option_r = 0; 
+	if (input.size() == 0) bomb_error("no input file");
+	if (output.size() == 0) bomb_error("no output file");
+	if (PE_mode) {
+		if (input_pe.size() == 0) bomb_error("no input file for R2 sequences in PE mode");
+		if (output_pe.size() == 0) bomb_error("no output file for R2 sequences in PE mode");
+	}
+	if (isEST && (align_pos == 1)) option_r = 0;
 
-	if (band_width < 1 ) bomb_error("invalid band width");
+	if (band_width < 1) bomb_error("invalid band width");
 	if (NAA < 2 || NAA > NAA_top_limit) bomb_error("invalid word length");
-	if (des_len < 0 ) bomb_error("too short description, not enough to identify sequences");
-	if (not isEST && (tolerance < 0 || tolerance > 5) ) bomb_error("invalid tolerance");
-	if ((diff_cutoff<0) || (diff_cutoff>1)) bomb_error("invalid value for -s");
-	if (diff_cutoff_aa<0) bomb_error("invalid value for -S");
-	if( has2D ){
-		if ((diff_cutoff2<0) || (diff_cutoff2>1)) bomb_error("invalid value for -s2");
-		if (diff_cutoff_aa2<0) bomb_error("invalid value for -S2");
-          if (PE_mode) {
-            if (input2_pe.size()  == 0) bomb_error("no input file for R2 sequences for 2nd db in PE mode");
-          }
+	if (des_len < 0) bomb_error("too short description, not enough to identify sequences");
+	if (not isEST && (tolerance < 0 || tolerance > 5)) bomb_error("invalid tolerance");
+	if ((diff_cutoff < 0) || (diff_cutoff > 1)) bomb_error("invalid value for -s");
+	if (diff_cutoff_aa < 0) bomb_error("invalid value for -S");
+	if (has2D) {
+		if ((diff_cutoff2 < 0) || (diff_cutoff2 > 1)) bomb_error("invalid value for -s2");
+		if (diff_cutoff_aa2 < 0) bomb_error("invalid value for -S2");
+		if (PE_mode) {
+			if (input2_pe.size() == 0) bomb_error("no input file for R2 sequences for 2nd db in PE mode");
+		}
 	}
 	if (global_identity == 0) print = 1;
 	if (short_coverage < long_coverage) short_coverage = long_coverage;
@@ -396,113 +402,116 @@ void Options::Validate()
 	if (frag_size < 0) bomb_error("invalid fragment size");
 
 #if 0
-	if( useDistance ){
+	if (useDistance) {
 		/* when required_aan becomes zero */
-		if( distance_thd * NAA >= 1 )
-			bomb_warning( "word length is too long for the distance cutoff" );
-	}else{
+		if (distance_thd * NAA >= 1)
+			bomb_warning("word length is too long for the distance cutoff");
+	}
+	else {
 		/* when required_aan becomes zero */
-		if( cluster_thd <= 1.0 - 1.0 / NAA )
-			bomb_warning( "word length is too long for the identity cutoff" );
+		if (cluster_thd <= 1.0 - 1.0 / NAA)
+			bomb_warning("word length is too long for the identity cutoff");
 	}
 #endif
 
-	const char *message = "Your word length is %i, using %i may be faster!\n";
-	if ( not isEST && tolerance ) {
-		int i, clstr_idx = (int) (cluster_thd * 100) - naa_stat_start_percent;
-		int tcutoff = naa_stat[tolerance-1][clstr_idx][5-NAA];
+	const char* message = "Your word length is %i, using %i may be faster!\n";
+	if (not isEST && tolerance) {
+		int i, clstr_idx = (int)(cluster_thd * 100) - naa_stat_start_percent;
+		int tcutoff = naa_stat[tolerance - 1][clstr_idx][5 - NAA];
 
-		if (tcutoff < 5 )
+		if (tcutoff < 5)
 			bomb_error("Too low cluster threshold for the word length.\n"
-					"Increase the threshold or the tolerance, or decrease the word length.");
-		for ( i=5; i>NAA; i--) {
-			if ( naa_stat[tolerance-1][clstr_idx][5-i] > 10 ) {
-				printf( message, NAA, i );
+				"Increase the threshold or the tolerance, or decrease the word length.");
+		for (i = 5; i > NAA; i--) {
+			if (naa_stat[tolerance - 1][clstr_idx][5 - i] > 10) {
+				printf(message, NAA, i);
 				break;
 			}
 		}
-	} else if( isEST ) {
-		if      ( cluster_thd > 0.9  && NAA < 8 ) printf( message, NAA, 8 );
-		else if ( cluster_thd > 0.87 && NAA < 5 ) printf( message, NAA, 5 );
-		else if ( cluster_thd > 0.80 && NAA < 4 ) printf( message, NAA, 4 );
-		else if ( cluster_thd > 0.75 && NAA < 3 ) printf( message, NAA, 3 );
-	} else {
-		if      ( cluster_thd > 0.85 && NAA < 5 ) printf( message, NAA, 5 );
-		else if ( cluster_thd > 0.80 && NAA < 4 ) printf( message, NAA, 4 );
-		else if ( cluster_thd > 0.75 && NAA < 3 ) printf( message, NAA, 3 );
+	}
+	else if (isEST) {
+		if (cluster_thd > 0.9 && NAA < 8) printf(message, NAA, 8);
+		else if (cluster_thd > 0.87 && NAA < 5) printf(message, NAA, 5);
+		else if (cluster_thd > 0.80 && NAA < 4) printf(message, NAA, 4);
+		else if (cluster_thd > 0.75 && NAA < 3) printf(message, NAA, 3);
+	}
+	else {
+		if (cluster_thd > 0.85 && NAA < 5) printf(message, NAA, 5);
+		else if (cluster_thd > 0.80 && NAA < 4) printf(message, NAA, 4);
+		else if (cluster_thd > 0.75 && NAA < 3) printf(message, NAA, 3);
 	}
 
-	if ( (min_length + 1) < NAA ) bomb_error("Too short -l, redefine it");
+	if ((min_length + 1) < NAA) bomb_error("Too short -l, redefine it");
 }
 void Options::Print()
 {
-	printf( "isEST = %i\n", isEST );
-	printf( "has2D = %i\n", has2D );
-	printf( "NAA = %i\n", NAA );
-	printf( "NAA_top_limit = %i\n", NAA_top_limit );
-	printf( "min_length = %i\n", min_length );
-	printf( "cluster_best = %i\n", cluster_best );
-	printf( "global_identity = %i\n", global_identity );
-	printf( "cluster_thd = %g\n", cluster_thd );
-	printf( "diff_cutoff = %g\n", diff_cutoff );
-	printf( "diff_cutoff_aa = %i\n", diff_cutoff_aa );
-	printf( "tolerance = %i\n", tolerance );
-	printf( "long_coverage = %g\n", long_coverage );
-	printf( "long_control = %i\n", long_control );
-	printf( "short_coverage = %g\n", short_coverage );
-	printf( "short_control = %i\n", short_control );
-	printf( "frag_size = %i\n", frag_size );
-	printf( "option_r = %i\n", option_r );
-	printf( "print = %i\n", print );
+	printf("isEST = %i\n", isEST);
+	printf("has2D = %i\n", has2D);
+	printf("NAA = %i\n", NAA);
+	printf("NAA_top_limit = %i\n", NAA_top_limit);
+	printf("min_length = %i\n", min_length);
+	printf("cluster_best = %i\n", cluster_best);
+	printf("global_identity = %i\n", global_identity);
+	printf("cluster_thd = %g\n", cluster_thd);
+	printf("diff_cutoff = %g\n", diff_cutoff);
+	printf("diff_cutoff_aa = %i\n", diff_cutoff_aa);
+	printf("tolerance = %i\n", tolerance);
+	printf("long_coverage = %g\n", long_coverage);
+	printf("long_control = %i\n", long_control);
+	printf("short_coverage = %g\n", short_coverage);
+	printf("short_control = %i\n", short_control);
+	printf("frag_size = %i\n", frag_size);
+	printf("option_r = %i\n", option_r);
+	printf("print = %i\n", print);
 }
 
-void bomb_error(const char *message)
+void bomb_error(const char* message)
 {
-	fprintf( stderr, "\nFatal Error:\n%s\nProgram halted !!\n\n", message );
+	fprintf(stderr, "\nFatal Error:\n%s\nProgram halted !!\n\n", message);
 	temp_files.Clear();
-	exit (1);
+	exit(1);
 } // END void bomb_error
 
-void bomb_error(const char *message, const char *message2)
+void bomb_error(const char* message, const char* message2)
 {
-	fprintf( stderr, "\nFatal Error:\n%s %s\nProgram halted !!\n\n", message, message2 );
+	fprintf(stderr, "\nFatal Error:\n%s %s\nProgram halted !!\n\n", message, message2);
 	temp_files.Clear();
-	exit (1);
+	exit(1);
 } // END void bomb_error
 
 
-void bomb_warning(const char *message)
+void bomb_warning(const char* message)
 {
-	fprintf( stderr, "\nWarning:\n%s\nNot fatal, but may affect results !!\n\n", message );
+	fprintf(stderr, "\nWarning:\n%s\nNot fatal, but may affect results !!\n\n", message);
 } // END void bomb_warning
 
 
-void bomb_warning(const char *message, const char *message2)
+void bomb_warning(const char* message, const char* message2)
 {
-	fprintf( stderr, "\nWarning:\n%s %s\nNot fatal, but may affect results !!\n\n", message, message2 );
+	fprintf(stderr, "\nWarning:\n%s %s\nNot fatal, but may affect results !!\n\n", message, message2);
 } // END void bomb_warning
 
-void format_seq(char *seq)
+void format_seq(char* seq)
 {
 	int i, j;
 	char c1;
 	int len = strlen(seq);
 
-	for (i=0,j=0; i<len; i++) {
+	for (i = 0, j = 0; i < len; i++) {
 		c1 = toupper(seq[i]);
-		if ( isalpha(c1) ) seq[j++] = c1;
+		if (isalpha(c1)) seq[j++] = c1;
 	}
 	seq[j] = 0;
 } // END void format_seq
 
-void strrev(char *p)
+void strrev(char* p)
 {
-  char *q = p;
-  while(q && *q) ++q;
-  for(--q; p < q; ++p, --q)
-    *p = *p ^ *q,
-    *q = *p ^ *q,
-    *p = *p ^ *q;
+	char* q = p;
+	while (q && *q) ++q;
+	for (--q; p < q; ++p, --q)
+		*p = *p ^ *q,
+		* q = *p ^ *q,
+		* p = *p ^ *q;
 }
 
 ////For smiple len1 <= len2, len2 is for existing representative
@@ -521,31 +530,31 @@ void strrev(char *p)
 ////extreme left (-)            XXXXXXXXXXXXXXXXXX               seq2, rep seq
 ////              XXXXXXXXXXXXXXX   band = -(len1-1)             seq1
 ////index of diag_score = band+len1-1;
-int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & buffer,
-		int &best_sum, int band_width, int &band_left, int &band_center, int &band_right, int required_aa1)
+int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer& buffer,
+	int& best_sum, int band_width, int& band_left, int& band_center, int& band_right, int required_aa1)
 {
 	int i, i1, j, k;
-	int *pp;
-	int nall = len1+len2-1;
-	Vector<int> & taap = buffer.taap;
-	Vector<INTs> & aap_begin = buffer.aap_begin;
-	Vector<INTs> & aap_list = buffer.aap_list;
-	Vector<int> & diag_score = buffer.diag_score;
-	Vector<int> & diag_score2 = buffer.diag_score2;
+	int* pp;
+	int nall = len1 + len2 - 1;
+	Vector<int>& taap = buffer.taap;
+	Vector<INTs>& aap_begin = buffer.aap_begin;
+	Vector<INTs>& aap_list = buffer.aap_list;
+	Vector<int>& diag_score = buffer.diag_score;
+	Vector<int>& diag_score2 = buffer.diag_score2;
 
 	if (nall > MAX_DIAG) bomb_error("in diag_test_aapn, MAX_DIAG reached");
-	for (pp=&diag_score[0], i=nall; i; i--, pp++) *pp=0;
-	for (pp=&diag_score2[0], i=nall; i; i--, pp++) *pp=0;
+	for (pp = &diag_score[0], i = nall; i; i--, pp++) *pp = 0;
+	for (pp = &diag_score2[0], i = nall; i; i--, pp++) *pp = 0;
 
 	int c22, cpx;
-	INTs *bip;
-	int len11 = len1-1;
-	int len22 = len2-1;
+	INTs* bip;
+	int len11 = len1 - 1;
+	int len22 = len2 - 1;
 	i1 = len11;
-	for (i=0; i<len22; i++,i1++) {
-		c22 = iseq2[i]*NAA1+ iseq2[i+1];
-		cpx = 1 + (iseq2[i] != iseq2[i+1]);
-		if ( (j=taap[c22]) == 0) continue;
+	for (i = 0; i < len22; i++, i1++) {
+		c22 = iseq2[i] * NAA1 + iseq2[i + 1];
+		cpx = 1 + (iseq2[i] != iseq2[i + 1]);
+		if ((j = taap[c22]) == 0) continue;
 		int m = aap_begin[c22];
 
 		for (int k = 0; k < j; k++)
@@ -555,17 +564,17 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 			if (m + k >= aap_list.size())
 			{
 				std::cerr << "[ERROR] aap_list index out of bounds: m=" << m << " k=" << k
-						  << " m+k=" << (m + k) << " size=" << aap_list.size() << std::endl;
-			
+					<< " m+k=" << (m + k) << " size=" << aap_list.size() << std::endl;
+
 			}
 
 			if (pos < 0 || pos >= diag_score.size())
 			{
 				std::cerr << "[ERROR] diag_score index out of bounds: i1=" << i1
-						  << ", aap_list[m+k]=" << aap_list[m + k]
-						  << ", pos=" << pos
-						  << ", diag_score.Size()=" << diag_score.size() << std::endl;
-			
+					<< ", aap_list[m+k]=" << aap_list[m + k]
+					<< ", pos=" << pos
+					<< ", diag_score.Size()=" << diag_score.size() << std::endl;
+
 			}
 
 			diag_score[i1 - aap_list[m + k]]++;
@@ -575,39 +584,39 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 
 	//find the best band range
 	//  int band_b = required_aa1;
-	int band_b = required_aa1-1 >= 0 ? required_aa1-1:0;  // on dec 21 2001
+	int band_b = required_aa1 - 1 >= 0 ? required_aa1 - 1 : 0;  // on dec 21 2001
 	int band_e = nall - band_b;
 
-	int band_m = ( band_b+band_width-1 < band_e ) ? band_b+band_width-1 : band_e;
-	int best_score=0;
-	int best_score2=0;
+	int band_m = (band_b + band_width - 1 < band_e) ? band_b + band_width - 1 : band_e;
+	int best_score = 0;
+	int best_score2 = 0;
 	int max_diag = 0;
 	int max_diag2 = 0;
 	int imax_diag = 0;
-	for (i=band_b; i<=band_m; i++){
+	for (i = band_b; i <= band_m; i++) {
 		best_score += diag_score[i];
 		best_score2 += diag_score2[i];
-		if( diag_score2[i] > max_diag2 ){
+		if (diag_score2[i] > max_diag2) {
 			max_diag2 = diag_score2[i];
 			max_diag = diag_score[i];
 			imax_diag = i;
 		}
 	}
-	int from=band_b;
-	int end =band_m;
+	int from = band_b;
+	int end = band_m;
 	int score = best_score;
 	int score2 = best_score2;
-	for (k=from, j=band_m+1; j<band_e; j++, k++) {
-		score -= diag_score[k]; 
-		score += diag_score[j]; 
-		score2 -= diag_score2[k]; 
-		score2 += diag_score2[j]; 
-		if ( score2 > best_score2 ) {
+	for (k = from, j = band_m + 1; j < band_e; j++, k++) {
+		score -= diag_score[k];
+		score += diag_score[j];
+		score2 -= diag_score2[k];
+		score2 += diag_score2[j];
+		if (score2 > best_score2) {
 			from = k + 1;
-			end  = j;
+			end = j;
 			best_score = score;
 			best_score2 = score2;
-			if( diag_score2[j] > max_diag2 ){
+			if (diag_score2[j] > max_diag2) {
 				max_diag2 = diag_score2[j];
 				max_diag = diag_score[j];
 				imax_diag = j;
@@ -615,64 +624,66 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 		}
 	}
 	int mlen = imax_diag;
-	if( imax_diag > len1 ) mlen = nall - imax_diag;
+	if (imax_diag > len1) mlen = nall - imax_diag;
 	int emax = int((1.0 - options.cluster_thd) * mlen) + 1;
-	for (j=from; j<imax_diag; j++) { // if aap pairs fail to open gap
-		if ( (imax_diag - j) > emax || diag_score[j] < 1 ) {
+	for (j = from; j < imax_diag; j++) { // if aap pairs fail to open gap
+		if ((imax_diag - j) > emax || diag_score[j] < 1) {
 			best_score -= diag_score[j]; from++;
-		} else break;
+		}
+		else break;
 	}
-	for (j=end; j>imax_diag; j--) { // if aap pairs fail to open gap
-		if ( (j - imax_diag) > emax || diag_score[j] < 1 ) {
+	for (j = end; j > imax_diag; j--) { // if aap pairs fail to open gap
+		if ((j - imax_diag) > emax || diag_score[j] < 1) {
 			best_score -= diag_score[j]; end--;
-		} else break;
+		}
+		else break;
 	}
 
 	//  delete [] diag_score;
-	band_left = from - len1 + 1; 
-	band_right= end - len1 + 1;
+	band_left = from - len1 + 1;
+	band_right = end - len1 + 1;
 	band_center = imax_diag - len1 + 1;
 	best_sum = best_score;
 	return OK_FUNC;
 }
 // END diag_test_aapn
- 
 
-int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & buffer, 
-        int &best_sum, int band_width, int &band_left, int &band_center, int &band_right, int required_aa1)
+
+int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer& buffer,
+	int& best_sum, int band_width, int& band_left, int& band_center, int& band_right, int required_aa1)
 {
 	int i, i1, j, k;
-	int *pp, *pp2;
-	int nall = len1+len2-1;
+	int* pp, * pp2;
+	int nall = len1 + len2 - 1;
 	int NAA2 = NAA1 * NAA1;
 	int NAA3 = NAA2 * NAA1;
-	Vector<int> & taap = buffer.taap;
-	Vector<INTs> & aap_begin = buffer.aap_begin;
-	Vector<INTs> & aap_list = buffer.aap_list;
-	Vector<int> & diag_score = buffer.diag_score;
-	Vector<int> & diag_score2 = buffer.diag_score2;
+	Vector<int>& taap = buffer.taap;
+	Vector<INTs>& aap_begin = buffer.aap_begin;
+	Vector<INTs>& aap_list = buffer.aap_list;
+	Vector<int>& diag_score = buffer.diag_score;
+	Vector<int>& diag_score2 = buffer.diag_score2;
 
 	if (nall > MAX_DIAG) bomb_error("in diag_test_aapn_est, MAX_DIAG reached");
-	pp = & diag_score[0];
-	pp2 = & diag_score2[0];
-	for (i=nall; i; i--, pp++, pp2++) *pp = *pp2 =0;
+	pp = &diag_score[0];
+	pp2 = &diag_score2[0];
+	for (i = nall; i; i--, pp++, pp2++) *pp = *pp2 = 0;
 
-	INTs *bip;
+	INTs* bip;
 	int c22, cpx;
-	int len22 = len2-3;
-	i1 = len1-1;
-	for (i=0; i<len22; i++,i1++,iseq2++) {
+	int len22 = len2 - 3;
+	i1 = len1 - 1;
+	for (i = 0; i < len22; i++, i1++, iseq2++) {
 		unsigned char c0 = iseq2[0];
 		unsigned char c1 = iseq2[1];
 		unsigned char c2 = iseq2[2];
 		unsigned char c3 = iseq2[3];
-		if ((c0>=4) || (c1>=4) || (c2>=4) || (c3>=4)) continue; //skip N
+		if ((c0 >= 4) || (c1 >= 4) || (c2 >= 4) || (c3 >= 4)) continue; //skip N
 
-		c22 = c0*NAA3+ c1*NAA2 + c2*NAA1 + c3;
-		if ( (j=taap[c22]) == 0) continue;
+		c22 = c0 * NAA3 + c1 * NAA2 + c2 * NAA1 + c3;
+		if ((j = taap[c22]) == 0) continue;
 		cpx = 1 + (c0 != c1) + (c1 != c2) + (c2 != c3);
-		bip = & aap_list[ aap_begin[c22] ];     //    bi = aap_begin[c22];
-		for (; j; j--, bip++) { 
+		bip = &aap_list[aap_begin[c22]];     //    bi = aap_begin[c22];
+		for (; j; j--, bip++) {
 			diag_score[i1 - *bip]++;
 			diag_score2[i1 - *bip] += cpx;
 		}
@@ -680,59 +691,59 @@ int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer
 #if 0
 	int mmax = 0;
 	int immax = 0;
-	for(i=0; i<=nall; i++){
-		if( i%len2 ==0 or i == nall ) printf( "\n" );
-		printf( "%3i ", diag_score[i] );
-		if( diag_score[i] > mmax ){
+	for (i = 0; i <= nall; i++) {
+		if (i % len2 == 0 or i == nall) printf("\n");
+		printf("%3i ", diag_score[i]);
+		if (diag_score[i] > mmax) {
 			mmax = diag_score[i];
 			immax = i;
 		}
 	}
 #endif
-	
+
 	//find the best band range
 	//  int band_b = required_aa1;
-	int band_b = required_aa1-1 >= 0 ? required_aa1-1:0;  // on dec 21 2001
+	int band_b = required_aa1 - 1 >= 0 ? required_aa1 - 1 : 0;  // on dec 21 2001
 	int band_e = nall - band_b;
 
-	if( options.is454 ){
+	if (options.is454) {
 		band_b = len1 - band_width;
 		band_e = len1 + band_width;
-		if( band_b < 0 ) band_b = 0;
-		if( band_e > nall ) band_e = nall;
+		if (band_b < 0) band_b = 0;
+		if (band_e > nall) band_e = nall;
 	}
 
-	int band_m = ( band_b+band_width-1 < band_e ) ? band_b+band_width-1 : band_e;
-	int best_score=0;
-	int best_score2=0;
+	int band_m = (band_b + band_width - 1 < band_e) ? band_b + band_width - 1 : band_e;
+	int best_score = 0;
+	int best_score2 = 0;
 	int max_diag = 0;
 	int max_diag2 = 0;
 	int imax_diag = 0;
-	for (i=band_b; i<=band_m; i++){
+	for (i = band_b; i <= band_m; i++) {
 		best_score += diag_score[i];
 		best_score2 += diag_score2[i];
-		if( diag_score2[i] > max_diag2 ){
+		if (diag_score2[i] > max_diag2) {
 			max_diag2 = diag_score2[i];
 			max_diag = diag_score[i];
 			imax_diag = i;
 		}
 	}
-	int from=band_b;
-	int end =band_m;
-	int score = best_score;  
-	int score2 = best_score2;  
+	int from = band_b;
+	int end = band_m;
+	int score = best_score;
+	int score2 = best_score2;
 
-	for (k=from, j=band_m+1; j<band_e; j++, k++) {
-		score -= diag_score[k]; 
-		score += diag_score[j]; 
-		score2 -= diag_score2[k]; 
-		score2 += diag_score2[j]; 
-		if ( score2 > best_score2 ) {
+	for (k = from, j = band_m + 1; j < band_e; j++, k++) {
+		score -= diag_score[k];
+		score += diag_score[j];
+		score2 -= diag_score2[k];
+		score2 += diag_score2[j];
+		if (score2 > best_score2) {
 			from = k + 1;
-			end  = j;
+			end = j;
 			best_score = score;
 			best_score2 = score2;
-			if( diag_score2[j] > max_diag2 ){
+			if (diag_score2[j] > max_diag2) {
 				max_diag2 = diag_score2[j];
 				max_diag = diag_score[j];
 				imax_diag = j;
@@ -740,36 +751,38 @@ int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer
 		}
 	}
 #if 0
-	printf( "%i %i\n", required_aa1, from );
-	printf( "max=%3i  imax=%3i; band:  %3i  %3i  %i\n", max_diag, imax_diag, band_b, band_e, band_m );
-	printf( "best: %i\n", best_score );
-	printf( "from: %i, end: %i,  best: %i\n", from, end, best_score );
+	printf("%i %i\n", required_aa1, from);
+	printf("max=%3i  imax=%3i; band:  %3i  %3i  %i\n", max_diag, imax_diag, band_b, band_e, band_m);
+	printf("best: %i\n", best_score);
+	printf("from: %i, end: %i,  best: %i\n", from, end, best_score);
 #endif
 	int mlen = imax_diag;
-	if( imax_diag > len1 ) mlen = nall - imax_diag;
+	if (imax_diag > len1) mlen = nall - imax_diag;
 	int emax = int((1.0 - options.cluster_thd) * mlen) + 1;
-	for (j=from; j<imax_diag; j++) { // if aap pairs fail to open gap
-		if ( (imax_diag - j) > emax || diag_score[j] < 1 ) {
+	for (j = from; j < imax_diag; j++) { // if aap pairs fail to open gap
+		if ((imax_diag - j) > emax || diag_score[j] < 1) {
 			best_score -= diag_score[j]; from++;
-		} else break;
+		}
+		else break;
 	}
-	for (j=end; j>imax_diag; j--) { // if aap pairs fail to open gap
-		if ( (j - imax_diag) > emax || diag_score[j] < 1 ) {
+	for (j = end; j > imax_diag; j--) { // if aap pairs fail to open gap
+		if ((j - imax_diag) > emax || diag_score[j] < 1) {
 			best_score -= diag_score[j]; end--;
-		} else break;
+		}
+		else break;
 	}
 
-	band_left = from-len1+1; 
-	band_right= end-len1+1;
+	band_left = from - len1 + 1;
+	band_right = end - len1 + 1;
 	band_center = imax_diag - len1 + 1;
 	best_sum = best_score;
-	if( options.is454 ){
-		if( band_left > 0 ) best_sum = 0;
-		if( band_right < 0 ) best_sum = 0;
+	if (options.is454) {
+		if (band_left > 0) best_sum = 0;
+		if (band_right < 0) best_sum = 0;
 	}
 #if 0
-	printf( "%3i:  best: %i,  %i  %i  %i\n", required_aa1, best_score, band_left, band_right, band_width );
-	printf( "max=%3i  imax=%3i; band:  %3i  %3i  %i\n", mmax, immax, band_b, band_e, band_m );
+	printf("%3i:  best: %i,  %i  %i  %i\n", required_aa1, best_score, band_left, band_right, band_width);
+	printf("max=%3i  imax=%3i; band:  %3i  %3i  %i\n", mmax, immax, band_b, band_e, band_m);
 #endif
 	return OK_FUNC;
 }
@@ -779,43 +792,43 @@ int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer
 /*
 local alignment of two sequence within a diag band
 for band 0 means direction (0,0) -> (1,1)
-         1 means direction (0,1) -> (1,2)
-        -1 means direction (1,0) -> (2,1)
+		 1 means direction (0,1) -> (1,2)
+		-1 means direction (1,0) -> (2,1)
 added on 2006 11 13
 band 0                      XXXXXXXXXXXXXXXXXX               seq2, rep seq
-                            XXXXXXXXXXXXXXX                  seq1
+							XXXXXXXXXXXXXXX                  seq1
 band 1                      XXXXXXXXXXXXXXXXXX               seq2, rep seq
-                             XXXXXXXXXXXXXXX                 seq1
+							 XXXXXXXXXXXXXXX                 seq1
 extreme right (+)           XXXXXXXXXXXXXXXXXX               seq2, rep seq
-    band = len2-1                            XXXXXXXXXXXXXXX seq1
+	band = len2-1                            XXXXXXXXXXXXXXX seq1
 band-1                      XXXXXXXXXXXXXXXXXX               seq2, rep seq
-                           XXXXXXXXXXXXXXX                   seq1
+						   XXXXXXXXXXXXXXX                   seq1
 extreme left (-)            XXXXXXXXXXXXXXXXXX               seq2, rep seq
-              XXXXXXXXXXXXXXX   band = -(len1-1)             seq1
+			  XXXXXXXXXXXXXXX   band = -(len1-1)             seq1
 iseq len are integer sequence and its length,
 mat is matrix, return ALN_PAIR class
 
-       band:  -101   seq2 len2 = 17
-                \\\1234567890123456
-              0  \xxxxxxxxxxxxxxxxx
-              1   xxxxxxxxxxxxxxxxx\ most right band = len2-1
-              2   xxxxxxxxxxxxxxxxx
-    seq1      3   xxxxxxxxxxxxxxxxx
-    len1 = 11 4   xxxxxxxxxxxxxxxxx
-              5   xxxxxxxxxxxxxxxxx
-              6   xxxxxxxxxxxxxxxxx
-              7   xxxxxxxxxxxxxxxxx
-              8   xxxxxxxxxxxxxxxxx
-              9   xxxxxxxxxxxxxxxxx
-              0   xxxxxxxxxxxxxxxxx
-                  \
-                   most left band = -(len1-1)
+	   band:  -101   seq2 len2 = 17
+				\\\1234567890123456
+			  0  \xxxxxxxxxxxxxxxxx
+			  1   xxxxxxxxxxxxxxxxx\ most right band = len2-1
+			  2   xxxxxxxxxxxxxxxxx
+	seq1      3   xxxxxxxxxxxxxxxxx
+	len1 = 11 4   xxxxxxxxxxxxxxxxx
+			  5   xxxxxxxxxxxxxxxxx
+			  6   xxxxxxxxxxxxxxxxx
+			  7   xxxxxxxxxxxxxxxxx
+			  8   xxxxxxxxxxxxxxxxx
+			  9   xxxxxxxxxxxxxxxxx
+			  0   xxxxxxxxxxxxxxxxx
+				  \
+				   most left band = -(len1-1)
 
 */
 
-int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, 
-		int &best_score, int &iden_no, int &alnln, float &dist, int *alninfo,
-		int band_left, int band_center, int band_right, WorkingBuffer & buffer)
+int local_band_align(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix& mat,
+	int& best_score, int& iden_no, int& alnln, float& dist, int* alninfo,
+	int band_left, int band_center, int band_right, WorkingBuffer& buffer)
 {
 	int i, j, k, j1;
 	int jj, kk;
@@ -823,136 +836,138 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 	int64_t best_score1;
 	iden_no = 0;
 
-	if ( (band_right >= len2 ) ||
-			(band_left  <= -len1) ||
-			(band_left  > band_right) ) return FAILED_FUNC;
+	if ((band_right >= len2) ||
+		(band_left <= -len1) ||
+		(band_left > band_right)) return FAILED_FUNC;
 
 	// allocate mem for score_mat[len1][len2] etc
 	int band_width = band_right - band_left + 1;
 	int band_width1 = band_width + 1;
 
-    // score_mat, back_mat [i][j]: i index of seqi (0 to len(seqi)-1), j index of band (0 to band_width-1)
-	MatrixInt64 & score_mat = buffer.score_mat;
-	MatrixInt   & back_mat = buffer.back_mat;
+	// score_mat, back_mat [i][j]: i index of seqi (0 to len(seqi)-1), j index of band (0 to band_width-1)
+	MatrixInt64& score_mat = buffer.score_mat;
+	MatrixInt& back_mat = buffer.back_mat;
 
 	//printf( "%i  %i\n", band_right, band_left );
 
-	if( score_mat.size() <= len1 ){
-		VectorInt   row( band_width1, 0 );
-		VectorInt64 row2( band_width1, 0 );
-		while( score_mat.size() <= len1 ){
-			score_mat.Append( row2 );
-			back_mat.Append( row );
+	if (score_mat.size() <= len1) {
+		VectorInt   row(band_width1, 0);
+		VectorInt64 row2(band_width1, 0);
+		while (score_mat.size() <= len1) {
+			score_mat.Append(row2);
+			back_mat.Append(row);
 		}
 	}
-	for(i=0; i<=len1; i++){
-		if( score_mat[i].Size() < band_width1 ) score_mat[i].Resize( band_width1 );
-		if( back_mat[i].Size() < band_width1 ) back_mat[i].Resize( band_width1 );
+	for (i = 0; i <= len1; i++) {
+		if (score_mat[i].Size() < band_width1) score_mat[i].Resize(band_width1);
+		if (back_mat[i].Size() < band_width1) back_mat[i].Resize(band_width1);
 	}
 
 	best_score = 0;
 	/* seq1 is query, seq2 is rep
-                  seq2    len2 = 17       seq2    len2 = 17    seq2    len2 = 17
-                  01234567890123456       01234567890123456    01234567890123456
-       0          xxxxxxxxxxxxxxxxx \\\\\\XXXxxxxxxxxxxxxxx    xXXXXXXXxxxxxxxxx
-       1     \\\\\Xxxxxxxxxxxxxxxxx  \\\\\Xxx\xxxxxxxxxxxxx    xx\xxxxx\xxxxxxxx
-       2      \\\\X\xxxxxxxxxxxxxxx   \\\\Xxxx\xxxxxxxxxxxx    xxx\xxxxx\xxxxxxx
+				  seq2    len2 = 17       seq2    len2 = 17    seq2    len2 = 17
+				  01234567890123456       01234567890123456    01234567890123456
+	   0          xxxxxxxxxxxxxxxxx \\\\\\XXXxxxxxxxxxxxxxx    xXXXXXXXxxxxxxxxx
+	   1     \\\\\Xxxxxxxxxxxxxxxxx  \\\\\Xxx\xxxxxxxxxxxxx    xx\xxxxx\xxxxxxxx
+	   2      \\\\X\xxxxxxxxxxxxxxx   \\\\Xxxx\xxxxxxxxxxxx    xxx\xxxxx\xxxxxxx
   seq1 3       \\\Xx\xxxxxxxxxxxxxx    \\\Xxxxx\xxxxxxxxxxx    xxxx\xxxxx\xxxxxx
   len1 4        \\Xxx\xxxxxxxxxxxxx     \\Xxxxxx\xxxxxxxxxx    xxxxx\xxxxx\xxxxx
   = 11 5         \Xxxx\xxxxxxxxxxxx      \Xxxxxxx\xxxxxxxxx    xxxxxx\xxxxx\xxxx
-       6          Xxxxx\xxxxxxxxxxx       Xxxxxxxx\xxxxxxxx    xxxxxxx\xxxxx\xxx
-       7          x\xxxx\xxxxxxxxxx       x\xxxxxxx\xxxxxxx    xxxxxxxx\xxxxx\xx
-       8          xx\xxxx\xxxxxxxxx       xx\xxxxxxx\xxxxxx    xxxxxxxxx\xxxxx\x
-       9          xxx\xxxx\xxxxxxxx       xxx\xxxxxxx\xxxxx    xxxxxxxxxx\xxxxx\
-       0          xxxx\xxxx\xxxxxxx       xxxx\xxxxxxx\xxxx    xxxxxxxxxxx\xxxxx
-                  band_left < 0 (-6)      band_left < 0 (-6)   band_left >=0 (1)
-                  band_right < 0 (-1)     band_right >=0 (2)   band_right >=0(7)
-                  band_width 6            band_width 9         band_width 7
-       init score_mat, and iden_mat (place with upper 'X')
-     */
+	   6          Xxxxx\xxxxxxxxxxx       Xxxxxxxx\xxxxxxxx    xxxxxxx\xxxxx\xxx
+	   7          x\xxxx\xxxxxxxxxx       x\xxxxxxx\xxxxxxx    xxxxxxxx\xxxxx\xx
+	   8          xx\xxxx\xxxxxxxxx       xx\xxxxxxx\xxxxxx    xxxxxxxxx\xxxxx\x
+	   9          xxx\xxxx\xxxxxxxx       xxx\xxxxxxx\xxxxx    xxxxxxxxxx\xxxxx\
+	   0          xxxx\xxxx\xxxxxxx       xxxx\xxxxxxx\xxxx    xxxxxxxxxxx\xxxxx
+				  band_left < 0 (-6)      band_left < 0 (-6)   band_left >=0 (1)
+				  band_right < 0 (-1)     band_right >=0 (2)   band_right >=0(7)
+				  band_width 6            band_width 9         band_width 7
+	   init score_mat, and iden_mat (place with upper 'X')
+	 */
 
 	if (band_left < 0) {  //set score to left border of the matrix within band
 		int tband = (band_right < 0) ? band_right : 0;
 		//for (k=band_left; k<tband; k++)
-		for (k=band_left; k<=tband; k++) { // fixed on 2006 11 14
+		for (k = band_left; k <= tband; k++) { // fixed on 2006 11 14
 			i = -k;
-			j1 = k-band_left;
+			j1 = k - band_left;
 			// penalty for leading gap opening = penalty for gap extension
-            // each of the left side query hunging residues give ext_gap (-1)
-			score_mat[i][j1] =  mat.ext_gap * i;
+			// each of the left side query hunging residues give ext_gap (-1)
+			score_mat[i][j1] = mat.ext_gap * i;
 			back_mat[i][j1] = DP_BACK_TOP;
 		}
-		back_mat[-tband][tband-band_left] = DP_BACK_NONE;
+		back_mat[-tband][tband - band_left] = DP_BACK_NONE;
 	}
 
-	if (band_right >=0) { //set score to top border of the matrix within band
+	if (band_right >= 0) { //set score to top border of the matrix within band
 		int tband = (band_left > 0) ? band_left : 0;
-		for (j=tband; j<=band_right; j++) {
-			j1 = j-band_left;
+		for (j = tband; j <= band_right; j++) {
+			j1 = j - band_left;
 			score_mat[0][j1] = mat.ext_gap * j;
 			back_mat[0][j1] = DP_BACK_LEFT;
 		}
-		back_mat[0][tband-band_left] = DP_BACK_NONE;
+		back_mat[0][tband - band_left] = DP_BACK_NONE;
 	}
 
 	int gap_open[2] = { mat.gap, mat.ext_gap };
 	int max_diag = band_center - band_left;
 	int extra_score[4] = { 4, 3, 2, 1 };
-	for (i=1; i<=len1; i++) {
+	for (i = 1; i <= len1; i++) {
 		int J0 = 1 - band_left - i;
 		int J1 = len2 - band_left - i;
-		if( J0 < 0 ) J0 = 0;
-		if( J1 >= band_width ) J1 = band_width;
-		for (j1=J0; j1<=J1; j1++){
-			j = j1+i+band_left;
+		if (J0 < 0) J0 = 0;
+		if (J1 >= band_width) J1 = band_width;
+		for (j1 = J0; j1 <= J1; j1++) {
+			j = j1 + i + band_left;
 
-			int ci = iseq1[i-1];
-			int cj = iseq2[j-1];
+			int ci = iseq1[i - 1];
+			int cj = iseq2[j - 1];
 			int sij = mat.matrix[ci][cj];
 			//int iden_ij = (ci == cj);
 			int s1, k0, back;
 
 			/* extra score according to the distance to the best diagonal */
-			int extra = extra_score[ abs(j1 - max_diag) & 3 ]; // max distance 3
-			sij += extra * (sij>0);
+			int extra = extra_score[abs(j1 - max_diag) & 3]; // max distance 3
+			sij += extra * (sij > 0);
 
 			back = DP_BACK_LEFT_TOP;
-			best_score1 = score_mat[i-1][j1] + sij;
-			int gap0 = gap_open[ (i == len1) | (j == len2) ];
+			best_score1 = score_mat[i - 1][j1] + sij;
+			int gap0 = gap_open[(i == len1) | (j == len2)];
 			int gap = 0;
 			int64_t score;
 
-			if( j1 > 0 ){
+			if (j1 > 0) {
 				gap = gap0;
-				if( back_mat[i][j1-1] == DP_BACK_LEFT ) gap = mat.ext_gap;
-				if( (score = score_mat[i][j1-1] + gap) > best_score1 ){
+				if (back_mat[i][j1 - 1] == DP_BACK_LEFT) gap = mat.ext_gap;
+				if ((score = score_mat[i][j1 - 1] + gap) > best_score1) {
 					back = DP_BACK_LEFT;
 					best_score1 = score;
 				}
 			}
-			if(j1+1<band_width){
+			if (j1 + 1 < band_width) {
 				gap = gap0;
-				if( back_mat[i-1][j1+1] == DP_BACK_TOP ) gap = mat.ext_gap;
-				if( (score = score_mat[i-1][j1+1] + gap) > best_score1 ){
+				if (back_mat[i - 1][j1 + 1] == DP_BACK_TOP) gap = mat.ext_gap;
+				if ((score = score_mat[i - 1][j1 + 1] + gap) > best_score1) {
 					back = DP_BACK_TOP;
 					best_score1 = score;
 				}
 			}
 			score_mat[i][j1] = best_score1;
-			back_mat[i][j1]  = back;
+			back_mat[i][j1] = back;
 			//printf( "%2i(%2i) ", best_score1, iden_no1 );
 
 		}
 		//printf( "\n" );
 	}
 	i = j = 0;
-	if( len2 - band_left < len1 ){
+	if (len2 - band_left < len1) {
 		i = len2 - band_left;
 		j = len2;
-	}else if( len1 + band_right < len2 ){
+	}
+	else if (len1 + band_right < len2) {
 		i = len1;
 		j = len1 + band_right;
-	}else{
+	}
+	else {
 		i = len1;
 		j = len2;
 	}
@@ -961,17 +976,17 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 	best_score1 = score_mat[i][j1];
 
 #if 1
-	const char *letters = "acgtnx";
-	const char *letters2 = "ACGTNX";
+	const char* letters = "acgtnx";
+	const char* letters2 = "ACGTNX";
 #else
-	const char *letters = "arndcqeghilkmfpstwyvbzx";
-	const char *letters2 = "ARNDCQEGHILKMFPSTWYVBZX";
+	const char* letters = "arndcqeghilkmfpstwyvbzx";
+	const char* letters2 = "ARNDCQEGHILKMFPSTWYVBZX";
 #endif
 	int back = back_mat[i][j1];
 	int last = back;
 	int count = 0, count2 = 0, count3 = 0;
 	int match, begin1, begin2, end1, end2;
-	int gbegin1=0, gbegin2=0, gend1=0, gend2=0;
+	int gbegin1 = 0, gbegin2 = 0, gend1 = 0, gend2 = 0;
 	int64_t score, smin = best_score1, smax = best_score1 - 1;
 	int posmin, posmax, pos = 0;
 	int bl, dlen = 0, dcount = 0;
@@ -980,43 +995,43 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 
 #ifdef PRINT
 #define PRINT
-	printf( "%i %i\n", best_score, score_mat[i][j1] );
-	printf( "%i %i %i\n", band_left, band_center, band_right );
-	printf( "%i %i %i %i\n", i, j, j1, len2 );
+	printf("%i %i\n", best_score, score_mat[i][j1]);
+	printf("%i %i %i\n", band_left, band_center, band_right);
+	printf("%i %i %i %i\n", i, j, j1, len2);
 #endif
 #ifdef MAKEALIGN
 #define MAKEALIGN
-	char AA[ MAX_SEQ ], BB[ MAX_SEQ ];
+	char AA[MAX_SEQ], BB[MAX_SEQ];
 	int NN = 0;
 	int IA, IB;
-	for(IA=len1;IA>i;IA--){
-		AA[NN] = letters[ iseq1[IA-1] ];
+	for (IA = len1;IA > i;IA--) {
+		AA[NN] = letters[iseq1[IA - 1]];
 		BB[NN++] = '-';
 	}
-	for(IB=len2;IB>j;IB--){
+	for (IB = len2;IB > j;IB--) {
 		AA[NN] = '-';
-		BB[NN++] = letters[ iseq2[IB-1] ];
+		BB[NN++] = letters[iseq2[IB - 1]];
 	}
 #endif
 
 	int masked = 0;
 	int indels = 0;
 	int max_indels = 0;
-	while( back != DP_BACK_NONE ){
-		switch( back ){
-		case DP_BACK_TOP  :
-#ifdef PRINT
-			printf( "%5i: %c %c %9i\n", pos, letters[ iseq1[i-1] ], '|', score_mat[i][j1] );
-#endif
-#ifdef MAKEALIGN
-			AA[NN] = letters[ iseq1[i-1] ];
+	while (back != DP_BACK_NONE) {
+		switch (back) {
+		case DP_BACK_TOP:
+		#ifdef PRINT
+			printf("%5i: %c %c %9i\n", pos, letters[iseq1[i - 1]], '|', score_mat[i][j1]);
+		#endif
+		#ifdef MAKEALIGN
+			AA[NN] = letters[iseq1[i - 1]];
 			BB[NN++] = '-';
-#endif
+		#endif
 			bl = (last != back) & (j != 1) & (j != len2);
 			dlen += bl;
 			dcount += bl;
 			score = score_mat[i][j1];
-			if( score < smin ){
+			if (score < smin) {
 				count2 = 0;
 				smin = score;
 				posmin = pos - 1;
@@ -1026,19 +1041,19 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 			i -= 1;
 			j1 += 1;
 			break;
-		case DP_BACK_LEFT :
-#ifdef PRINT
-			printf( "%5i: %c %c %9i\n", pos, '|', letters[ iseq2[j-1] ], score_mat[i][j1] );
-#endif
-#ifdef MAKEALIGN
+		case DP_BACK_LEFT:
+		#ifdef PRINT
+			printf("%5i: %c %c %9i\n", pos, '|', letters[iseq2[j - 1]], score_mat[i][j1]);
+		#endif
+		#ifdef MAKEALIGN
 			AA[NN] = '-';
-			BB[NN++] = letters[ iseq2[j-1] ];
-#endif
+			BB[NN++] = letters[iseq2[j - 1]];
+		#endif
 			bl = (last != back) & (i != 1) & (i != len1);
 			dlen += bl;
 			dcount += bl;
 			score = score_mat[i][j1];
-			if( score < smin ){
+			if (score < smin) {
 				count2 = 0;
 				smin = score;
 				posmin = pos - 1;
@@ -1048,53 +1063,57 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 			j1 -= 1;
 			j -= 1;
 			break;
-		case DP_BACK_LEFT_TOP :
-#ifdef PRINT
-			if( iseq1[i-1] == iseq2[j-1] ){
-				printf( "%5i: %c %c %9i\n", pos, letters2[ iseq1[i-1] ], letters2[ iseq2[j-1] ], score_mat[i][j1] );
-			}else{
-				printf( "%5i: %c %c %9i\n", pos, letters[ iseq1[i-1] ], letters[ iseq2[j-1] ], score_mat[i][j1] );
+		case DP_BACK_LEFT_TOP:
+		#ifdef PRINT
+			if (iseq1[i - 1] == iseq2[j - 1]) {
+				printf("%5i: %c %c %9i\n", pos, letters2[iseq1[i - 1]], letters2[iseq2[j - 1]], score_mat[i][j1]);
 			}
-#endif
-#ifdef MAKEALIGN
-			if( iseq1[i-1] == iseq2[j-1] ){
-				AA[NN] = letters2[ iseq1[i-1] ];
-				BB[NN++] = letters2[ iseq2[j-1] ];
-			}else{
-				AA[NN] = letters[ iseq1[i-1] ];
-				BB[NN++] = letters[ iseq2[j-1] ];
+			else {
+				printf("%5i: %c %c %9i\n", pos, letters[iseq1[i - 1]], letters[iseq2[j - 1]], score_mat[i][j1]);
 			}
-#endif
-			if( alninfo && options.global_identity ){
-				if( i == 1 || j == 1 ){
-					gbegin1 = i-1;
-					gbegin2 = j-1;
-				}else if( i == len1 || j == len2 ){
-					gend1 = i-1;
-					gend2 = j-1;
+		#endif
+		#ifdef MAKEALIGN
+			if (iseq1[i - 1] == iseq2[j - 1]) {
+				AA[NN] = letters2[iseq1[i - 1]];
+				BB[NN++] = letters2[iseq2[j - 1]];
+			}
+			else {
+				AA[NN] = letters[iseq1[i - 1]];
+				BB[NN++] = letters[iseq2[j - 1]];
+			}
+		#endif
+			if (alninfo && options.global_identity) {
+				if (i == 1 || j == 1) {
+					gbegin1 = i - 1;
+					gbegin2 = j - 1;
+				}
+				else if (i == len1 || j == len2) {
+					gend1 = i - 1;
+					gend2 = j - 1;
 				}
 			}
 			score = score_mat[i][j1];
 			i -= 1;
 			j -= 1;
 			match = iseq1[i] == iseq2[j];
-			if( score > smax ){
+			if (score > smax) {
 				count = 0;
 				smax = score;
 				posmax = pos;
 				end1 = i;
 				end2 = j;
 			}
-			if( options.isEST && (iseq1[i] > 4 || iseq2[j] > 4) ){
+			if (options.isEST && (iseq1[i] > 4 || iseq2[j] > 4)) {
 				masked += 1;
-			}else{
+			}
+			else {
 				dlen += 1;
-				dcount += ! match;
+				dcount += !match;
 				count += match;
 				count2 += match;
 				count3 += match;
 			}
-			if( score < smin ){
+			if (score < smin) {
 				int mm = match == 0;
 				count2 = 0;
 				smin = score;
@@ -1103,16 +1122,18 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 				begin2 = j + mm;
 			}
 			break;
-		default : printf( "%i\n", back ); break;
+		default: printf("%i\n", back); break;
 		}
-		if( options.is454 ){
-			if( back == DP_BACK_LEFT_TOP ){
-				if( indels > max_indels ) max_indels = indels;
+		if (options.is454) {
+			if (back == DP_BACK_LEFT_TOP) {
+				if (indels > max_indels) max_indels = indels;
 				indels = 0;
-			}else{
-				if( last == DP_BACK_LEFT_TOP ){
+			}
+			else {
+				if (last == DP_BACK_LEFT_TOP) {
 					indels = 1;
-				}else if( indels ){
+				}
+				else if (indels) {
 					indels += 1;
 				}
 			}
@@ -1121,26 +1142,26 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 		last = back;
 		back = back_mat[i][j1];
 	}
-	if( options.is454 and max_indels > options.max_indel ) return FAILED_FUNC;
+	if (options.is454 and max_indels > options.max_indel) return FAILED_FUNC;
 	iden_no = options.global_identity ? count3 : count - count2;
 	alnln = posmin - posmax + 1 - masked;
-	dist = dcount/(float)dlen;
+	dist = dcount / (float)dlen;
 	//dist = - 0.75 * log( 1.0 - dist * 4.0 / 3.0 );
 	int umtail1 = len1 - 1 - end1;
 	int umtail2 = len2 - 1 - end2;
 	int umhead = begin1 < begin2 ? begin1 : begin2;
 	int umtail = umtail1 < umtail2 ? umtail1 : umtail2;
 	int umlen = umhead + umtail;
-	if( umlen > options.unmatch_len ) return FAILED_FUNC;
-	if( umlen > len1 * options.short_unmatch_per ) return FAILED_FUNC;
-	if( umlen > len2 * options.long_unmatch_per ) return FAILED_FUNC;
-	if( alninfo ){
+	if (umlen > options.unmatch_len) return FAILED_FUNC;
+	if (umlen > len1 * options.short_unmatch_per) return FAILED_FUNC;
+	if (umlen > len2 * options.long_unmatch_per) return FAILED_FUNC;
+	if (alninfo) {
 		alninfo[0] = begin1;
 		alninfo[1] = end1;
 		alninfo[2] = begin2;
 		alninfo[3] = end2;
 		alninfo[4] = masked;
-		if( options.global_identity ){
+		if (options.global_identity) {
 			alninfo[0] = gbegin1;
 			alninfo[1] = gend1;
 			alninfo[2] = gbegin2;
@@ -1148,72 +1169,73 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 		}
 	}
 #ifdef PRINT
-	printf( "%6i %6i:  %4i %4i %4i %4i\n", alnln, iden_no, begin1, end1, begin2, end2 );
-	printf( "%6i %6i:  %4i %4i\n", posmin, posmax, posmin - posmax, count - count2 );
-	printf( "smin = %9i, smax = %9i\n", smin, smax );
-	printf( "dlen = %5i, dcount = %5i, dist = %.3f\n", dlen, dcount, dcount/(float)dlen );
+	printf("%6i %6i:  %4i %4i %4i %4i\n", alnln, iden_no, begin1, end1, begin2, end2);
+	printf("%6i %6i:  %4i %4i\n", posmin, posmax, posmin - posmax, count - count2);
+	printf("smin = %9i, smax = %9i\n", smin, smax);
+	printf("dlen = %5i, dcount = %5i, dist = %.3f\n", dlen, dcount, dcount / (float)dlen);
 #endif
 #ifdef MAKEALIGN
-	float identity = iden_no / (float)( options.global_identity ? (len1 - masked) : alnln);
-	if( identity < options.cluster_thd ) return OK_FUNC;
-	while(i--){
-		AA[NN] = letters[ iseq1[i-1] ];
+	float identity = iden_no / (float)(options.global_identity ? (len1 - masked) : alnln);
+	if (identity < options.cluster_thd) return OK_FUNC;
+	while (i--) {
+		AA[NN] = letters[iseq1[i - 1]];
 		BB[NN++] = '-';
 	}
-	while(j--){
+	while (j--) {
 		AA[NN] = '-';
-		BB[NN++] = letters[ iseq2[j-1] ];
+		BB[NN++] = letters[iseq2[j - 1]];
 	}
 	AA[NN] = '\0';
 	BB[NN] = '\0';
-	for(i=0; i<NN/2; i++){
+	for (i = 0; i < NN / 2; i++) {
 		char aa = AA[i], bb = BB[i];
-		AA[i] = AA[NN-i-1];
-		BB[i] = BB[NN-i-1];
-		AA[NN-i-1] = aa;
-		BB[NN-i-1] = bb;
+		AA[i] = AA[NN - i - 1];
+		BB[i] = BB[NN - i - 1];
+		AA[NN - i - 1] = aa;
+		BB[NN - i - 1] = bb;
 	}
-	static int fcount = 0; 
+	static int fcount = 0;
 	fcount += 1;
-	FILE *fout = fopen( "alignments.txt", "a" );
-	if( fout == NULL ){
-		if( fcount <= 1 ) printf( "alignment files open failed\n" );
+	FILE* fout = fopen("alignments.txt", "a");
+	if (fout == NULL) {
+		if (fcount <= 1) printf("alignment files open failed\n");
 		return OK_FUNC;
 	}
-	fprintf( fout, "\n\n######################################################\n" );
-	fprintf( fout, "# length X = %i\n", len2 );
-	fprintf( fout, "# length Y = %i\n", len1 );
-	fprintf( fout, "# best align X: %i-%i\n", begin2+1, end2+1 );
-	fprintf( fout, "# best align Y: %i-%i\n", begin1+1, end1+1 );
-	if( alninfo ){
-		fprintf( fout, "# align X: %i-%i\n", alninfo[2]+1, alninfo[3]+1 );
-		fprintf( fout, "# align Y: %i-%i\n", alninfo[0]+1, alninfo[1]+1 );
+	fprintf(fout, "\n\n######################################################\n");
+	fprintf(fout, "# length X = %i\n", len2);
+	fprintf(fout, "# length Y = %i\n", len1);
+	fprintf(fout, "# best align X: %i-%i\n", begin2 + 1, end2 + 1);
+	fprintf(fout, "# best align Y: %i-%i\n", begin1 + 1, end1 + 1);
+	if (alninfo) {
+		fprintf(fout, "# align X: %i-%i\n", alninfo[2] + 1, alninfo[3] + 1);
+		fprintf(fout, "# align Y: %i-%i\n", alninfo[0] + 1, alninfo[1] + 1);
 	}
-	fprintf( fout, "# alignment length: %i\n", alnln );
-	fprintf( fout, "# identity count: %i\n", iden_no );
-	fprintf( fout, "# identity: %g\n", identity );
-	fprintf( fout, "# distance: %g\n", dist );
-	if( options.is454 ) fprintf( fout, "# max indel: %i\n", max_indels );
+	fprintf(fout, "# alignment length: %i\n", alnln);
+	fprintf(fout, "# identity count: %i\n", iden_no);
+	fprintf(fout, "# identity: %g\n", identity);
+	fprintf(fout, "# distance: %g\n", dist);
+	if (options.is454) fprintf(fout, "# max indel: %i\n", max_indels);
 #if 0
-	fprintf( fout, "%i %s\n", seq1->index, AA );
-	fprintf( fout, "%i %s\n", seq2->index, BB );
+	fprintf(fout, "%i %s\n", seq1->index, AA);
+	fprintf(fout, "%i %s\n", seq2->index, BB);
 #else
 	bool printaa = true;
 	IB = IA = 0;
-	fprintf( fout, "\n\nX " );
-	while( IA < NN ){
-		if( printaa ){
-			fprintf( fout, "%c", BB[IB] );
+	fprintf(fout, "\n\nX ");
+	while (IA < NN) {
+		if (printaa) {
+			fprintf(fout, "%c", BB[IB]);
 			IB += 1;
-			if( IB % 75 ==0 or IB == NN ) printaa = false, fprintf( fout, "\nY " );
-		}else{
-			fprintf( fout, "%c", AA[IA] );
+			if (IB % 75 == 0 or IB == NN) printaa = false, fprintf(fout, "\nY ");
+		}
+		else {
+			fprintf(fout, "%c", AA[IA]);
 			IA += 1;
-			if( IA % 75 ==0 ) printaa = true, fprintf( fout, "\n\nX " );
+			if (IA % 75 == 0) printaa = true, fprintf(fout, "\n\nX ");
 		}
 	}
 #endif
-	fclose( fout );
+	fclose(fout);
 #endif
 
 	return OK_FUNC;
@@ -1224,7 +1246,7 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 void setaa_to_na()
 {
 	int i;
-	for (i=0; i<26; i++) aa2idx[i]   = na2idx[i];
+	for (i = 0; i < 26; i++) aa2idx[i] = na2idx[i];
 } // END void setaa_to_na
 
 
@@ -1234,10 +1256,10 @@ ScoreMatrix::ScoreMatrix()
 	init();
 }
 
-void ScoreMatrix::init() 
+void ScoreMatrix::init()
 {
-	set_gap( -11, -1 );
-	set_matrix( BLOSUM62 );
+	set_gap(-11, -1);
+	set_matrix(BLOSUM62);
 }
 
 void ScoreMatrix::set_gap(int gap1, int ext_gap1)
@@ -1247,45 +1269,45 @@ void ScoreMatrix::set_gap(int gap1, int ext_gap1)
 	ext_gap = MAX_SEQ * ext_gap1;
 }
 
-void ScoreMatrix::set_matrix(int *mat1)
+void ScoreMatrix::set_matrix(int* mat1)
 {
 	int i, j, k;
 	k = 0;
-	for ( i=0; i<MAX_AA; i++)
-		for ( j=0; j<=i; j++)
-			matrix[j][i] = matrix[i][j] = MAX_SEQ * mat1[ k++ ];
+	for (i = 0; i < MAX_AA; i++)
+		for (j = 0; j <= i; j++)
+			matrix[j][i] = matrix[i][j] = MAX_SEQ * mat1[k++];
 }
 
 void ScoreMatrix::set_to_na()
 {
-	set_gap( -6, -1 );
-	set_matrix( BLOSUM62_na );
+	set_gap(-6, -1);
+	set_matrix(BLOSUM62_na);
 }
 // Only for est
-void ScoreMatrix::set_match( int score )
+void ScoreMatrix::set_match(int score)
 {
 	int i;
-	for ( i=0; i<5; i++) matrix[i][i] = MAX_SEQ * score;
+	for (i = 0; i < 5; i++) matrix[i][i] = MAX_SEQ * score;
 	//matrix[3][4] = matrix[4][3] = MAX_SEQ * score;
 }
 // Only for est
-void ScoreMatrix::set_mismatch( int score )
+void ScoreMatrix::set_mismatch(int score)
 {
 	int i, j;
-	for ( i=0; i<MAX_AA; i++)
-		for ( j=0; j<i; j++)
+	for (i = 0; i < MAX_AA; i++)
+		for (j = 0; j < i; j++)
 			matrix[j][i] = matrix[i][j] = MAX_SEQ * score;
 	matrix[3][4] = matrix[4][3] = MAX_SEQ;
 }
 
-WordTable::WordTable( int naa, int naan )
+WordTable::WordTable(int naa, int naan)
 {
-	NAA      = 0;
-	NAAN     = 0;
-	is_aa    = 1;
+	NAA = 0;
+	NAAN = 0;
+	is_aa = 1;
 	size = 0;
 	frag_count = 0;
-	Init( naa, naan );
+	Init(naa, naan);
 }
 
 void WordTable::SetDNA()
@@ -1295,9 +1317,9 @@ void WordTable::SetDNA()
 
 void WordTable::Init(int naa, int naan)
 {
-	NAA  = naa;
+	NAA = naa;
 	NAAN = naan;
-	indexCounts.resize( NAAN );
+	indexCounts.resize(NAAN);
 }
 
 void WordTable::Clear()
@@ -1305,9 +1327,9 @@ void WordTable::Clear()
 	int i;
 #if 0
 	int n1 = 0, n2 = 0, n3 = 0, ns = 0;
-	for(i=0; i<NAAN; i++){
-		NVector<IndexCount> & ics = indexCounts[i];
-		for(int j=0; j<ics.size; j++){
+	for (i = 0; i < NAAN; i++) {
+		NVector<IndexCount>& ics = indexCounts[i];
+		for (int j = 0; j < ics.size; j++) {
 			IndexCount ic = ics[j];
 			n1 += ic.count == 1;
 			n2 += ic.count == 2;
@@ -1315,48 +1337,48 @@ void WordTable::Clear()
 			ns += ic.count >= 4;
 		}
 	}
-	printf( "%9i %9i %9i %9i\n", n1, n2, n3, ns );
+	printf("%9i %9i %9i %9i\n", n1, n2, n3, ns);
 #endif
 	size = 0;
 	frag_count = 0;
 	sequences.clear();
-	for (i=0; i<NAAN; i++) indexCounts[i].size = 0;//Clear();
+	for (i = 0; i < NAAN; i++) indexCounts[i].size = 0;//Clear();
 }
 
-int WordTable::AddWordCounts( NVector<IndexCount> & counts, Sequence *seq, bool skipN)
+int WordTable::AddWordCounts(NVector<IndexCount>& counts, Sequence* seq, bool skipN)
 {
 	int aan_no = counts.Size();
 	int i, j, k, idx = sequences.size();
-	for (i=0; i<aan_no; i++) {
+	for (i = 0; i < aan_no; i++) {
 		IndexCount ic = counts[i];
-		if ( (k=ic.count) ) {
+		if ((k = ic.count)) {
 			j = ic.index;
-			if ( skipN && j<0) continue; // for those has 'N'
-			NVector<IndexCount> & row = indexCounts[j];
+			if (skipN && j < 0) continue; // for those has 'N'
+			NVector<IndexCount>& row = indexCounts[j];
 			ic.index = idx;
-			row.Append( ic );
+			row.Append(ic);
 			size += 1;
 		}
 	}
-	sequences.Append( seq );
+	sequences.Append(seq);
 	return OK_FUNC;
 }
-int WordTable::AddWordCountsFrag( NVector<IndexCount> & counts, int frag, int frag_size, int repfrag )
+int WordTable::AddWordCountsFrag(NVector<IndexCount>& counts, int frag, int frag_size, int repfrag)
 {
 	return 0;
 }
 //建立索引表
-int WordTable::AddWordCounts(int aan_no, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no, int idx, bool skipN)
+int WordTable::AddWordCounts(int aan_no, Vector<int>& word_encodes, Vector<INTs>& word_encodes_no, int idx, bool skipN)
 {
 	int i, j, k;
 	//printf( "seq %6i: ", idx );
-	for (i=0; i<aan_no; i++) {
-		if ( (k=word_encodes_no[i]) ) {
+	for (i = 0; i < aan_no; i++) {
+		if ((k = word_encodes_no[i])) {
 			// assert(k<1000);
 			j = word_encodes[i];
-			if( skipN && j<0) continue; // for those has 'N'
-			NVector<IndexCount> & row = indexCounts[j];
-			row.Append( IndexCount( idx, k ) );
+			if (skipN && j < 0) continue; // for those has 'N'
+			NVector<IndexCount>& row = indexCounts[j];
+			row.Append(IndexCount(idx, k));
 			size += 1;
 			//if( k >1 ) printf( " %3i", k );
 		}
@@ -1365,33 +1387,33 @@ int WordTable::AddWordCounts(int aan_no, Vector<int> & word_encodes, Vector<INTs
 	return OK_FUNC;
 }
 
-int WordTable::AddWordCountsFrag( int aan_no, Vector<int> & word_encodes,
-    Vector<INTs> & word_encodes_no, int frag, int frag_size )
+int WordTable::AddWordCountsFrag(int aan_no, Vector<int>& word_encodes,
+	Vector<INTs>& word_encodes_no, int frag, int frag_size)
 {
 	int i, j, k, i1, k1, fra;
 
-	for (i=0; i<frag; i++) {
-		k = (i+1)*frag_size < aan_no ? (i+1)*frag_size-1: aan_no-1;
+	for (i = 0; i < frag; i++) {
+		k = (i + 1) * frag_size < aan_no ? (i + 1) * frag_size - 1 : aan_no - 1;
 		//quick_sort(&word_encodes[0], i*frag_size, k);
-		std::sort( word_encodes.begin() + i*frag_size, word_encodes.begin() + k + 1 );
+		std::sort(word_encodes.begin() + i * frag_size, word_encodes.begin() + k + 1);
 	}
-	for(j=aan_no-1; j; j--) {
-		if (word_encodes[j] == word_encodes[j-1]) {
-			word_encodes_no[j-1] += word_encodes_no[j];
-			word_encodes_no[j]=0;
+	for (j = aan_no - 1; j; j--) {
+		if (word_encodes[j] == word_encodes[j - 1]) {
+			word_encodes_no[j - 1] += word_encodes_no[j];
+			word_encodes_no[j] = 0;
 		}
 	}
 	// END check_word_encodes
 
-	for (i=0; i<aan_no; i+=frag_size) {
-		k = frag_size < (aan_no-i) ? frag_size : (aan_no -i);
+	for (i = 0; i < aan_no; i += frag_size) {
+		k = frag_size < (aan_no - i) ? frag_size : (aan_no - i);
 		fra = i / frag_size;
 		//AddWordCounts(k, word_encodes+i, word_encodes_no+i, NR90f_no+fra);
-		for (i1=i; i1<i+k; i1++) {
-			if ( (k1=word_encodes_no[i1]) ) {
+		for (i1 = i; i1 < i + k; i1++) {
+			if ((k1 = word_encodes_no[i1])) {
 				j = word_encodes[i1];
-				NVector<IndexCount> & row = indexCounts[j];
-				row.Append( IndexCount( frag_count + fra, k1 ) );
+				NVector<IndexCount>& row = indexCounts[j];
+				row.Append(IndexCount(frag_count + fra, k1));
 				size += 1;
 			}
 		}
@@ -1408,12 +1430,12 @@ void WordTable::PrintAll()
 	int cols = 0;
 	long long total_words = 0;
 	k = 0;
-	for (i=0; i<NAAN; i++) {
+	for (i = 0; i < NAAN; i++) {
 		int size = indexCounts[i].Size();
-		if ( size == 0 ) continue;
+		if (size == 0) continue;
 		cols++;
 		cout << k << "\t" << i << "\tsize:" << size << "\t";
-		for (j=0; j<size; j++) {
+		for (j = 0; j < size; j++) {
 			cout << indexCounts[i][j].index << "," << indexCounts[i][j].count << " ";
 			total_words += indexCounts[i][j].count;
 		}
@@ -1428,91 +1450,92 @@ void WordTable::PrintAll()
 /* Quick Sort.
  * Adam Drozdek: Data Structures and Algorithms in C++, 2nd Edition.
  */
-void PartialQuickSort( IndexCount *data, int first, int last, int partial )
+void PartialQuickSort(IndexCount* data, int first, int last, int partial)
 {
-	int lower=first+1, upper=last;
+	int lower = first + 1, upper = last;
 	IndexCount pivot;
 	IndexCount val;
-	if( first >= last ) return;
+	if (first >= last) return;
 	val = data[first];
-	data[first] = data[ (first+last)/2 ];
-	data[ (first+last)/2 ] = val;
-	pivot = data[ first ];
+	data[first] = data[(first + last) / 2];
+	data[(first + last) / 2] = val;
+	pivot = data[first];
 
-	while( lower <= upper ){
-		while( lower <= last && data[lower].count < pivot.count ) lower ++;
-		while( pivot.count < data[upper].count ) upper --;
-		if( lower < upper ){
+	while (lower <= upper) {
+		while (lower <= last && data[lower].count < pivot.count) lower++;
+		while (pivot.count < data[upper].count) upper--;
+		if (lower < upper) {
 			val = data[lower];
 			data[lower] = data[upper];
 			data[upper] = val;
-			upper --;
+			upper--;
 		}
-		lower ++;
+		lower++;
 	}
 	val = data[first];
 	data[first] = data[upper];
 	data[upper] = val;
-	if( first < upper-1 ) PartialQuickSort( data, first, upper-1, partial );
-	if( upper >= partial ) return;
-	if( upper+1 < last ) PartialQuickSort( data, upper+1, last, partial );
+	if (first < upper - 1) PartialQuickSort(data, first, upper - 1, partial);
+	if (upper >= partial) return;
+	if (upper + 1 < last) PartialQuickSort(data, upper + 1, last, partial);
 }
-int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no,
-    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, 
-	bool est, int min,int my_rank)
+int WordTable::CountWords(int aan_no, Vector<int>& word_encodes, Vector<INTs>& word_encodes_no,
+	NVector<IndexCount>& lookCounts, NVector<uint32_t>& indexMapping,
+	bool est, int min, int my_rank)
 {
 	int S = frag_count ? frag_count : sequences.size();
 	int  j, k, j0, j1, k1, m;
 	int ix1, ix2, ix3, ix4;
 	IndexCount tmp;
 
-	IndexCount *ic = lookCounts.items;
-	for(j=0; j<lookCounts.size; j++, ic++) indexMapping[ ic->index ] = 0;
+	IndexCount* ic = lookCounts.items;
+	for (j = 0; j < lookCounts.size; j++, ic++) indexMapping[ic->index] = 0;
 	lookCounts.size = 0;
 
-	int *we = & word_encodes[0];
+	int* we = &word_encodes[0];
 	j0 = 0;
-	if( est ) while( *we <0 ) j0++, we++; // if met short word has 'N'
-	INTs *wen = & word_encodes_no[j0];
+	if (est) while (*we < 0) j0++, we++; // if met short word has 'N'
+	INTs* wen = &word_encodes_no[j0];
 	//printf( "\nquery : " );
-	for (; j0<aan_no; j0++, we++, wen++) {
-		j  = *we;
+	for (; j0 < aan_no; j0++, we++, wen++) {
+		j = *we;
 		j1 = *wen;
 		//if( j1 >1 ) printf( " %3i", j1 );
-		if( j1==0 ) continue;
-		NVector<IndexCount> & one = indexCounts[j];
+		if (j1 == 0) continue;
+		NVector<IndexCount>& one = indexCounts[j];
 		k1 = one.Size();
-		IndexCount *ic = one.items;
+		IndexCount* ic = one.items;
 		// cerr<<"lookcounts size  "<<lookCounts.size<<endl;
 		int rest = aan_no - j0 + 1;
-		for (k=0; k<k1; k++, ic++){
+		for (k = 0; k < k1; k++, ic++) {
 			int c = ic->count < j1 ? ic->count : j1;
-			uint32_t *idm = indexMapping.items + ic->index;
+			uint32_t* idm = indexMapping.items + ic->index;
 			// if(my_rank==1){
 			// 	cerr<<"lookCounts.size     "<<lookCounts.size<<endl;
 			// 	cerr<<"ic->index     "<<ic->index<<endl;
 			// 	cerr<<"*idm     "<<*idm<<endl;
 			// }
-			
-			if( *idm ==0 ){
-				if( rest < min ) continue;
-				IndexCount *ic2 = lookCounts.items + lookCounts.size;
+
+			if (*idm == 0) {
+				if (rest < min) continue;
+				IndexCount* ic2 = lookCounts.items + lookCounts.size;
 				lookCounts.size += 1;
 				*idm = lookCounts.size;
 				ic2->index = ic->index;
 				ic2->count = c;
-			}else{
-				lookCounts[ *idm - 1 ].count += c;
+			}
+			else {
+				lookCounts[*idm - 1].count += c;
 			}
 		}
 	}
 	//printf( "%6i %6i\n", S, lookCounts.size );
-	lookCounts[ lookCounts.size ].count = 0;
+	lookCounts[lookCounts.size].count = 0;
 	//printf( "\n\n" );
 	return OK_FUNC;
 }
 int WordTable::CountWords_worker(int aan_no,
-    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, vector<int> &now_encodes,vector<INTs> &now_encodes_no,
+	NVector<IndexCount>& lookCounts, NVector<uint32_t>& indexMapping, vector<int>& now_encodes, vector<INTs>& now_encodes_no,
 	bool est, int min)
 {
 	int S = frag_count ? frag_count : sequences.size();
@@ -1520,80 +1543,81 @@ int WordTable::CountWords_worker(int aan_no,
 	int ix1, ix2, ix3, ix4;
 	IndexCount tmp;
 	// cerr<<"aan_no"
-	IndexCount *ic = lookCounts.items;
-	for(j=0; j<lookCounts.size; j++, ic++) indexMapping[ ic->index ] = 0;
+	IndexCount* ic = lookCounts.items;
+	for (j = 0; j < lookCounts.size; j++, ic++) indexMapping[ic->index] = 0;
 	lookCounts.size = 0;
 
-	int *we = & now_encodes[0];
+	int* we = &now_encodes[0];
 
 	j0 = 0;
-	if( est ) while( *we <0 ) j0++, we++; // if met short word has 'N'
-	
-	INTs *wen = & now_encodes_no[j0];
+	if (est) while (*we < 0) j0++, we++; // if met short word has 'N'
+
+	INTs* wen = &now_encodes_no[j0];
 
 	//printf( "\nquery : " );
-	for (; j0<aan_no; j0++, we++, wen++) {
-		j  = *we;
+	for (; j0 < aan_no; j0++, we++, wen++) {
+		j = *we;
 		j1 = *wen;
 		//if( j1 >1 ) printf( " %3i", j1 );
-		if( j1==0 ) break;
-		NVector<IndexCount> & one = indexCounts[j];
+		if (j1 == 0) break;
+		NVector<IndexCount>& one = indexCounts[j];
 		k1 = one.Size();
-		IndexCount *ic = one.items;
+		IndexCount* ic = one.items;
 
 		int rest = aan_no - j0 + 1;
-		for (k=0; k<k1; k++, ic++){
+		for (k = 0; k < k1; k++, ic++) {
 			int c = ic->count < j1 ? ic->count : j1;
-			uint32_t *idm = indexMapping.items + ic->index;
-			if( *idm ==0 ){
-				if( rest < min ) continue;
-				IndexCount *ic2 = lookCounts.items + lookCounts.size;
+			uint32_t* idm = indexMapping.items + ic->index;
+			if (*idm == 0) {
+				if (rest < min) continue;
+				IndexCount* ic2 = lookCounts.items + lookCounts.size;
 				lookCounts.size += 1;
 				*idm = lookCounts.size;
 				ic2->index = ic->index;
 				ic2->count = c;
-			}else{
-				lookCounts[ *idm - 1 ].count += c;
+			}
+			else {
+				lookCounts[*idm - 1].count += c;
 			}
 		}
 	}
 	//printf( "%6i %6i\n", S, lookCounts.size );
-	lookCounts[ lookCounts.size ].count = 0;
+	lookCounts[lookCounts.size].count = 0;
 	//printf( "\n\n" );
 	return OK_FUNC;
 }
 Sequence::Sequence()
 {
-	memset( this, 0, sizeof( Sequence ) );
+	memset(this, 0, sizeof(Sequence));
 	distance = 2.0;
 }
-Sequence::Sequence( const Sequence & other )
+Sequence::Sequence(const Sequence& other)
 {
 	int i;
 	//printf( "new: %p  %p\n", this, & other );
-	memcpy( this, & other, sizeof( Sequence ) );
+	memcpy(this, &other, sizeof(Sequence));
 	distance = 2.0;
-	if( other.data ){
+	if (other.data) {
 		size = bufsize = other.size;
-                size_R2 = 0;
-		data = new char[size+1];
+		size_R2 = 0;
+		data = new char[size + 1];
 		//printf( "data: %p  %p\n", data, other.data );
 		data[size] = 0;
-		memcpy( data, other.data, size );
+		memcpy(data, other.data, size);
 		//for (i=0; i<size; i++) data[i] = other.data[i];
 	}
-		if( other.true_data ){
+	if (other.true_data) {
 		size = bufsize = other.size;
-		true_data = new char[size+1];
+		true_data = new char[size + 1];
 		//printf( "data: %p  %p\n", data, other.data );
 		true_data[size] = 0;
-		memcpy( true_data, other.data, size );
+		memcpy(true_data, other.data, size);
 		//for (i=0; i<size; i++) data[i] = other.data[i];
 	}
-	if( other.identifier ){
-		int len = strlen( other.identifier );
-		identifier = new char[len+1];
-		memcpy( identifier, other.identifier, len );
+	if (other.identifier) {
+		int len = strlen(other.identifier);
+		identifier = new char[len + 1];
+		memcpy(identifier, other.identifier, len);
 		identifier[len] = 0;
 	}
 }
@@ -1604,37 +1628,37 @@ Sequence::Sequence( const Sequence & other )
 // XXXXXXABC     YYYYYYLMN =====> Merge into
 // >R12
 // NMLYYYYYYXXXXXXABC
-Sequence::Sequence( const Sequence & other, const Sequence & other2, int mode )
+Sequence::Sequence(const Sequence& other, const Sequence& other2, int mode)
 {
 	int i;
-        if (mode != 1) bomb_error("unknown mode");
+	if (mode != 1) bomb_error("unknown mode");
 
 	//printf( "new: %p  %p\n", this, & other );
-	memcpy( this, & other, sizeof( Sequence ) );
+	memcpy(this, &other, sizeof(Sequence));
 	distance = 2.0;
 
-	if( other.data && other2.data ){
+	if (other.data && other2.data) {
 		size = bufsize = (other.size + other2.size);
-                size_R2 = other2.size;
-		data = new char[size+1];
+		size_R2 = other2.size;
+		data = new char[size + 1];
 		//printf( "data: %p  %p\n", data, other.data );
-		data[size] = 0;     
-                data[size_R2] = 0;  
-                memcpy( data, other2.data, size_R2); // copy R2 first
-                strrev( data );                      // reverse R2 on data
-		memcpy( data+size_R2, other.data, size-size_R2 ); // copy R1 to end of R2
+		data[size] = 0;
+		data[size_R2] = 0;
+		memcpy(data, other2.data, size_R2); // copy R2 first
+		strrev(data);                      // reverse R2 on data
+		memcpy(data + size_R2, other.data, size - size_R2); // copy R1 to end of R2
 		//for (i=0; i<size; i++) data[i] = other.data[i];
 		des_begin2 = other2.des_begin;
-                tot_length2= other2.tot_length;
+		tot_length2 = other2.tot_length;
 	}
-        else if ( other.data || other2.data ) {
-                bomb_error("Not both PE sequences have data");
-        }
+	else if (other.data || other2.data) {
+		bomb_error("Not both PE sequences have data");
+	}
 
-	if( other.identifier ){ // only use R1
-		int len = strlen( other.identifier );
-		identifier = new char[len+1];
-		memcpy( identifier, other.identifier, len );
+	if (other.identifier) { // only use R1
+		int len = strlen(other.identifier);
+		identifier = new char[len + 1];
+		memcpy(identifier, other.identifier, len);
 		identifier[len] = 0;
 	}
 }
@@ -1643,105 +1667,105 @@ Sequence::Sequence( const Sequence & other, const Sequence & other2, int mode )
 Sequence::~Sequence()
 {
 	//printf( "delete: %p\n", this );
-	if( data ) delete[] data;
-	if( identifier ) delete[] identifier;
-	if( true_data ) delete[] true_data;
+	if (data) delete[] data;
+	if (identifier) delete[] identifier;
+	if (true_data) delete[] true_data;
 }
 
 void Sequence::Clear() {
-    if (data) delete[] data;
-    if (true_data)  delete[] true_data;
-    bufsize = 0;
-    data = nullptr;
-    true_data = nullptr;
+	if (data) delete[] data;
+	if (true_data)  delete[] true_data;
+	bufsize = 0;
+	data = nullptr;
+	true_data = nullptr;
 }
 void Sequence::worker_Clear() {
-  if( data ) delete[] data;
-	if( identifier ) delete[] identifier;
-	if( true_data ) delete[] true_data;
-    bufsize = 0;
-    data = nullptr;
-    true_data = nullptr;
-	identifier=nullptr;
+	if (data) delete[] data;
+	if (identifier) delete[] identifier;
+	if (true_data) delete[] true_data;
+	bufsize = 0;
+	data = nullptr;
+	true_data = nullptr;
+	identifier = nullptr;
 }
-void Sequence::operator=( const char *s )
+void Sequence::operator=(const char* s)
 {
 	size = 0; // avoid copying;
-	Resize( strlen( s ) );
-	strcpy( data, s );
-	strcpy( true_data, s );
+	Resize(strlen(s));
+	strcpy(data, s);
+	strcpy(true_data, s);
 }
-void Sequence::operator+=( const char *s )
+void Sequence::operator+=(const char* s)
 {
-	int i, m = size, n = strlen( s );
-	Reserve( m + n );
-	memcpy( data+m, s, n );
+	int i, m = size, n = strlen(s);
+	Reserve(m + n);
+	memcpy(data + m, s, n);
 }
-void Sequence::Resize( int n )
+void Sequence::Resize(int n)
 {
 	int i, m = size < n ? size : n;
 	size = n;
-	if( size != bufsize ){
-		char *old = data;
+	if (size != bufsize) {
+		char* old = data;
 		bufsize = size;
-		data = new char[ bufsize + 1 ];
-		if ( data == NULL ) bomb_error( "Memory" );
-		if ( old ){
-			memcpy( data, old, m );
-			delete []old;
+		data = new char[bufsize + 1];
+		if (data == NULL) bomb_error("Memory");
+		if (old) {
+			memcpy(data, old, m);
+			delete[]old;
 		}
-		if( size ) data[size] = 0;
+		if (size) data[size] = 0;
 	}
 }
-void Sequence::Reserve( int n )
+void Sequence::Reserve(int n)
 {
 	int i, m = size < n ? size : n;
 	size = n;
-	if( size > bufsize ){
-		char *old = data;
-		bufsize = size + size/5 + 1;
-		data = new char[ bufsize + 1 ];
-		if ( data == NULL ) bomb_error( "Memory" );
-		if ( old ){
-			memcpy( data, old, m );
-			delete []old;
+	if (size > bufsize) {
+		char* old = data;
+		bufsize = size + size / 5 + 1;
+		data = new char[bufsize + 1];
+		if (data == NULL) bomb_error("Memory");
+		if (old) {
+			memcpy(data, old, m);
+			delete[]old;
 		}
 	}
-	if( size ) data[size] = 0;
+	if (size) data[size] = 0;
 }
 void Sequence::trim(int trim_len) {
-    if (trim_len >= size) return;
-    size = trim_len;
-    if (size) data[size]=0;
+	if (trim_len >= size) return;
+	size = trim_len;
+	if (size) data[size] = 0;
 }
 void Sequence::ConvertBases()
 {
 	int i;
-	for(i=0; i<size; i++) data[i] = aa2idx[data[i] - 'A'];
+	for (i = 0; i < size; i++) data[i] = aa2idx[data[i] - 'A'];
 }
 
-void Sequence::Swap( Sequence & other )
+void Sequence::Swap(Sequence& other)
 {
 	Sequence tmp;
-	memcpy( & tmp, this, sizeof( Sequence ) );
-	memcpy( this, & other, sizeof( Sequence ) );
-	memcpy( & other, & tmp, sizeof( Sequence ) );
-	memset( & tmp, 0, sizeof( Sequence ) );
+	memcpy(&tmp, this, sizeof(Sequence));
+	memcpy(this, &other, sizeof(Sequence));
+	memcpy(&other, &tmp, sizeof(Sequence));
+	memset(&tmp, 0, sizeof(Sequence));
 }
 int Sequence::Format()
 {
-	int i, j=0, m = 0;
-	while( size && isspace( data[size-1] ) ) size --;
-	if( size && data[size-1] == '*' ) size --;
-	if( size ) data[size] = 0;
-	for (i=0; i<size; i++){
+	int i, j = 0, m = 0;
+	while (size && isspace(data[size - 1])) size--;
+	if (size && data[size - 1] == '*') size--;
+	if (size) data[size] = 0;
+	for (i = 0; i < size; i++) {
 		char ch = data[i];
-		m += ! (isalpha( ch ) | isspace( ch ));
+		m += !(isalpha(ch) | isspace(ch));
 	}
-	if( m ) return m;
-	for (i=0; i<size; i++){
+	if (m) return m;
+	for (i = 0; i < size; i++) {
 		char ch = data[i];
-		if ( isalpha( ch ) ) data[j++] = toupper( ch );
+		if (isalpha(ch)) data[j++] = toupper(ch);
 	}
 	data[j] = 0;
 	size = j;
@@ -1750,37 +1774,38 @@ int Sequence::Format()
 
 void Sequence::SwapIn()
 {
-	if( data ) return;
-	if( swap == NULL ) bomb_error( "Can not swap in sequence" );
-	Resize( size );
-	fseek( swap, offset, SEEK_SET );
-	if( fread( data, 1, size, swap ) ==0 ) bomb_error( "Can not swap in sequence" );
+	if (data) return;
+	if (swap == NULL) bomb_error("Can not swap in sequence");
+	Resize(size);
+	fseek(swap, offset, SEEK_SET);
+	if (fread(data, 1, size, swap) == 0) bomb_error("Can not swap in sequence");
 	data[size] = 0;
 }
 void Sequence::SwapOut()
 {
-	if( swap && data ){
+	if (swap && data) {
 		delete[] data;
 		bufsize = 0;
 		data = NULL;
 	}
 }
-void Sequence::PrintInfo( int id, FILE *fout, const Options & options, char *buf )
+void Sequence::PrintInfo(int id, FILE* fout, const Options& options, char* buf)
 {
-	const char *tag = options.isEST ? "nt" : "aa";
+	const char* tag = options.isEST ? "nt" : "aa";
 	bool print = options.print != 0;
 	bool strand = options.isEST;
-	fprintf( fout, "%i\t%i%s, >%s...", id, size, tag, identifier+1 );
-	if( identity ){
-		int *c = coverage;
-		fprintf( fout, " at " );
-		if (print) fprintf( fout, "%i:%i:%i:%i/", c[0], c[1], c[2], c[3] );
-		if (strand) fprintf( fout, "%c/", (state & IS_MINUS_STRAND) ? '-' : '+' );
-		fprintf( fout, "%.2f%%", identity*100 );
-		if( options.useDistance ) fprintf( fout, "/%.2f%%", distance*100 );
-		fprintf( fout, "\n" );
-	}else{
-		fprintf( fout, " *\n" );
+	fprintf(fout, "%i\t%i%s, >%s...", id, size, tag, identifier + 1);
+	if (identity) {
+		int* c = coverage;
+		fprintf(fout, " at ");
+		if (print) fprintf(fout, "%i:%i:%i:%i/", c[0], c[1], c[2], c[3]);
+		if (strand) fprintf(fout, "%c/", (state & IS_MINUS_STRAND) ? '-' : '+');
+		fprintf(fout, "%.2f%%", identity * 100);
+		if (options.useDistance) fprintf(fout, "/%.2f%%", distance * 100);
+		fprintf(fout, "\n");
+	}
+	else {
+		fprintf(fout, " *\n");
 	}
 }
 
@@ -1790,90 +1815,92 @@ void Sequence::PrintInfo( int id, FILE *fout, const Options & options, char *buf
 // change des_begin, des_length, des_length2, dat_length => des_begin, tot_length
 // where des_begin is the FILE pointer of sequence record start
 //       tot_length is the total bytes of sequence record 
-void SequenceDB::Readgz( const char *file, const Options & options )
+void SequenceDB::Readgz(const char* file, const Options& options)
 {
 #ifdef WITH_ZLIB
-    Sequence one;
-    Sequence des;
-    gzFile fin = gzopen(file, "r");
-    char *buffer = NULL;
-    char *res = NULL;
-    int option_l = options.min_length;
-    if( fin == NULL ) bomb_error( "Failed to open the database file" );
-    Clear();
-    buffer = new char[ MAX_LINE_SIZE+1 ];
+	Sequence one;
+	Sequence des;
+	gzFile fin = gzopen(file, "r");
+	char* buffer = NULL;
+	char* res = NULL;
+	int option_l = options.min_length;
+	if (fin == NULL) bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
 
-    while (not gzeof( fin ) || one.size) { /* do not break when the last sequence is not handled */
-        buffer[0] = '>';
-        if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL && one.size == 0) break;
-        if( buffer[0] == '+' ){
-            int len = strlen( buffer );
-            int len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+	while (not gzeof(fin) || one.size) { /* do not break when the last sequence is not handled */
+		buffer[0] = '>';
+		if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL && one.size == 0) break;
+		if (buffer[0] == '+') {
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // read next line quality score
-            if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer );
-            len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
-        }else if (buffer[0] == '>' || buffer[0] == '@' || (res==NULL && one.size)) {
-            if ( one.size ) { // write previous record
-                if( one.identifier == NULL || one.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( one.identifier ) printf( "%s\n", one.identifier );
-                    printf( "%s\n", one.data );
-                    one.size = 0;
-                }
-                one.index = sequences.size();
-                if( one.size > option_l ) {
-                    if (options.trim_len    > 0) one.trim(options.trim_len);
-                    sequences.Append( new Sequence( one ) ); 
-                }
-            }
-            one.size = 0;
-            one.tot_length = 0;
+			// read next line quality score
+			if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+			if (one.size) { // write previous record
+				if (one.identifier == NULL || one.Format()) {
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier) printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0;
+				}
+				one.index = sequences.size();
+				if (one.size > option_l) {
+					if (options.trim_len > 0) one.trim(options.trim_len);
+					sequences.Append(new Sequence(one));
+				}
+			}
+			one.size = 0;
+			one.tot_length = 0;
 
-            int len = strlen( buffer );
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                des += buffer;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            size_t offset = gztell( fin );
-            one.des_begin = offset - len;
-            one.tot_length += len;              // count first line
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			size_t offset = gztell(fin);
+			one.des_begin = offset - len;
+			one.tot_length += len;              // count first line
 
-            int i = 0;
-            if( des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+' ) i += 1;
-            if( des.data[i] == ' ' or des.data[i] == '\t' ) i += 1;
-            if( options.des_len and options.des_len < des.size ) des.size = options.des_len;
-            while( i < des.size and ! isspace( des.data[i] ) ) i += 1;
-            des.data[i] = 0;
-            one.identifier = des.data;
-        } else {
-            one.tot_length += strlen(buffer);  one += buffer;
-        }
-    }
-    one.identifier = NULL;
-    delete[] buffer;
-    gzclose( fin );
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+			if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+			if (options.des_len and options.des_len < des.size) des.size = options.des_len;
+			while (i < des.size and !isspace(des.data[i])) i += 1;
+			des.data[i] = 0;
+			one.identifier = des.data;
+		}
+		else {
+			one.tot_length += strlen(buffer);  one += buffer;
+		}
+	}
+	one.identifier = NULL;
+	delete[] buffer;
+	gzclose(fin);
 #else
-    bomb_error("this program was not compiled with zlib");
+	bomb_error("this program was not compiled with zlib");
 #endif
 }
 
@@ -1886,296 +1913,401 @@ void SequenceDB::Readgz( const char *file, const Options & options )
 //       tot_length is the total bytes of sequence record 
 
 //非压缩文件的读取入口
-void SequenceDB::Read( const char *file, const Options & options )
+void SequenceDB::Read(const char* file, const Options& options)
 {
-    int f_len = strlen(file);
-    if (strcmp(file + f_len - 3, ".gz") == 0 ) {
-        Readgz(file, options);
-        return;
-    }
+	int f_len = strlen(file);
+	if (strcmp(file + f_len - 3, ".gz") == 0) {
+		Readgz(file, options);
+		return;
+	}
 
-    Sequence one;
-    Sequence des;
-    FILE *fin = fopen( file, "rb" );
-    char *buffer = NULL;
-    char *res = NULL;
-    int option_l = options.min_length;
-    if( fin == NULL ) bomb_error( "Failed to open the database file" );
-    Clear();
-    buffer = new char[ MAX_LINE_SIZE+1 ];
+	Sequence one;
+	Sequence des;
+	FILE* fin = fopen(file, "rb");
+	char* buffer = NULL;
+	char* res = NULL;
+	int option_l = options.min_length;
+	if (fin == NULL) bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
 
-    while (not feof( fin ) || one.size) { /* do not break when the last sequence is not handled */
-        buffer[0] = '>';
-        if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL && one.size == 0) break;
-        if( buffer[0] == '+' ){
-            int len = strlen( buffer );
-            int len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+	while (not feof(fin) || one.size) { /* do not break when the last sequence is not handled */
+		buffer[0] = '>';
+		if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL && one.size == 0) break;
+		if (buffer[0] == '+') {
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // read next line quality score
-            if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer );
-            len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
-        }else if (buffer[0] == '>' || buffer[0] == '@' || (res==NULL && one.size)) {
-            if ( one.size ) { // write previous record
-                if( one.identifier == NULL || one.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( one.identifier ) printf( "%s\n", one.identifier );
-                    printf( "%s\n", one.data );
-                    one.size = 0;
-                }
-                one.index = sequences.size();
-                if( one.size > option_l ) {
-                    if (options.trim_len    > 0) one.trim(options.trim_len);
-                    sequences.Append( new Sequence( one ) ); 
-                }
-            }
-            one.size = 0;
-            one.tot_length = 0;
+			// read next line quality score
+			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+			if (one.size) { // write previous record
+				if (one.identifier == NULL || one.Format()) {
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier) printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0;
+				}
+				one.index = sequences.size();
+				if (one.size > option_l) {
+					if (options.trim_len > 0) one.trim(options.trim_len);
+					sequences.Append(new Sequence(one));
+				}
+			}
+			one.size = 0;
+			one.tot_length = 0;
 
-            int len = strlen( buffer );
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                des += buffer;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            size_t offset = ftell( fin );
-            one.des_begin = offset - len;
-            one.tot_length += len;              // count first line
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			size_t offset = ftell(fin);
+			one.des_begin = offset - len;
+			one.tot_length += len;              // count first line
 
-            int i = 0;
-            if( des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+' ) i += 1;
-            if( des.data[i] == ' ' or des.data[i] == '\t' ) i += 1;
-            if( options.des_len and options.des_len < des.size ) des.size = options.des_len;
-            while( i < des.size and ! isspace( des.data[i] ) ) i += 1;
-            des.data[i] = 0;
-            one.identifier = des.data;
-        } else {
-            one.tot_length += strlen(buffer);  one += buffer;
-        }
-    }
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+			if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+			if (options.des_len and options.des_len < des.size) des.size = options.des_len;
+			while (i < des.size and !isspace(des.data[i])) i += 1;
+			des.data[i] = 0;
+			one.identifier = des.data;
+		}
+		else {
+			one.tot_length += strlen(buffer);  one += buffer;
+		}
+	}
 #if 0
-    int i, n = 0;
-    for(i=0; i<sequences.size(); i++) n += sequences[i].bufsize + 4;
-    cout<<n<<"\t"<<sequences.capacity() * sizeof(Sequence)<<endl;
-    int i;
-    scanf( "%i", & i );
+	int i, n = 0;
+	for (i = 0; i < sequences.size(); i++) n += sequences[i].bufsize + 4;
+	cout << n << "\t" << sequences.capacity() * sizeof(Sequence) << endl;
+	int i;
+	scanf("%i", &i);
 #endif
-    one.identifier = NULL;
-    delete[] buffer;
-    fclose( fin );
+	one.identifier = NULL;
+	delete[] buffer;
+	fclose(fin);
 }
 
 
 //元数据读取
-void SequenceDB::Read(const char *file, const Options & options,vector<SequenceMeta>&meta_table)
+void SequenceDB::Read(const char* file, const Options& options, vector<SequenceMeta>& meta_table)
 {
-    int f_len = strlen(file);
-    if (strcmp(file + f_len - 3, ".gz") == 0) {
-        Readgz(file, options);
-        return;
-    }
+	int f_len = strlen(file);
+	if (strcmp(file + f_len - 3, ".gz") == 0) {
+		Readgz(file, options);
+		return;
+	}
 
-    Sequence one;
-    Sequence des;
-    FILE *fin = fopen(file, "rb");
-    char *buffer = nullptr;
-    char *res = nullptr;
-    int option_l = options.min_length;
-    if (fin == nullptr) bomb_error("Failed to open the database file");
-    Clear();
-    buffer = new char[MAX_LINE_SIZE + 1];
+	Sequence one;
+	Sequence des;
+	FILE* fin = fopen(file, "rb");
+	char* buffer = nullptr;
+	char* res = nullptr;
+	int option_l = options.min_length;
+	if (fin == nullptr) bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
 
-    // gyj: 构建元数据表
-    meta_table.clear();
+	// gyj: 构建元数据表
+	meta_table.clear();
 
-    while (!feof(fin) || one.size) {
-        buffer[0] = '>';
-        if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr && one.size == 0) break;
+	while (!feof(fin) || one.size) {
+		buffer[0] = '>';
+		if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr && one.size == 0) break;
 
-        if (buffer[0] == '+' || buffer[0] == '@') {
-            int len = strlen(buffer);
-            int len2 = len;
-            while (len2 && buffer[len2 - 1] != '\n') {
-                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
-                len2 = strlen(buffer);
-                len += len2;
-            }
-            one.tot_length += len;
+		if (buffer[0] == '+' || buffer[0] == '@') {
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
-                bomb_error("Cannot read quality score after + line");
+			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr)
+				bomb_error("Cannot read quality score after + line");
 
-            len = strlen(buffer);
-            len2 = len;
-            while (len2 && buffer[len2 - 1] != '\n') {
-                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
-                len2 = strlen(buffer);
-                len += len2;
-            }
-            one.tot_length += len;
-        } else if (buffer[0] == '>' || buffer[0] == '@' || (res == nullptr && one.size)) {
-            if (one.size) {
-                if (one.identifier == nullptr || one.Format()) {
-                    printf("Warning: from file \"%s\",\n", file);
-                    printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
-                    if (one.identifier) printf("%s\n", one.identifier);
-                    printf("%s\n", one.data);
-                    one.size = 0;
-                }
-				
-                if (one.size > option_l) {
-                    SequenceMeta meta;
-                    meta.size = one.size;
-                    meta.des_begin = one.des_begin;
-                    meta.identifier = std::string(one.identifier);
-                    meta_table.push_back(meta);
-					if(one.size==35808){
-						std::cout<<one.des_begin<<endl;
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == nullptr && one.size)) {
+			if (one.size) {
+				if (one.identifier == nullptr || one.Format()) {
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier) printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0;
+				}
+
+				if (one.size > option_l) {
+					SequenceMeta meta;
+					meta.size = one.size;
+					meta.des_begin = one.des_begin;
+					meta.identifier = std::string(one.identifier);
+					meta_table.push_back(meta);
+					if (one.size == 35808) {
+						std::cout << one.des_begin << endl;
 					}
-                }
-            }
+				}
+			}
 
-            one.size = 0;
-            one.tot_length = 0;
+			one.size = 0;
+			one.tot_length = 0;
 
-            int len = strlen(buffer);
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while (len2 && buffer[len2 - 1] != '\n') {
-                if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
-                des += buffer;
-                len2 = strlen(buffer);
-                len += len2;
-            }
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == nullptr) break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
 
-            size_t offset = ftell(fin);
-            one.des_begin = offset - len;
-            one.tot_length += len;
+			size_t offset = ftell(fin);
+			one.des_begin = offset - len;
+			one.tot_length += len;
 
-            int i = 0;
-            if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i++;
-            if (des.data[i] == ' ' || des.data[i] == '\t') i++;
-            if (options.des_len && options.des_len < des.size) des.size = options.des_len;
-            while (i < des.size && !isspace(des.data[i])) i++;
-            des.data[i] = 0;
-            one.identifier = des.data;
-        } else {
-            one.tot_length += strlen(buffer);
-            one += buffer;
-        }
-    }
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i++;
+			if (des.data[i] == ' ' || des.data[i] == '\t') i++;
+			if (options.des_len && options.des_len < des.size) des.size = options.des_len;
+			while (i < des.size && !isspace(des.data[i])) i++;
+			des.data[i] = 0;
+			one.identifier = des.data;
+		}
+		else {
+			one.tot_length += strlen(buffer);
+			one += buffer;
+		}
+	}
 
-    one.identifier = nullptr;
-    delete[] buffer;
-    fclose(fin);
+	one.identifier = nullptr;
+	delete[] buffer;
+	fclose(fin);
 }
 
+// FIXME: It's a small attempt!
+// A first stage of external sort of fasta file in pipeline mode
+static void write_run_fasta(const std::vector<std::pair<std::string, std::string>>& chunk, const std::string& path) {
+	FILE* fout = std::fopen(path.c_str(), "wb");
+	if (!fout) {
+		perror(("fopen" + path).c_str());
+		exit(1);
+	}
+	for (const auto& p : chunk) {
+		if (p.first.back() != '\n') {
+			fprintf(fout, ">%s\n", p.first.c_str());
+		}
+		else {
+			fprintf(fout, ">%s", p.first.c_str());
+		}
+		if (!p.second.empty() && p.second.back() != '\n') {
+			fprintf(fout, "%s\n", p.second.c_str());
+		}
+		else {
+			fprintf(fout, "%s", p.second.c_str());
+		}
+	}
+	fclose(fout);
+}
 
-
-
-
-//外排序先读后写
-void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
-{
-	
+void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options) {
 	int option_l = options.min_length;
-	chunk_size=50000;
+	chunk_size = 50000;
 	total_num = 0;
-	long long total_num_divede = 0;
-	string max_name = "";
-	string min_name = "";
+	long long total_num_divide = 0;
+	std::string max_name, min_name;
 	total_letter = 0;
 	total_desc = 0;
 	max_len = 0;
 	min_len = (size_t)-1;
-	vector<vector<pair<string, string>>> chunks;
-	vector<pair<string, string>> current_chunk;
-	vector<size_t> all_lengths;
-	size_t current_chunk_size = 0;
-	struct stat st;
-   if (stat(file, &st) == 0){
-	 std::cout << "File size: " << st.st_size << " bytes" << std::endl;
-	 if(st.st_size/1000>chunk_size_bytes)
-	 chunk_size_bytes=st.st_size/1000;
-	 std::cout << "chunk_size_bytes: " << chunk_size_bytes<< " bytes" << std::endl;
-   }
-       
-    else
-        perror("stat");
-	mkdir("tmp_runs", 0755);
-	gzFile fp = gzopen(file, "r");
-	kseq_t *seq = kseq_init(fp);
-	int len;
-	// Sequence one;
-	string data;
-	string identifier;
-	
-	while (true)
-	{
-		len = kseq_read(seq);
-		if (len < 0) break;
-		if (len <= option_l) continue;
-		total_num++;
-		data = seq->seq.s;
-		identifier = seq->name.s;
-		if (options.trim_len > 0){
-			if (options.trim_len >= len) return;
-    		len = options.trim_len;
-    		if (len) data[len]=0;
-		}
-		current_chunk.emplace_back(identifier, data);
-		total_letter += len;
-		total_desc += seq->name.l;
-		all_lengths.push_back(len);
-		if (len > max_len)
-		{
-			max_len = len;
-			max_name = identifier;
-		}
-		if (seq->name.l > max_idf)
-		{
-			max_idf = seq->name.l;
-			
-		}
-		if (len < min_len)
-		{
-			min_len = len;
-			min_name = identifier;
-		}
+	std::vector<size_t> all_lengths;
+	max_idf = 0;
 
-		current_chunk_size += seq->name.l + len;
-		if (current_chunk_size >= chunk_size_bytes)
-		{
-			total_num_divede += current_chunk.size();
-			chunks.push_back(std::move(current_chunk));
-			current_chunk.clear();
-			current_chunk_size = 0;
-		}
+	struct stat st;
+	if (stat(file, &st) == 0) {
+		// 0 表示获取成功， 1表示获取失败
+		std::cout << "File size: " << st.st_size << " bytes" << std::endl; // 输出文件字节大小
+		size_t perhaps_file_size = st.st_size / 1024;
+		chunk_size_bytes = max(perhaps_file_size, chunk_size_bytes);
+		std::cout << "chunk_size_bytes: " << chunk_size_bytes << " bytes" << std::endl;
 	}
-	if (current_chunk_size > 0)
+	else
+		perror("stat");
+	const char* RUN_DIR = "tmp_runs";
+	if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
+		perror("mkdir tmp_runs");
+		return;
+	}
+
+	std::cout<<"kseq init"<<endl;
+
+	// kseq init
+	gzFile fp = gzopen(file, "rb");
+	if (!fp) { perror("gzopen"); return; }
+	kseq_t* seq = kseq_init(fp);
+
+	// omp parallel process
+	static constexpr int MAX_INFLIGHT = 8;
+	static constexpr int MAX_WRITE_PAR = 1;
+
+	std::atomic<int> inflight{ 0 };               // 在途块数量（读→排→写）
+	std::atomic<int> write_slots{ MAX_WRITE_PAR };
+	std::atomic<int> run_id{ 0 };                 // run 文件编号（并发安全）
+	run_files.clear();
+	run_files.shrink_to_fit();                  // 清空列表
+	std::vector<std::pair<std::string, std::string>> current_chunk;
+	size_t current_chunk_size = 0;
+
+	using clock = std::chrono::steady_clock;
+	auto read_start = clock::now();
+
+	omp_set_dynamic(0);
+#pragma omp parallel
 	{
-		total_num_divede += current_chunk.size();
-		chunks.push_back(std::move(current_chunk));
-		current_chunk.clear();
-		current_chunk_size = 0;
+	#pragma omp single nowait
+		{
+			while (true) {
+				while (inflight.load(std::memory_order_relaxed) >= MAX_INFLIGHT) {
+				#pragma omp taskyield
+				}
+				int len = kseq_read(seq);
+				if (len < 0) break;
+				if (len <= option_l) continue;
+				std::string data = seq->seq.s ? seq->seq.s : "";
+				std::string idf = seq->name.s ? seq->name.s : "";
+				if (options.trim_len > 0) {
+					if (options.trim_len >= len) continue;
+					len = options.trim_len;
+					if (len) data[len] = 0;
+				}
+				total_num++;
+				total_letter += len;
+				total_desc += seq->name.l;
+				all_lengths.push_back((size_t)len);
+				if ((size_t)len > max_len) {
+					max_len = (size_t)len;
+					max_name = idf;
+				}
+				if (seq->name.l > max_idf)
+					max_idf = seq->name.l;
+				if ((size_t)len < min_len) {
+					min_len = (size_t)len;
+					min_name = idf;
+				}
+				current_chunk.emplace_back(std::move(idf), std::move(data));
+				current_chunk_size += seq->name.l + (size_t)len;
+				if (current_chunk_size >= chunk_size_bytes) {
+					auto read_end = clock::now();
+					auto read_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(read_end - read_start).count();
+					total_num_divide += current_chunk.size();
+					auto* ch = new std::vector<std::pair<std::string, std::string>>(std::move(current_chunk));
+					current_chunk.clear();
+					current_chunk_size = 0;
+					int my_run = run_id.fetch_add(1, std::memory_order_relaxed);
+					inflight.fetch_add(1, std::memory_order_relaxed);
+				#pragma omp task firstprivate(ch) depend(out: ch[0:1]) priority(1)
+					{
+						std::stable_sort(ch->begin(), ch->end(),
+							[](auto const& a, auto const& b) {
+								return a.second.size() > b.second.size();
+							});
+					}
+				#pragma omp task firstprivate(ch, my_run, read_ns) depend(in: ch[0:1])
+					{
+						// 限制并发写
+						while (true) {
+							int slots = write_slots.load(std::memory_order_relaxed);
+							if (slots > 0 &&
+								write_slots.compare_exchange_weak(slots, slots - 1)) break;
+						#pragma omp taskyield
+						}
+						auto sort_write_start = clock::now();
+						std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+						write_run_fasta(*ch, path);
+						auto sort_write_end = clock::now();
+						auto sort_write_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(sort_write_end - sort_write_start).count();
+					#pragma omp critical(run_files_push)
+						{
+							run_files.push_back(path);
+						}
+						std::cout << read_ns << "\tReading\n"
+							<< sort_write_ns << "\tSort+Write\n";
+
+						write_slots.fetch_add(1, std::memory_order_relaxed);
+						delete ch;
+						inflight.fetch_sub(1, std::memory_order_relaxed);
+					}
+				}
+			}
+			if (current_chunk_size > 0) {
+				total_num_divide += current_chunk.size();
+				auto* ch = new std::vector<std::pair<std::string, std::string>>(std::move(current_chunk));
+				current_chunk.clear(); current_chunk_size = 0;
+				int my_run = run_id.fetch_add(1, std::memory_order_relaxed);
+				inflight.fetch_add(1, std::memory_order_relaxed);
+
+			#pragma omp task firstprivate(ch) depend(out: ch[0:1]) priority(1)
+				{
+					std::stable_sort(ch->begin(), ch->end(),
+						[](auto const& a, auto const& b) {
+							return a.second.size() > b.second.size();
+						});
+				}
+			#pragma omp task firstprivate(ch, my_run) depend(in: ch[0:1])
+				{
+					while (true) {
+						int slots = write_slots.load(std::memory_order_relaxed);
+						if (slots > 0 &&
+							write_slots.compare_exchange_weak(slots, slots - 1)) break;
+					#pragma omp taskyield
+					}
+					std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+					write_run_fasta(*ch, path);
+				#pragma omp critical(run_files_push)
+					{
+						run_files.push_back(path);
+					}
+					write_slots.fetch_add(1, std::memory_order_relaxed);
+					delete ch;
+					inflight.fetch_sub(1, std::memory_order_relaxed);
+				}
+			}
+		#pragma omp taskwait
+		}
 	}
 	kseq_destroy(seq);
 	gzclose(fp);
@@ -2184,116 +2316,111 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
 	if (max_len > MAX_SEQ)
 		bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
-	// 计算N50
-	sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
+
+	std::sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
 	long long cumulative = 0;
-	for (size_t len : all_lengths)
-	{
-		cumulative += len;
-		if (cumulative >= total_letter / 2)
-		{
-			len_n50 = len;
-			break;
-	
-		}
+	for (size_t L : all_lengths) {
+		cumulative += L;
+		if (cumulative >= total_letter / 2) { len_n50 = L; break; }
 	}
-	
-	std::cout << "longest and shortest : " << max_name << " and " << min_name << std::endl;
-	std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
-	std::cout << "longest name : " << max_idf << std::endl;
-	std::cout << "Total letters: " << total_letter << std::endl;
-	std::cout << "total_num_divede: " << total_num_divede << std::endl;
-	std::cout << "Total number: " << total_num << std::endl;
-	std::cout << "N50 length: " << len_n50 << std::endl;
-	if(total_num % chunk_size)
-	chunks_num = total_num / chunk_size+ 1;
-	else
-	chunks_num = total_num / chunk_size;
-	// cerr << "Before chunks_num: " << temp_files.files.Size() << " files." << endl;
-	// chunks_num=17;
-	// cerr << "After chunks_num: " << temp_files.files.Size() << " files." << endl;
-	std::cout << "chunk_num: " << chunks_num<< std::endl;
-	run_files.resize(chunks.size());
-	long long chunk_total_num = 0;
-	
-#pragma omp parallel for schedule(dynamic)
-	for (int i = 0; i < (int)chunks.size(); ++i)
-	{
-		auto &chunk = chunks[i];
-		stable_sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
-					{ return a.second.size() > b.second.size(); });
-		string run_file = "tmp_runs/run_" + to_string(i) + ".fa";
-		run_files[i] = run_file;
-
-		FILE *fout = fopen(run_file.c_str(), "w");
-		if (!fout)
-			continue;
-		for (const auto &p : chunk)
-		{
-			if (p.first.back() != '\n')
-			{
-				fprintf(fout, ">%s\n", p.first.c_str());
-			}
-			else
-			{
-				fprintf(fout, ">%s", p.first.c_str());
-			}
-
-			if (!p.second.empty() && p.second.back() != '\n')
-			{
-				fprintf(fout, "%s\n", p.second.c_str());
-			}
-			else
-			{
-				fprintf(fout, "%s", p.second.c_str());
-			}
-		}
-		fclose(fout);
-		
-	}
-	// temp_files.Clear();
-	chunks.clear();
-	chunks.shrink_to_fit();
-	//  size_t total_memory = 0;
-
-    // // Calculate the memory used by the vector of vectors (chunks)
-    // total_memory += sizeof(chunks);  // memory for vector metadata (size, capacity)
-    
-    // // Iterate through each vector in chunks
-    // for (const auto& chunk : chunks) {
-    //     total_memory += sizeof(chunk);  // memory for each vector metadata
-        
-    //     // Calculate memory used by each pair in the chunk
-    //     for (const auto& p : chunk) {
-    //         total_memory += sizeof(p);  // memory for pair metadata (2 pointers)
-    //         total_memory += p.first.capacity();  // memory for the string's internal buffer
-    //         total_memory += p.second.capacity();  // memory for the string's internal buffer
-    //     }
-    // }
-
-    // cout << "Total memory used by 'chunks': " << total_memory / (1024 * 1024) << " MB" << endl;
-
 	all_lengths.clear();
 	all_lengths.shrink_to_fit();
+
+	std::cout << "longest and shortest : " << max_name << " and " << min_name << "\n";
+	std::cout << "longest and shortest : " << max_len << " and " << min_len << "\n";
+	std::cout << "longest name : " << max_idf << "\n";
+	std::cout << "Total letters: " << total_letter << "\n";
+	std::cout << "total_num_divede: " << total_num_divide << "\n";
+	std::cout << "Total number: " << total_num << "\n";
+	std::cout << "N50 length: " << len_n50 << "\n";
+	if (total_num % chunk_size) chunks_num = total_num / chunk_size + 1;
+	else chunks_num = total_num / chunk_size;
+	std::cout << "chunk_num: " << chunks_num << std::endl;
+}
+
+void SequenceDB::WriteToJSON(const std::string& file,
+                             const std::string& output_dir,
+                             const std::string& output_prefix,
+                             int num_procs)
+{
+    // 构造 JSON 对象
+	using json = nlohmann::json;
+    json j;
+
+    j["info"] = {
+        {"max_len",      max_len},
+        {"max_idf",      max_idf},
+        {"chunks_num",   chunks_num},
+        {"chunk_size",   chunk_size},
+        {"total_num",    total_num},
+        {"len_n50",      len_n50},
+        {"min_len",      min_len},
+        {"num_procs",    num_procs},
+        {"total_letter", total_letter},
+        {"total_desc",   total_desc},
+		{"total_chunk",  total_chunk},
+
+    };
+
+    j["files"] = {
+        {"output_dir", output_dir},
+        {"out_prefix", output_prefix}
+    };
+
+    // 写文件（4 表示缩进，便于人类阅读）
+    std::ofstream ofs(output_dir + file, std::ios::binary);
+    if (!ofs) return;
+    ofs << j.dump(4) << "\n";
+}
+
+void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_dir,Options& options, bool master){
+	using json = nlohmann::json;
+	std::string path = output_dir+file;
+	std::ifstream ifs(path);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Cannot open JSON file: " + path);
+    }
+	json j;
+    ifs >> j;
+
+    // info 部分
+    max_len      = j["info"]["max_len"].get<size_t>();
+    max_idf      = j["info"]["max_idf"].get<size_t>();
+    chunks_num   = j["info"]["chunks_num"].get<int>();
+    chunk_size   = j["info"]["chunk_size"].get<int>();
+    total_num    = j["info"]["total_num"].get<long long>();
+    len_n50      = j["info"]["len_n50"].get<size_t>();
+    min_len      = j["info"]["min_len"].get<size_t>();
+	if(master){
+    	total_letter = j["info"]["total_letter"].get<long long>();
+    	total_desc   = j["info"]["total_desc"].get<long long>();
+		total_chunk  = j["info"]["total_chunk"].get<int>();
+	}
+	// // files 部分
+    // this->output_dir    = j["files"]["output_dir"].get<std::string>();
+    // this->output_prefix = j["files"]["out_prefix"].get<std::string>();
+
+	options.max_entries = max_len * MAX_TABLE_SEQ;
+
 }
 
 // 归并
-void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
-									  const std::string &output_prefix,
-									  int num_procs)
+void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string>& run_files,
+	const std::string& output_prefix,
+	int num_procs)
 {
-	
+
 	if (run_files.empty())
 		return;
 
 	std::priority_queue<FastaRecord> pq;
-	std::vector<FILE *> fps(run_files.size(), nullptr);
+	std::vector<FILE*> fps(run_files.size(), nullptr);
 	long long total_num = 0;
 
-	
+
 	for (size_t i = 0; i < run_files.size(); ++i)
 	{
-		FILE *fp = fopen(run_files[i].c_str(), "r");
+		FILE* fp = fopen(run_files[i].c_str(), "r");
 		if (!fp)
 		{
 			std::cerr << "Failed to open run file: " << run_files[i] << std::endl;
@@ -2316,7 +2443,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	struct ProcFile
 	{
-		FILE *fp;
+		FILE* fp;
 	};
 
 	std::vector<ProcFile> proc_files(num_procs);
@@ -2328,7 +2455,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		if (!proc_files[i].fp)
 		{
 			fprintf(stderr, "FATAL: Failed to create output file %s (%s)\n",
-					filename.c_str(), strerror(errno));
+				filename.c_str(), strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -2337,45 +2464,45 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	size_t global_chunk_id = -1;
 	size_t current_chunk_size = 0;
 	int current_proc = -1;
-	long long global_sequence_id = 0;			  
-	long long chunk_start_id = global_sequence_id; 
+	long long global_sequence_id = 0;
+	long long chunk_start_id = global_sequence_id;
 
 
 	auto rotate_chunk = [&]
-	{
-		if (current_proc != -1)
 		{
-			auto &pf = proc_files[current_proc];
-			// fprintf(pf.fp, "#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
-			fflush(pf.fp);
-		}
+			if (current_proc != -1)
+			{
+				auto& pf = proc_files[current_proc];
+				// fprintf(pf.fp, "#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
+				fflush(pf.fp);
+			}
 
-		global_chunk_id++;
-		current_proc = (global_chunk_id) % num_procs;
-		current_chunk_size = 0;
+			global_chunk_id++;
+			current_proc = (global_chunk_id) % num_procs;
+			current_chunk_size = 0;
 
-		
-		chunk_start_id = global_sequence_id;
 
-		auto &pf = proc_files[current_proc];
-		// fprintf(pf.fp, "#CHUNK_START ID=%zu START_ID=%lld\n", global_chunk_id, chunk_start_id);
-	};
+			chunk_start_id = global_sequence_id;
+
+			auto& pf = proc_files[current_proc];
+			// fprintf(pf.fp, "#CHUNK_START ID=%zu START_ID=%lld\n", global_chunk_id, chunk_start_id);
+		};
 
 	rotate_chunk();
 
-	
+
 	while (!pq.empty())
 	{
 		FastaRecord rec = pq.top();
 		pq.pop();
 
-		auto &pf = proc_files[current_proc];
+		auto& pf = proc_files[current_proc];
 		fwrite(rec.desc.data(), 1, rec.desc.size(), pf.fp);
 		fwrite(rec.seq.data(), 1, rec.seq.size(), pf.fp);
 		current_chunk_size++;
-		global_sequence_id++; 
+		global_sequence_id++;
 
-		
+
 		int fid = rec.file_id;
 		char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
 		if (fgets(desc, MAX_LINE_SIZE, fps[fid]) && fgets(seq, MAX_LINE_SIZE, fps[fid]))
@@ -2395,28 +2522,30 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	if (current_chunk_size > 0)
 	{
 
-		auto &pf = proc_files[current_proc];
+		auto& pf = proc_files[current_proc];
 		// fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 		fflush(pf.fp);
 	}
 	total_chunk = global_chunk_id;
 	// cerr << "total_chunk" << global_chunk_id + 1 << endl;
 
-	for (auto &pf : proc_files)
+	for (auto& pf : proc_files)
 		fclose(pf.fp);
 
-	for (auto *fp : fps)
+	for (auto* fp : fps)
 		if (fp)
 			fclose(fp);
 
-	for (const auto &fname : run_files)
+	for (const auto& fname : run_files)
 		remove(fname.c_str());
 	proc_files.clear();
 	std::vector<ProcFile>().swap(proc_files);
 	fps.clear();
-	std::vector<FILE *>().swap(fps);
-	pq = std::priority_queue<FastaRecord>(); 
-	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
+	std::vector<FILE*>().swap(fps);
+	pq = std::priority_queue<FastaRecord>();
+	// std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
+	WriteToJSON("info.json",output_prefix,"_proc",num_procs);
+	std::cout<<"Successfully write info.json!\n";
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2427,35 +2556,27 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	// exit(0);
 }
 
-void SequenceDB::read_sorted_files( int rank, int rank_size) {
-
-	int file_index = rank;
-	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+void SequenceDB::read_sorted_files(int rank, int rank_size,bool mpi_status) {
+	if(mpi_status) {
+		MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
+		MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	}
 	// Sequence one;
-    // Sequence des;
-   
+	// Sequence des;
+
 	std::string file = std::string("output/") + "_proc" + std::to_string(rank - 1) + ".fa";
-	// FILE* fin = fopen(file.c_str(), "rb");
 
-	// char* buffer = NULL;
-    // char* res = NULL;
-    // if (fin == NULL) bomb_error("Failed to open the database file");
+	// std::cout<<max_len<<" "<<max_idf<<" "<<chunks_num<<" "<<chunk_size<<" "<<total_num<<" "<<len_n50<<" "<<min_len<<endl;
 
-    // buffer = new char[MAX_LINE_SIZE + 1];
-
-  
-	// int start_id = -1;
-	//这里后面传入参数
-	int global_id = (rank-1)*chunk_size;
-	int start_global_id=global_id;
-	int start_my_id=sequences.size();
-	int chunk_id = (rank-1);
+	int global_id = (rank - 1) * chunk_size;
+	int start_global_id = global_id;
+	int start_my_id = sequences.size();
+	int chunk_id = (rank - 1);
 	// int end_id = -1;
 	// int record=0;
 	gzFile fp = gzopen(file.c_str(), "r");
@@ -2465,76 +2586,53 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 	char* id_ptr = new char[max_idf + 1];
 	char* data_ptr = new char[max_len + 1];
 	while ((len = kseq_read(seq)) >= 0) {
- 	memcpy(id_ptr, seq->name.s, seq->name.l);
-   		id_ptr[seq->name.l] = 0;
-    	one.identifier = id_ptr;
+		memcpy(id_ptr, seq->name.s, seq->name.l);
+		id_ptr[seq->name.l] = 0;
+		one.identifier = id_ptr;
 
-    	memcpy(data_ptr, seq->seq.s,seq->seq.l);
-    	data_ptr[seq->seq.l] = 0;
-    	one.data = data_ptr;
+		memcpy(data_ptr, seq->seq.s, seq->seq.l);
+		data_ptr[seq->seq.l] = 0;
+		one.data = data_ptr;
 		one.size = len;
 		one.tot_length = len + seq->name.l;
 		one.index = global_id;
 		sequences.Append(new Sequence(one));
 		global_id++;
-		if(sequences.size()%chunk_size==0){
-			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
+		if (sequences.size() % chunk_size == 0) {
+			my_chunks.push_back(make_pair(start_my_id, sequences.size() - 1));
 			chunks_id.push_back(chunk_id);
-			all_chunks.push_back(make_pair(start_global_id,global_id ));
-			chunk_id=(rank_size-1)+chunk_id;
-			global_id=(global_id-chunk_size)+(rank_size-1)*chunk_size;
-			start_global_id=global_id;
-			start_my_id=sequences.size();
-
+			all_chunks.push_back(make_pair(start_global_id, global_id));
+			chunk_id = (rank_size - 1) + chunk_id;
+			global_id = (global_id - chunk_size) + (rank_size - 1) * chunk_size;
+			start_global_id = global_id;
+			start_my_id = sequences.size();
 		}
-		
 	}
 	one.identifier = nullptr;
-    one.data = nullptr;
+	one.data = nullptr;
 	delete[] id_ptr;
-    delete[] data_ptr;
-	if(sequences.size()%chunk_size!=0){
-		my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
+	delete[] data_ptr;
+	if (sequences.size() % chunk_size != 0) {
+		my_chunks.push_back(make_pair(start_my_id, sequences.size() - 1));
 		chunks_id.push_back(chunk_id);
-		all_chunks.push_back(make_pair(start_global_id,global_id ));
+		all_chunks.push_back(make_pair(start_global_id, global_id));
 	}
-		kseq_destroy(seq);
-		gzclose(fp);
-	// if(rank==3)
-	// for(int i=0;i< chunks_id.size();i++){
-	// 	cerr<<chunks_id[i]<<endl;
-	// 	cerr<<"all start   "<<all_chunks[i].first<<endl;
-	// 	cerr<<"all  end   "<<all_chunks[i].second<<endl;
-	// 	cerr<<"my start   "<<my_chunks[i].first<<endl;
-	// 	cerr<<"my  end   "<<my_chunks[i].second<<endl;
-	// 	// cerr<<sequences[my_chunks[i].first]->identifier<<endl;
-	// 	// cerr<<sequences[my_chunks[i].first]->index<<endl;
-	// 	// cerr<<sequences[my_chunks[i].second]->identifier<<endl;
-	// 	// cerr<<sequences[my_chunks[i].second]->index<<endl;
-	// }
-	// for(int i=0;i< sequences.size();i++){
+	kseq_destroy(seq);
+	gzclose(fp);
 
-	// 	cerr<<sequences[i]->identifier<<endl;
-	// 	cerr<<sequences[i]->index<<endl;
+	std::cout<<"Reading sequences total is "<<sequences.size()<<endl;
 
-	// }
-
-	// one.identifier = NULL;
-    // delete[] buffer;
-    // fclose(fin);
-		// total_encodes.resize(sequences.size());
-		// total_encodes_no.resize(sequences.size());
 #pragma omp parallel for num_threads(options.threads)
-		for (int i = 0; i < sequences.size(); i++)
-		{
-			Sequence *seq = sequences[i];
-			if (seq->swap == NULL)
-				seq->ConvertBases();
-			// Encodeseqs(seq, options.NAA, i,false);
-		}
+	for (int i = 0; i < sequences.size(); i++)
+	{
+		Sequence* seq = sequences[i];
+		if (seq->swap == NULL)
+			seq->ConvertBases();
+	}
 }
-void SequenceDB::Encodeseqs( Sequence *seq, int NAA, int id,bool est ){
-char *seqi = seq->data;
+
+void SequenceDB::Encodeseqs(Sequence* seq, int NAA, int id, bool est) {
+	char* seqi = seq->data;
 	int len = seq->size;
 	// check_word_encodes
 	int aan_no = len - NAA + 1;
@@ -2543,34 +2641,34 @@ char *seqi = seq->data;
 	unsigned char k, k1;
 	vector<int>word_encodes(len);
 	vector<INTs>word_encodes_no(len);
-	for (j=0; j<aan_no; j++) {
-		char *word = seqi + j;
+	for (j = 0; j < aan_no; j++) {
+		char* word = seqi + j;
 		int encode = 0;
-		for (k=0, k1=NAA-1; k<NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
+		for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
 		word_encodes[j] = encode;
 	}
 
-	if( est ){
-		for (j=0; j<len; j++){
-			if ( seqi[j] >= 4 ) {                      // here N is 4
-				i0 = (j-NAA+1 > 0) ? j-NAA+1 : 0;
+	if (est) {
+		for (j = 0; j < len; j++) {
+			if (seqi[j] >= 4) {                      // here N is 4
+				i0 = (j - NAA + 1 > 0) ? j - NAA + 1 : 0;
 				i1 = j < aan_no ? j : aan_no - 1;
-				for (i=i0; i<=i1; i++) word_encodes[i]=-1;
+				for (i = i0; i <= i1; i++) word_encodes[i] = -1;
 			}
 		}
-		for (j=0; j<aan_no; j++) skip += (word_encodes[j] == -1);
+		for (j = 0; j < aan_no; j++) skip += (word_encodes[j] == -1);
 	}
 
-	std::sort( word_encodes.begin(), word_encodes.begin() + aan_no );
-	for(j=0; j<aan_no; j++) word_encodes_no[j]=1;
-	for(j=aan_no-1; j; j--) {
-		if (word_encodes[j] == word_encodes[j-1]) {
-			word_encodes_no[j-1] += word_encodes_no[j];
-			word_encodes_no[j]=0;
+	std::sort(word_encodes.begin(), word_encodes.begin() + aan_no);
+	for (j = 0; j < aan_no; j++) word_encodes_no[j] = 1;
+	for (j = aan_no - 1; j; j--) {
+		if (word_encodes[j] == word_encodes[j - 1]) {
+			word_encodes_no[j - 1] += word_encodes_no[j];
+			word_encodes_no[j] = 0;
 		}
 	}
-	for(j=0; j<aan_no; j++){
-		if(word_encodes_no[j]!=0){
+	for (j = 0; j < aan_no; j++) {
+		if (word_encodes_no[j] != 0) {
 			total_encodes[id].emplace_back(word_encodes[j]);
 			total_encodes_no[id].emplace_back(word_encodes_no[j]);
 		}
@@ -2579,471 +2677,475 @@ char *seqi = seq->data;
 	total_encodes_no[id].emplace_back(0);
 }
 //压缩文件的读取入口
-void SequenceDB::Readgz( const char *file, const char *file2, const Options & options )
+void SequenceDB::Readgz(const char* file, const char* file2, const Options& options)
 {
 #ifdef WITH_ZLIB
-    Sequence one, two;
-    Sequence des;
-    gzFile fin = gzopen(file, "r");
-    gzFile fin2= gzopen(file2,"r");
-    char *buffer = NULL;
-    char *buffer2= NULL;
-    char *res = NULL;
-    char *res2= NULL;
-    int option_l = options.min_length;
-    if( fin == NULL ) bomb_error( "Failed to open the database file" );
-    if( fin2== NULL ) bomb_error( "Failed to open the database file" );
-    Clear();
-    buffer = new char[ MAX_LINE_SIZE+1 ];
-    buffer2= new char[ MAX_LINE_SIZE+1 ];
+	Sequence one, two;
+	Sequence des;
+	gzFile fin = gzopen(file, "r");
+	gzFile fin2 = gzopen(file2, "r");
+	char* buffer = NULL;
+	char* buffer2 = NULL;
+	char* res = NULL;
+	char* res2 = NULL;
+	int option_l = options.min_length;
+	if (fin == NULL) bomb_error("Failed to open the database file");
+	if (fin2 == NULL) bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
+	buffer2 = new char[MAX_LINE_SIZE + 1];
 
-    while (((not gzeof( fin )) && (not gzeof( fin2)) ) || (one.size && two.size)) { /* do not break when the last sequence is not handled */
-        buffer[0] = '>'; res =gzgets(fin,  buffer,  MAX_LINE_SIZE);
-        buffer2[0]= '>'; res2=gzgets(fin2, buffer2, MAX_LINE_SIZE);
+	while (((not gzeof(fin)) && (not gzeof(fin2))) || (one.size && two.size)) { /* do not break when the last sequence is not handled */
+		buffer[0] = '>'; res = gzgets(fin, buffer, MAX_LINE_SIZE);
+		buffer2[0] = '>'; res2 = gzgets(fin2, buffer2, MAX_LINE_SIZE);
 
-        if ( (res      == NULL) && (res2     != NULL)) bomb_error( "Paired input files have different number sequences" );
-        if ( (res      != NULL) && (res2     == NULL)) bomb_error( "Paired input files have different number sequences" );
-        if ( (one.size == 0   ) && (two.size >     0)) bomb_error( "Paired input files have different number sequences" );
-        if ( (one.size >  0   ) && (two.size ==    0)) bomb_error( "Paired input files have different number sequences" );
-        if ( (res      == NULL) && (one.size ==    0)) break;
+		if ((res == NULL) && (res2 != NULL)) bomb_error("Paired input files have different number sequences");
+		if ((res != NULL) && (res2 == NULL)) bomb_error("Paired input files have different number sequences");
+		if ((one.size == 0) && (two.size > 0)) bomb_error("Paired input files have different number sequences");
+		if ((one.size > 0) && (two.size == 0)) bomb_error("Paired input files have different number sequences");
+		if ((res == NULL) && (one.size == 0)) break;
 
-        if( buffer[0] == '+' ){ // fastq 3rd line
-            // file 1
-            int len = strlen( buffer ); 
-            int len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){ // read until the end of the line
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+		if (buffer[0] == '+') { // fastq 3rd line
+			// file 1
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') { // read until the end of the line
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // read next line quality score
-            if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer );
-            len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+			// read next line quality score
+			if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // file 2
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){ // read until the end of the line
-                if ( (res2=gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            two.tot_length += len;
+			// file 2
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') { // read until the end of the line
+				if ((res2 = gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			two.tot_length += len;
 
-            // read next line quality score
-            if ( (res2=gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){
-                if ( (res2=gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            two.tot_length += len;
+			// read next line quality score
+			if ((res2 = gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') {
+				if ((res2 = gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			two.tot_length += len;
 
-        }else if (buffer[0] == '>' || buffer[0] == '@' || (res==NULL && one.size)) {
-            if ( one.size && two.size ) { // write previous record
-                if( one.identifier == NULL || one.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( one.identifier ) printf( "%s\n", one.identifier );
-                    printf( "%s\n", one.data );
-                    one.size=0; two.size=0;
-                }
-                if( two.identifier == NULL || two.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file2 );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( two.identifier ) printf( "%s\n", two.identifier );
-                    printf( "%s\n", two.data );
-                    one.size=0; two.size = 0;
-                }
-                one.index = sequences.size();
-                if( (one.size + two.size)> option_l ) {
-                    if (options.trim_len    > 0) one.trim(options.trim_len);
-                    if (options.trim_len_R2 > 0) two.trim(options.trim_len_R2);
-                    sequences.Append( new Sequence( one, two, 1 ) ); 
-                }
-            }
-            // R1
-            one.size = 0;
-            one.tot_length = 0;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+			if (one.size && two.size) { // write previous record
+				if (one.identifier == NULL || one.Format()) {
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier) printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0; two.size = 0;
+				}
+				if (two.identifier == NULL || two.Format()) {
+					printf("Warning: from file \"%s\",\n", file2);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (two.identifier) printf("%s\n", two.identifier);
+					printf("%s\n", two.data);
+					one.size = 0; two.size = 0;
+				}
+				one.index = sequences.size();
+				if ((one.size + two.size) > option_l) {
+					if (options.trim_len > 0) one.trim(options.trim_len);
+					if (options.trim_len_R2 > 0) two.trim(options.trim_len_R2);
+					sequences.Append(new Sequence(one, two, 1));
+				}
+			}
+			// R1
+			one.size = 0;
+			one.tot_length = 0;
 
-            int len = strlen( buffer );
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL ) break;
-                des += buffer;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            size_t offset = gztell( fin );    
-            one.des_begin = offset - len; // offset of ">" or "@" 
-            one.tot_length += len;              // count first line
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = gzgets(fin, buffer, MAX_LINE_SIZE)) == NULL) break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			size_t offset = gztell(fin);
+			one.des_begin = offset - len; // offset of ">" or "@" 
+			one.tot_length += len;              // count first line
 
-            int i = 0;
-            if( des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+' ) i += 1;
-            if( des.data[i] == ' ' or des.data[i] == '\t' ) i += 1;
-            if( options.des_len and options.des_len < des.size ) des.size = options.des_len;
-            while( i < des.size and ! isspace( des.data[i] ) ) i += 1;
-            des.data[i] = 0;                   // find first non-space letter
-            one.identifier = des.data;
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+			if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+			if (options.des_len and options.des_len < des.size) des.size = options.des_len;
+			while (i < des.size and !isspace(des.data[i])) i += 1;
+			des.data[i] = 0;                   // find first non-space letter
+			one.identifier = des.data;
 
-            // R2
-            two.size = 0;
-            two.tot_length = 0;
+			// R2
+			two.size = 0;
+			two.tot_length = 0;
 
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){
-                if ( (res=gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            offset = gztell( fin2 );
-            two.des_begin = offset - len;
-            two.tot_length += len;              // count first line
-            two.identifier = des.data;
-        } else {
-            one.tot_length += strlen(buffer);  one += buffer;
-            two.tot_length+= strlen(buffer2); two+= buffer2;
-        }
-    }
-    one.identifier = NULL;
-    two.identifier = NULL;
-    delete[] buffer;
-    gzclose( fin );
-    delete[] buffer2;
-    gzclose( fin2 );
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') {
+				if ((res = gzgets(fin2, buffer2, MAX_LINE_SIZE)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			offset = gztell(fin2);
+			two.des_begin = offset - len;
+			two.tot_length += len;              // count first line
+			two.identifier = des.data;
+		}
+		else {
+			one.tot_length += strlen(buffer);  one += buffer;
+			two.tot_length += strlen(buffer2); two += buffer2;
+		}
+	}
+	one.identifier = NULL;
+	two.identifier = NULL;
+	delete[] buffer;
+	gzclose(fin);
+	delete[] buffer2;
+	gzclose(fin2);
 #else
-    bomb_error("this program was not compiled with zlib");
+	bomb_error("this program was not compiled with zlib");
 #endif
 
 }
 
 // PE reads liwz, disable swap option
 //非压缩读取
-void SequenceDB::Read( const char *file, const char *file2, const Options & options )
+void SequenceDB::Read(const char* file, const char* file2, const Options& options)
 {
-    int f_len = strlen(file);
-    int f_len2= strlen(file2);
-    if (strcmp(file + f_len - 3, ".gz") == 0 ) {
-        if ( strcmp(file2 + f_len2 - 3, ".gz") ) bomb_error( "Both input files need to be in .gz format" );
-        Readgz(file, file2, options);
-        return;
-    }
+	int f_len = strlen(file);
+	int f_len2 = strlen(file2);
+	if (strcmp(file + f_len - 3, ".gz") == 0) {
+		if (strcmp(file2 + f_len2 - 3, ".gz")) bomb_error("Both input files need to be in .gz format");
+		Readgz(file, file2, options);
+		return;
+	}
 
-    Sequence one, two;
-    Sequence des;
-    FILE *fin = fopen( file, "rb" );
-    FILE *fin2= fopen( file2,"rb" );
-    char *buffer = NULL;
-    char *buffer2= NULL;
-    char *res = NULL;
-    char *res2= NULL;
-    int option_l = options.min_length;
-    if( fin == NULL ) bomb_error( "Failed to open the database file" );
-    if( fin2== NULL ) bomb_error( "Failed to open the database file" );
-    Clear();
-    buffer = new char[ MAX_LINE_SIZE+1 ];
-    buffer2= new char[ MAX_LINE_SIZE+1 ];
+	Sequence one, two;
+	Sequence des;
+	FILE* fin = fopen(file, "rb");
+	FILE* fin2 = fopen(file2, "rb");
+	char* buffer = NULL;
+	char* buffer2 = NULL;
+	char* res = NULL;
+	char* res2 = NULL;
+	int option_l = options.min_length;
+	if (fin == NULL) bomb_error("Failed to open the database file");
+	if (fin2 == NULL) bomb_error("Failed to open the database file");
+	Clear();
+	buffer = new char[MAX_LINE_SIZE + 1];
+	buffer2 = new char[MAX_LINE_SIZE + 1];
 
-    while (((not feof( fin )) && (not feof( fin2)) ) || (one.size && two.size)) { /* do not break when the last sequence is not handled */
-        buffer[0] = '>'; res =fgets( buffer,  MAX_LINE_SIZE, fin  );
-        buffer2[0]= '>'; res2=fgets( buffer2, MAX_LINE_SIZE, fin2 );
+	while (((not feof(fin)) && (not feof(fin2))) || (one.size && two.size)) { /* do not break when the last sequence is not handled */
+		buffer[0] = '>'; res = fgets(buffer, MAX_LINE_SIZE, fin);
+		buffer2[0] = '>'; res2 = fgets(buffer2, MAX_LINE_SIZE, fin2);
 
-        if ( (res      == NULL) && (res2     != NULL)) bomb_error( "Paired input files have different number sequences" );
-        if ( (res      != NULL) && (res2     == NULL)) bomb_error( "Paired input files have different number sequences" );
-        if ( (one.size == 0   ) && (two.size >     0)) bomb_error( "Paired input files have different number sequences" );
-        if ( (one.size >  0   ) && (two.size ==    0)) bomb_error( "Paired input files have different number sequences" );
-        if ( (res      == NULL) && (one.size ==    0)) break;
+		if ((res == NULL) && (res2 != NULL)) bomb_error("Paired input files have different number sequences");
+		if ((res != NULL) && (res2 == NULL)) bomb_error("Paired input files have different number sequences");
+		if ((one.size == 0) && (two.size > 0)) bomb_error("Paired input files have different number sequences");
+		if ((one.size > 0) && (two.size == 0)) bomb_error("Paired input files have different number sequences");
+		if ((res == NULL) && (one.size == 0)) break;
 
-        if( buffer[0] == '+' ){ // fastq 3rd line
-            // file 1
-            int len = strlen( buffer ); 
-            int len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){ // read until the end of the line
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+		if (buffer[0] == '+') { // fastq 3rd line
+			// file 1
+			int len = strlen(buffer);
+			int len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') { // read until the end of the line
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // read next line quality score
-            if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer );
-            len2 = len;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            one.tot_length += len;
+			// read next line quality score
+			if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer);
+			len2 = len;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			one.tot_length += len;
 
-            // file 2
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){ // read until the end of the line
-                if ( (res2=fgets( buffer2, MAX_LINE_SIZE, fin2 )) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            two.tot_length += len;
+			// file 2
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') { // read until the end of the line
+				if ((res2 = fgets(buffer2, MAX_LINE_SIZE, fin2)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			two.tot_length += len;
 
-            // read next line quality score
-            if ( (res2=fgets( buffer2, MAX_LINE_SIZE, fin2 )) == NULL ) bomb_error("can not read quality score after");
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){
-                if ( (res2=fgets( buffer2, MAX_LINE_SIZE, fin2 )) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            two.tot_length += len;
+			// read next line quality score
+			if ((res2 = fgets(buffer2, MAX_LINE_SIZE, fin2)) == NULL) bomb_error("can not read quality score after");
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') {
+				if ((res2 = fgets(buffer2, MAX_LINE_SIZE, fin2)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			two.tot_length += len;
 
-        }else if (buffer[0] == '>' || buffer[0] == '@' || (res==NULL && one.size)) {
-            if ( one.size && two.size ) { // write previous record
-                if( one.identifier == NULL || one.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( one.identifier ) printf( "%s\n", one.identifier );
-                    printf( "%s\n", one.data );
-                    one.size=0; two.size=0;
-                }
-                if( two.identifier == NULL || two.Format() ){
-                    printf( "Warning: from file \"%s\",\n", file2 );
-                    printf( "Discarding invalid sequence or sequence without identifier and description!\n\n" );
-                    if( two.identifier ) printf( "%s\n", two.identifier );
-                    printf( "%s\n", two.data );
-                    one.size=0; two.size = 0;
-                }
-                one.index = sequences.size();
-                if( (one.size + two.size)> option_l ) {
-                    if (options.trim_len    > 0) one.trim(options.trim_len);
-                    if (options.trim_len_R2 > 0) two.trim(options.trim_len_R2);
-                    sequences.Append( new Sequence( one, two, 1 ) ); 
-                }
-            }
-            // R1
-            one.size = 0;
-            one.tot_length = 0;
+		}
+		else if (buffer[0] == '>' || buffer[0] == '@' || (res == NULL && one.size)) {
+			if (one.size && two.size) { // write previous record
+				if (one.identifier == NULL || one.Format()) {
+					printf("Warning: from file \"%s\",\n", file);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (one.identifier) printf("%s\n", one.identifier);
+					printf("%s\n", one.data);
+					one.size = 0; two.size = 0;
+				}
+				if (two.identifier == NULL || two.Format()) {
+					printf("Warning: from file \"%s\",\n", file2);
+					printf("Discarding invalid sequence or sequence without identifier and description!\n\n");
+					if (two.identifier) printf("%s\n", two.identifier);
+					printf("%s\n", two.data);
+					one.size = 0; two.size = 0;
+				}
+				one.index = sequences.size();
+				if ((one.size + two.size) > option_l) {
+					if (options.trim_len > 0) one.trim(options.trim_len);
+					if (options.trim_len_R2 > 0) two.trim(options.trim_len_R2);
+					sequences.Append(new Sequence(one, two, 1));
+				}
+			}
+			// R1
+			one.size = 0;
+			one.tot_length = 0;
 
-            int len = strlen( buffer );
-            int len2 = len;
-            des.size = 0;
-            des += buffer;
-            while( len2 && buffer[len2-1] != '\n' ){
-                if ( (res=fgets( buffer, MAX_LINE_SIZE, fin )) == NULL ) break;
-                des += buffer;
-                len2 = strlen( buffer );
-                len += len2;
-            }
-            size_t offset = ftell( fin );    
-            one.des_begin = offset - len; // offset of ">" or "@" 
-            one.tot_length += len;              // count first line
+			int len = strlen(buffer);
+			int len2 = len;
+			des.size = 0;
+			des += buffer;
+			while (len2 && buffer[len2 - 1] != '\n') {
+				if ((res = fgets(buffer, MAX_LINE_SIZE, fin)) == NULL) break;
+				des += buffer;
+				len2 = strlen(buffer);
+				len += len2;
+			}
+			size_t offset = ftell(fin);
+			one.des_begin = offset - len; // offset of ">" or "@" 
+			one.tot_length += len;              // count first line
 
-            int i = 0;
-            if( des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+' ) i += 1;
-            if( des.data[i] == ' ' or des.data[i] == '\t' ) i += 1;
-            if( options.des_len and options.des_len < des.size ) des.size = options.des_len;
-            while( i < des.size and ! isspace( des.data[i] ) ) i += 1;
-            des.data[i] = 0;                   // find first non-space letter
-            one.identifier = des.data;
+			int i = 0;
+			if (des.data[i] == '>' || des.data[i] == '@' || des.data[i] == '+') i += 1;
+			if (des.data[i] == ' ' or des.data[i] == '\t') i += 1;
+			if (options.des_len and options.des_len < des.size) des.size = options.des_len;
+			while (i < des.size and !isspace(des.data[i])) i += 1;
+			des.data[i] = 0;                   // find first non-space letter
+			one.identifier = des.data;
 
-            // R2
-            two.size = 0;
-            two.tot_length = 0;
+			// R2
+			two.size = 0;
+			two.tot_length = 0;
 
-            len = strlen( buffer2 );
-            len2 = len;
-            while( len2 && buffer2[len2-1] != '\n' ){
-                if ( (res=fgets( buffer2, MAX_LINE_SIZE, fin2 )) == NULL ) break;
-                len2 = strlen( buffer2 );
-                len += len2;
-            }
-            offset = ftell( fin2 );
-            two.des_begin = offset - len;
-            two.tot_length += len;              // count first line
-            two.identifier = des.data;
-        } else {
-            one.tot_length += strlen(buffer);  one += buffer;
-            two.tot_length+= strlen(buffer2); two+= buffer2;
-        }
-    }
+			len = strlen(buffer2);
+			len2 = len;
+			while (len2 && buffer2[len2 - 1] != '\n') {
+				if ((res = fgets(buffer2, MAX_LINE_SIZE, fin2)) == NULL) break;
+				len2 = strlen(buffer2);
+				len += len2;
+			}
+			offset = ftell(fin2);
+			two.des_begin = offset - len;
+			two.tot_length += len;              // count first line
+			two.identifier = des.data;
+		}
+		else {
+			one.tot_length += strlen(buffer);  one += buffer;
+			two.tot_length += strlen(buffer2); two += buffer2;
+		}
+	}
 #if 0
-    int i, n = 0;
-    for(i=0; i<sequences.size(); i++) n += sequences[i].bufsize + 4;
-    cout<<n<<"\t"<<sequences.capacity() * sizeof(Sequence)<<endl;
-    int i;
-    scanf( "%i", & i );
+	int i, n = 0;
+	for (i = 0; i < sequences.size(); i++) n += sequences[i].bufsize + 4;
+	cout << n << "\t" << sequences.capacity() * sizeof(Sequence) << endl;
+	int i;
+	scanf("%i", &i);
 #endif
-    one.identifier = NULL;
-    two.identifier = NULL;
-    delete[] buffer;
-    fclose( fin );
-    delete[] buffer2;
-    fclose( fin2 );
+	one.identifier = NULL;
+	two.identifier = NULL;
+	delete[] buffer;
+	fclose(fin);
+	delete[] buffer2;
+	fclose(fin2);
 }
 
 #if 0
-void SequenceDB::Sort( int first, int last )
+void SequenceDB::Sort(int first, int last)
 {
-	int lower=first+1, upper=last;
-	Sequence *pivot;
-	Sequence *val;
-	if( first >= last ) return;
+	int lower = first + 1, upper = last;
+	Sequence* pivot;
+	Sequence* val;
+	if (first >= last) return;
 	val = sequences[first];
-	sequences[first] = sequences[ (first+last)/2 ];
-	sequences[ (first+last)/2 ] = val;
-	pivot = sequences[ first ];
+	sequences[first] = sequences[(first + last) / 2];
+	sequences[(first + last) / 2] = val;
+	pivot = sequences[first];
 
-	while( lower <= upper ){
-		while( lower <= last && sequences[lower]->stats < pivot->stats ) lower ++;
-		while( pivot->stats < sequences[upper]->stats ) upper --;
-		if( lower < upper ){
+	while (lower <= upper) {
+		while (lower <= last && sequences[lower]->stats < pivot->stats) lower++;
+		while (pivot->stats < sequences[upper]->stats) upper--;
+		if (lower < upper) {
 			val = sequences[lower];
 			sequences[lower] = sequences[upper];
 			sequences[upper] = val;
-			upper --;
+			upper--;
 		}
-		lower ++;
+		lower++;
 	}
 	val = sequences[first];
 	sequences[first] = sequences[upper];
 	sequences[upper] = val;
-	if( first < upper-1 ) Sort( first, upper-1 );
-	if( upper+1 < last ) Sort( upper+1, last );
+	if (first < upper - 1) Sort(first, upper - 1);
+	if (upper + 1 < last) Sort(upper + 1, last);
 }
 #endif
 //排序和预处理
-void SequenceDB::SortDivide( Options & options, bool sort )
+void SequenceDB::SortDivide(Options& options, bool sort)
 {
 	int i, j, k, len;
 	int N = sequences.size();
-	total_letter=0;
-	total_desc=0;
+	total_letter = 0;
+	total_desc = 0;
 	max_len = 0;
 	min_len = (size_t)-1;
-	for (i=0; i<N; i++) {
-		Sequence *seq = sequences[i];
+	for (i = 0; i < N; i++) {
+		Sequence* seq = sequences[i];
 		len = seq->size;
 		total_letter += len;
 		if (len > max_len) max_len = len;
 		if (len < min_len) min_len = len;
 		if (seq->swap == NULL) seq->ConvertBases();
-		if( seq->identifier ) total_desc += strlen( seq->identifier );
+		if (seq->identifier) total_desc += strlen(seq->identifier);
 	}
 	options.max_entries = max_len * MAX_TABLE_SEQ;
-	if (max_len >= 65536 and sizeof(INTs) <=2) 
+	if (max_len >= 65536 and sizeof(INTs) <= 2)
 		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
 
-	if (max_len > MAX_SEQ ) 
+	if (max_len > MAX_SEQ)
 		bomb_warning("Some seqs are too long, please rebuild the program with make parameter "
-				"MAX_SEQ=new-maximum-length (e.g. make MAX_SEQ=10000000)");
+			"MAX_SEQ=new-maximum-length (e.g. make MAX_SEQ=10000000)");
 
 	cout << "longest and shortest : " << max_len << " and " << min_len << endl;
 	cout << "Total letters: " << total_letter << endl;
 	// END change all the NR_seq to iseq
 
 	len_n50 = (max_len + min_len) / 2; // will be properly set, if sort is true;
-	if( sort ){
+	if (sort) {
 		// **************************** Form NR_idx[], Sort them from Long to short
 		long long sum = 0;
 		int M = max_len - min_len + 1;
-		Vector<int> count( M, 0 ); // count for each size = max_len - i
-		Vector<int> accum( M, 0 ); // count for all size > max_len - i
-		Vector<int> offset( M, 0 ); // offset from accum[i] when filling sorting
-		Vector<Sequence*> sorting( N ); // TODO: use a smaller class if this consumes to much memory!
+		Vector<int> count(M, 0); // count for each size = max_len - i
+		Vector<int> accum(M, 0); // count for all size > max_len - i
+		Vector<int> offset(M, 0); // offset from accum[i] when filling sorting
+		Vector<Sequence*> sorting(N); // TODO: use a smaller class if this consumes to much memory!
 
-		for (i=0; i<N; i++) count[ max_len - sequences[i]->size ] ++;
-		for (i=1; i<M; i++) accum[i] = accum[i-1] + count[i-1];
-		for (i=0; i<M; i++){
+		for (i = 0; i < N; i++) count[max_len - sequences[i]->size]++;
+		for (i = 1; i < M; i++) accum[i] = accum[i - 1] + count[i - 1];
+		for (i = 0; i < M; i++) {
 			sum += (max_len - i) * count[i];
-			if( sum >= (total_letter>>1) ){
+			if (sum >= (total_letter >> 1)) {
 				len_n50 = max_len - i;
 				break;
 			}
 		}
-		for (i=0; i<N; i++){
+		for (i = 0; i < N; i++) {
 			int len = max_len - sequences[i]->size;
 			int id = accum[len] + offset[len];
 			//sequences[i].index = id;
 			sorting[id] = sequences[i];
-			offset[len] ++;
+			offset[len]++;
 		}
 		options.max_entries = 0;
-		for (i=0; i<N; i++){
+		for (i = 0; i < N; i++) {
 			sequences[i] = sorting[i];
-			if( i < MAX_TABLE_SEQ ) options.max_entries += sequences[i]->size;
+			if (i < MAX_TABLE_SEQ) options.max_entries += sequences[i]->size;
 		}
-#if 0
-		if( options.isEST ){
+	#if 0
+		if (options.isEST) {
 			int start = 0;
-			for (i=0; i<M; i++){
-				Sort( start, accum[i] );
+			for (i = 0; i < M; i++) {
+				Sort(start, accum[i]);
 				start = accum[i];
 			}
 		}
-#endif
+	#endif
 		cout << "Sequences have been sorted" << endl;
 		// END sort them from long to short
 	}
 }// END sort_seqs_divide_segs
 
 
-void SequenceDB::DivideSave( const char *db, const char *newdb, int n, const Options & options )
+void SequenceDB::DivideSave(const char* db, const char* newdb, int n, const Options& options)
 {
-	if( n == 0 or sequences.size() ==0 ) return;
+	if (n == 0 or sequences.size() == 0) return;
 
 	size_t max_seg = total_letter / n + sequences[0]->size;
-	if( max_seg >= MAX_BIN_SWAP ) max_seg = (size_t) MAX_BIN_SWAP;
+	if (max_seg >= MAX_BIN_SWAP) max_seg = (size_t)MAX_BIN_SWAP;
 
-	FILE *fin = fopen( db, "rb" );
-	char *buf = new char[MAX_LINE_SIZE+1];
+	FILE* fin = fopen(db, "rb");
+	char* buf = new char[MAX_LINE_SIZE + 1];
 	char outfile[512];
 	size_t seg_size = 0;
 	int i, j, count, rest, seg = 0;
-	sprintf( outfile, "%s-%i", newdb, 0 );
-	FILE *fout = fopen( outfile, "w+" );
+	sprintf(outfile, "%s-%i", newdb, 0);
+	FILE* fout = fopen(outfile, "w+");
 	n = sequences.size();
-	for (i=0; i<n; i++){
-		Sequence *seq = sequences[i];
-		fseek( fin, seq->des_begin, SEEK_SET );
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[i];
+		fseek(fin, seq->des_begin, SEEK_SET);
 
 		seg_size += seq->size;
-		if( seg_size >= max_seg ){
+		if (seg_size >= max_seg) {
 			seg += 1;
-			sprintf( outfile, "%s-%i", newdb, seg );
-			fclose( fout );
-			fout = fopen( outfile, "w+" );
+			sprintf(outfile, "%s-%i", newdb, seg);
+			fclose(fout);
+			fout = fopen(outfile, "w+");
 			seg_size = seq->size;
 		}
 
 		count = seq->tot_length / MAX_LINE_SIZE;
-		rest  = seq->tot_length % MAX_LINE_SIZE;
+		rest = seq->tot_length % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( fread( buf, 1, MAX_LINE_SIZE, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout );
+		for (j = 0; j < count; j++) {
+			if (fread(buf, 1, MAX_LINE_SIZE, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout);
 		}
-		if( rest ){
-			if( fread( buf, 1, rest, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout );
+		if (rest) {
+			if (fread(buf, 1, rest, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout);
 		}
 	}
-	fclose( fin );
-	fclose( fout );
-	delete []buf;
+	fclose(fin);
+	fclose(fout);
+	delete[]buf;
 }
 void SequenceDB::WriteClustersSort(const char* input, const char* output, const Options& options) {
 	ofstream fout(output);
@@ -3055,7 +3157,7 @@ void SequenceDB::WriteClustersSort(const char* input, const char* output, const 
 		throw runtime_error("Cannot open output file");
 	for (i = 0; i < n; i++) {
 		Sequence* seq = sequences[rep_seqs[i]];
-		fout << ">" <<seq->identifier << "\n";
+		fout << ">" << seq->identifier << "\n";
 		// fout << seq->data << "\n";
 	}
 	fout.close();
@@ -3118,431 +3220,431 @@ void SequenceDB::WriteClusterDetail(const Options& options) {
 }
 
 // input db is gzipped
-void SequenceDB::WriteClustersgz( const char *db, const char *newdb, const Options & options )
+void SequenceDB::WriteClustersgz(const char* db, const char* newdb, const Options& options)
 {
 #ifdef WITH_ZLIB
-    gzFile fin = gzopen(db, "r");
-	FILE *fout = fopen( newdb, "w+" );
+	gzFile fin = gzopen(db, "r");
+	FILE* fout = fopen(newdb, "w+");
 	int i, j, n = rep_seqs.size();
 	int count, rest;
-	char *buf = new char[MAX_LINE_SIZE+1];
-	vector<uint64_t> sorting( n );
-	if( fin == NULL || fout == NULL ) bomb_error( "file opening failed" );
-	for (i=0; i<n; i++) sorting[i] = ((uint64_t)sequences[ rep_seqs[i] ]->index << 32) | rep_seqs[i];
-	std::sort( sorting.begin(), sorting.end() );
-	for (i=0; i<n; i++){
-		Sequence *seq = sequences[ sorting[i] & 0xffffffff ];
-		gzseek( fin, seq->des_begin, SEEK_SET );
+	char* buf = new char[MAX_LINE_SIZE + 1];
+	vector<uint64_t> sorting(n);
+	if (fin == NULL || fout == NULL) bomb_error("file opening failed");
+	for (i = 0; i < n; i++) sorting[i] = ((uint64_t)sequences[rep_seqs[i]]->index << 32) | rep_seqs[i];
+	std::sort(sorting.begin(), sorting.end());
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[sorting[i] & 0xffffffff];
+		gzseek(fin, seq->des_begin, SEEK_SET);
 
 		count = seq->tot_length / MAX_LINE_SIZE;
-		rest  = seq->tot_length % MAX_LINE_SIZE;
+		rest = seq->tot_length % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( gzread(fin, buf, MAX_LINE_SIZE) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout );
+		for (j = 0; j < count; j++) {
+			if (gzread(fin, buf, MAX_LINE_SIZE) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout);
 		}
-		if( rest ){
-			if( gzread(fin, buf, rest) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout );
+		if (rest) {
+			if (gzread(fin, buf, rest) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout);
 		}
 	}
-	gzclose( fin );
-	fclose( fout );
-	delete []buf;
+	gzclose(fin);
+	fclose(fout);
+	delete[]buf;
 #else
-    bomb_error("this program was not compiled with zlib");
+	bomb_error("this program was not compiled with zlib");
 #endif
 
 }
 
-void SequenceDB::WriteClusters( const char *db, const char *newdb, const Options & options )
+void SequenceDB::WriteClusters(const char* db, const char* newdb, const Options& options)
 {
-    int f_len = strlen(db);
-    if (strcmp(db + f_len - 3, ".gz") == 0 ) {
-        WriteClustersgz(db, newdb, options);
-        return;
-    }
+	int f_len = strlen(db);
+	if (strcmp(db + f_len - 3, ".gz") == 0) {
+		WriteClustersgz(db, newdb, options);
+		return;
+	}
 
-	FILE *fin = fopen( db, "rb" );
-	FILE *fout = fopen( newdb, "w+" );
+	FILE* fin = fopen(db, "rb");
+	FILE* fout = fopen(newdb, "w+");
 	int i, j, n = rep_seqs.size();
 	int count, rest;
-	char *buf = new char[MAX_LINE_SIZE+1];
-	vector<uint64_t> sorting( n );
-	if( fin == NULL || fout == NULL ) bomb_error( "file opening failed" );
-	for (i=0; i<n; i++) sorting[i] = ((uint64_t)sequences[ rep_seqs[i] ]->index << 32) | rep_seqs[i];
-	std::sort( sorting.begin(), sorting.end() );
-	for (i=0; i<n; i++){
-		Sequence *seq = sequences[ sorting[i] & 0xffffffff ];
-		fseek( fin, seq->des_begin, SEEK_SET );
+	char* buf = new char[MAX_LINE_SIZE + 1];
+	vector<uint64_t> sorting(n);
+	if (fin == NULL || fout == NULL) bomb_error("file opening failed");
+	for (i = 0; i < n; i++) sorting[i] = ((uint64_t)sequences[rep_seqs[i]]->index << 32) | rep_seqs[i];
+	std::sort(sorting.begin(), sorting.end());
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[sorting[i] & 0xffffffff];
+		fseek(fin, seq->des_begin, SEEK_SET);
 
 		count = seq->tot_length / MAX_LINE_SIZE;
-		rest  = seq->tot_length % MAX_LINE_SIZE;
+		rest = seq->tot_length % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( fread( buf, 1, MAX_LINE_SIZE, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout );
+		for (j = 0; j < count; j++) {
+			if (fread(buf, 1, MAX_LINE_SIZE, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout);
 		}
-		if( rest ){
-			if( fread( buf, 1, rest, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout );
+		if (rest) {
+			if (fread(buf, 1, rest, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout);
 		}
 	}
-	fclose( fin );
-	fclose( fout );
-	delete []buf;
+	fclose(fin);
+	fclose(fout);
+	delete[]buf;
 }
 
 
 // input db is gzipped
 // liwz PE output
-void SequenceDB::WriteClustersgz( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options )
+void SequenceDB::WriteClustersgz(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options)
 {
 #ifdef WITH_ZLIB
-    gzFile fin    = gzopen(db,    "r");
+	gzFile fin = gzopen(db, "r");
 	gzFile fin_pe = gzopen(db_pe, "r");
-	FILE *fout = fopen( newdb, "w+" );
-	FILE *fout_pe = fopen( newdb_pe, "w+" );
+	FILE* fout = fopen(newdb, "w+");
+	FILE* fout_pe = fopen(newdb_pe, "w+");
 	int i, j, n = rep_seqs.size();
 	int count, rest;
-	char *buf = new char[MAX_LINE_SIZE+1];
-	vector<uint64_t> sorting( n );
-	if( fin == NULL || fout == NULL ) bomb_error( "file opening failed" );
-	if( fin_pe == NULL || fout_pe == NULL ) bomb_error( "file opening failed" );
-	for (i=0; i<n; i++) sorting[i] = ((uint64_t)sequences[ rep_seqs[i] ]->index << 32) | rep_seqs[i];
-	std::sort( sorting.begin(), sorting.end() );
+	char* buf = new char[MAX_LINE_SIZE + 1];
+	vector<uint64_t> sorting(n);
+	if (fin == NULL || fout == NULL) bomb_error("file opening failed");
+	if (fin_pe == NULL || fout_pe == NULL) bomb_error("file opening failed");
+	for (i = 0; i < n; i++) sorting[i] = ((uint64_t)sequences[rep_seqs[i]]->index << 32) | rep_seqs[i];
+	std::sort(sorting.begin(), sorting.end());
 
-        //sort fasta / fastq
-        int *clstr_size;
-        int *clstr_idx1;
-        if (options.sort_outputf) {
-            clstr_size = new int[n];
-            clstr_idx1 = new int[n];
-            for (i=0; i<n; i++) { 
-                clstr_size[i] = 0;
-                clstr_idx1[i]  = i;
-            }
+	//sort fasta / fastq
+	int* clstr_size;
+	int* clstr_idx1;
+	if (options.sort_outputf) {
+		clstr_size = new int[n];
+		clstr_idx1 = new int[n];
+		for (i = 0; i < n; i++) {
+			clstr_size[i] = 0;
+			clstr_idx1[i] = i;
+		}
 
-            int N = sequences.size();
-            for (i=0; i<N; i++) { 
-                int id = sequences[i]->cluster_id;
-                if (id < 0) continue;
-                if (id >=n) continue;
-                clstr_size[id]++;
-            }
-            quick_sort_idxr(clstr_size, clstr_idx1, 0, n-1);
-        }
+		int N = sequences.size();
+		for (i = 0; i < N; i++) {
+			int id = sequences[i]->cluster_id;
+			if (id < 0) continue;
+			if (id >= n) continue;
+			clstr_size[id]++;
+		}
+		quick_sort_idxr(clstr_size, clstr_idx1, 0, n - 1);
+	}
 
-	for (i=0; i<n; i++){
-		Sequence *seq = sequences[ sorting[i] & 0xffffffff ];
-                if (options.sort_outputf) seq = sequences[  rep_seqs[ clstr_idx1[i] ] ];
-                //R1
-		gzseek( fin, seq->des_begin, SEEK_SET );
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[sorting[i] & 0xffffffff];
+		if (options.sort_outputf) seq = sequences[rep_seqs[clstr_idx1[i]]];
+		//R1
+		gzseek(fin, seq->des_begin, SEEK_SET);
 
 		count = seq->tot_length / MAX_LINE_SIZE;
-		rest  = seq->tot_length % MAX_LINE_SIZE;
+		rest = seq->tot_length % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( gzread(fin, buf, MAX_LINE_SIZE) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout );
+		for (j = 0; j < count; j++) {
+			if (gzread(fin, buf, MAX_LINE_SIZE) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout);
 		}
-		if( rest ){
-			if( gzread(fin, buf, rest) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout );
+		if (rest) {
+			if (gzread(fin, buf, rest) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout);
 		}
 
-                //R2
-		gzseek( fin_pe, seq->des_begin2, SEEK_SET );
+		//R2
+		gzseek(fin_pe, seq->des_begin2, SEEK_SET);
 
 		count = seq->tot_length2 / MAX_LINE_SIZE;
-		rest  = seq->tot_length2 % MAX_LINE_SIZE;
+		rest = seq->tot_length2 % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( gzread(fin_pe, buf, MAX_LINE_SIZE) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout_pe );
+		for (j = 0; j < count; j++) {
+			if (gzread(fin_pe, buf, MAX_LINE_SIZE) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout_pe);
 		}
-		if( rest ){
-			if( gzread(fin_pe, buf, rest) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout_pe );
+		if (rest) {
+			if (gzread(fin_pe, buf, rest) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout_pe);
 		}
 
 	}
-	gzclose( fin );
-	gzclose( fin_pe );
-	fclose( fout );
-	fclose( fout_pe );
-	delete []buf;
+	gzclose(fin);
+	gzclose(fin_pe);
+	fclose(fout);
+	fclose(fout_pe);
+	delete[]buf;
 #else
-    bomb_error("this program was not compiled with zlib");
+	bomb_error("this program was not compiled with zlib");
 #endif
 }
 
 
 // liwz PE output
-void SequenceDB::WriteClusters( const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options & options )
+void SequenceDB::WriteClusters(const char* db, const char* db_pe, const char* newdb, const char* newdb_pe, const Options& options)
 {
-    int f_len = strlen(db); 
-    if (strcmp(db + f_len - 3, ".gz") == 0 ) {
-        WriteClustersgz(db, db_pe, newdb, newdb_pe, options);
-        return;
-    }
+	int f_len = strlen(db);
+	if (strcmp(db + f_len - 3, ".gz") == 0) {
+		WriteClustersgz(db, db_pe, newdb, newdb_pe, options);
+		return;
+	}
 
-	FILE *fin = fopen( db, "rb" );
-	FILE *fout = fopen( newdb, "w+" );
-	FILE *fin_pe = fopen( db_pe, "rb" );
-	FILE *fout_pe = fopen( newdb_pe, "w+" );
+	FILE* fin = fopen(db, "rb");
+	FILE* fout = fopen(newdb, "w+");
+	FILE* fin_pe = fopen(db_pe, "rb");
+	FILE* fout_pe = fopen(newdb_pe, "w+");
 	int i, j, n = rep_seqs.size();
 	int count, rest;
-	char *buf = new char[MAX_LINE_SIZE+1];
-	vector<uint64_t> sorting( n );
-	if( fin == NULL || fout == NULL ) bomb_error( "file opening failed" );
-	if( fin_pe == NULL || fout_pe == NULL ) bomb_error( "file opening failed" );
-	for (i=0; i<n; i++) sorting[i] = ((uint64_t)sequences[ rep_seqs[i] ]->index << 32) | rep_seqs[i];
-	std::sort( sorting.begin(), sorting.end() );
+	char* buf = new char[MAX_LINE_SIZE + 1];
+	vector<uint64_t> sorting(n);
+	if (fin == NULL || fout == NULL) bomb_error("file opening failed");
+	if (fin_pe == NULL || fout_pe == NULL) bomb_error("file opening failed");
+	for (i = 0; i < n; i++) sorting[i] = ((uint64_t)sequences[rep_seqs[i]]->index << 32) | rep_seqs[i];
+	std::sort(sorting.begin(), sorting.end());
 
-        //sort fasta / fastq
-        int *clstr_size;
-        int *clstr_idx1;
-        if (options.sort_outputf) {
-            clstr_size = new int[n];
-            clstr_idx1 = new int[n];
-            for (i=0; i<n; i++) { 
-                clstr_size[i] = 0;
-                clstr_idx1[i]  = i;
-            }
+	//sort fasta / fastq
+	int* clstr_size;
+	int* clstr_idx1;
+	if (options.sort_outputf) {
+		clstr_size = new int[n];
+		clstr_idx1 = new int[n];
+		for (i = 0; i < n; i++) {
+			clstr_size[i] = 0;
+			clstr_idx1[i] = i;
+		}
 
-            int N = sequences.size();
-            for (i=0; i<N; i++) { 
-                int id = sequences[i]->cluster_id;
-                if (id < 0) continue;
-                if (id >=n) continue;
-                clstr_size[id]++;
-            }
-            quick_sort_idxr(clstr_size, clstr_idx1, 0, n-1);
-        }
+		int N = sequences.size();
+		for (i = 0; i < N; i++) {
+			int id = sequences[i]->cluster_id;
+			if (id < 0) continue;
+			if (id >= n) continue;
+			clstr_size[id]++;
+		}
+		quick_sort_idxr(clstr_size, clstr_idx1, 0, n - 1);
+	}
 
-	for (i=0; i<n; i++){
-		Sequence *seq = sequences[ sorting[i] & 0xffffffff ];
-                if (options.sort_outputf) seq = sequences[  rep_seqs[ clstr_idx1[i] ] ];
-                //R1
-		fseek( fin, seq->des_begin, SEEK_SET );
+	for (i = 0; i < n; i++) {
+		Sequence* seq = sequences[sorting[i] & 0xffffffff];
+		if (options.sort_outputf) seq = sequences[rep_seqs[clstr_idx1[i]]];
+		//R1
+		fseek(fin, seq->des_begin, SEEK_SET);
 
 		count = seq->tot_length / MAX_LINE_SIZE;
-		rest  = seq->tot_length % MAX_LINE_SIZE;
+		rest = seq->tot_length % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( fread( buf, 1, MAX_LINE_SIZE, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout );
+		for (j = 0; j < count; j++) {
+			if (fread(buf, 1, MAX_LINE_SIZE, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout);
 		}
-		if( rest ){
-			if( fread( buf, 1, rest, fin ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout );
+		if (rest) {
+			if (fread(buf, 1, rest, fin) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout);
 		}
 
-                //R2
-		fseek( fin_pe, seq->des_begin2, SEEK_SET );
+		//R2
+		fseek(fin_pe, seq->des_begin2, SEEK_SET);
 
 		count = seq->tot_length2 / MAX_LINE_SIZE;
-		rest  = seq->tot_length2 % MAX_LINE_SIZE;
+		rest = seq->tot_length2 % MAX_LINE_SIZE;
 		//printf( "count = %6i,  rest = %6i\n", count, rest );
-		for (j=0; j<count; j++){
-			if( fread( buf, 1, MAX_LINE_SIZE, fin_pe ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, MAX_LINE_SIZE, fout_pe );
+		for (j = 0; j < count; j++) {
+			if (fread(buf, 1, MAX_LINE_SIZE, fin_pe) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, MAX_LINE_SIZE, fout_pe);
 		}
-		if( rest ){
-			if( fread( buf, 1, rest, fin_pe ) ==0 ) bomb_error( "Can not swap in sequence" );
-			fwrite( buf, 1, rest, fout_pe );
+		if (rest) {
+			if (fread(buf, 1, rest, fin_pe) == 0) bomb_error("Can not swap in sequence");
+			fwrite(buf, 1, rest, fout_pe);
 		}
 
 	}
-	fclose( fin );
-	fclose( fout );
-	fclose( fin_pe );
-	fclose( fout_pe );
-	delete []buf;
+	fclose(fin);
+	fclose(fout);
+	fclose(fin_pe);
+	fclose(fout_pe);
+	delete[]buf;
 }
 
-void SequenceDB::WriteExtra1D( const Options & options )
+void SequenceDB::WriteExtra1D(const Options& options)
 {
 	string db_clstr = options.output + ".clstr";
 	string db_clstr_bak = options.output + ".bak.clstr";
 	int i, i0, k, N = sequences.size();
-	vector<long long> sorting( N );
-	for (i=0; i<N; i++) sorting[i] = ((long long)sequences[i]->index << 32) | i;
-	std::sort( sorting.begin(), sorting.end() );
+	vector<long long> sorting(N);
+	for (i = 0; i < N; i++) sorting[i] = ((long long)sequences[i]->index << 32) | i;
+	std::sort(sorting.begin(), sorting.end());
 
-	FILE *fout;
-	char *buf = new char[ MAX_DES + 1 ];
+	FILE* fout;
+	char* buf = new char[MAX_DES + 1];
 
-	if( options.backupFile ){
-		fout = fopen( db_clstr_bak.c_str(), "w+" );
-		for (i=0; i<N; i++) {
-			Sequence *seq = sequences[ sorting[i] & 0xffffffff ];
-			seq->PrintInfo( seq->cluster_id, fout, options, buf );
+	if (options.backupFile) {
+		fout = fopen(db_clstr_bak.c_str(), "w+");
+		for (i = 0; i < N; i++) {
+			Sequence* seq = sequences[sorting[i] & 0xffffffff];
+			seq->PrintInfo(seq->cluster_id, fout, options, buf);
 		}
-		fclose( fout );
+		fclose(fout);
 	}
 
 	cout << "writing clustering information" << endl;
 	int M = rep_seqs.size();
-	Vector<Vector<int> > clusters( M );
-	for (i=0; i<N; i++){
+	Vector<Vector<int> > clusters(M);
+	for (i = 0; i < N; i++) {
 		int k = sorting[i] & 0xffffffff;
 		int id = sequences[k]->cluster_id;
-		clusters[id].Append( k );
+		clusters[id].Append(k);
 	}
 
-	fout = fopen( db_clstr.c_str(), "w+" );
+	fout = fopen(db_clstr.c_str(), "w+");
 
-        if (options.sort_output) {
-            int *clstr_size = new int[M];
-            int *clstr_idx1 = new int[M];
+	if (options.sort_output) {
+		int* clstr_size = new int[M];
+		int* clstr_idx1 = new int[M];
 
-            for (i=0; i<M; i++) { 
-                clstr_size[i] = (int)clusters[i].size();
-                clstr_idx1[i]  = i;
-            }
-            quick_sort_idxr(clstr_size, clstr_idx1, 0, M-1);
+		for (i = 0; i < M; i++) {
+			clstr_size[i] = (int)clusters[i].size();
+			clstr_idx1[i] = i;
+		}
+		quick_sort_idxr(clstr_size, clstr_idx1, 0, M - 1);
 
-  	    for (i=0; i<M; i++) {
-                i0 = clstr_idx1[i];
-		fprintf( fout, ">Cluster %i\n", i );
-		for (k=0; k<(int)clusters[i0].size(); k++)
-			sequences[ clusters[i0][k] ]->PrintInfo( k, fout, options, buf );
-	    }   
-        }
-        else {
-  	    for (i=0; i<M; i++) {
-		fprintf( fout, ">Cluster %i\n", i );
-		for (k=0; k<(int)clusters[i].size(); k++)
-			sequences[ clusters[i][k] ]->PrintInfo( k, fout, options, buf );
-	    }   
+		for (i = 0; i < M; i++) {
+			i0 = clstr_idx1[i];
+			fprintf(fout, ">Cluster %i\n", i);
+			for (k = 0; k < (int)clusters[i0].size(); k++)
+				sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
+		}
+	}
+	else {
+		for (i = 0; i < M; i++) {
+			fprintf(fout, ">Cluster %i\n", i);
+			for (k = 0; k < (int)clusters[i].size(); k++)
+				sequences[clusters[i][k]]->PrintInfo(k, fout, options, buf);
+		}
 
-        }
+	}
 
-	delete []buf;
+	delete[]buf;
 }
-void SequenceDB::WriteExtra2D( SequenceDB & other, const Options & options )
+void SequenceDB::WriteExtra2D(SequenceDB& other, const Options& options)
 {
 	string db_clstr = options.output + ".clstr";
 	string db_clstr_bak = options.output + ".bak.clstr";
 	int i, k, N = other.sequences.size();
 	int N2 = sequences.size();
-	vector<long long> sorting( N );
-	for (i=0; i<N; i++) sorting[i] = ((long long)other.sequences[i]->index << 32) | i;
-	std::sort( sorting.begin(), sorting.end() );
+	vector<long long> sorting(N);
+	for (i = 0; i < N; i++) sorting[i] = ((long long)other.sequences[i]->index << 32) | i;
+	std::sort(sorting.begin(), sorting.end());
 
-	FILE *fout;
-	char *buf = new char[ MAX_DES + 1 ];
-	if( options.backupFile ){
-		fout = fopen( db_clstr_bak.c_str(), "w+" );
-		for (i=0; i<N; i++) {
-			Sequence *seq = other.sequences[ sorting[i] & 0xffffffff ];
-			seq->PrintInfo( seq->cluster_id, fout, options, buf );
+	FILE* fout;
+	char* buf = new char[MAX_DES + 1];
+	if (options.backupFile) {
+		fout = fopen(db_clstr_bak.c_str(), "w+");
+		for (i = 0; i < N; i++) {
+			Sequence* seq = other.sequences[sorting[i] & 0xffffffff];
+			seq->PrintInfo(seq->cluster_id, fout, options, buf);
 		}
-		for (i=0; i<N2; i++) {
-			Sequence *seq = sequences[i];
-			if( seq->state & IS_REDUNDANT ) seq->PrintInfo( seq->cluster_id, fout, options, buf );
+		for (i = 0; i < N2; i++) {
+			Sequence* seq = sequences[i];
+			if (seq->state & IS_REDUNDANT) seq->PrintInfo(seq->cluster_id, fout, options, buf);
 		}
-		fclose( fout );
+		fclose(fout);
 	}
 
 	cout << "writing clustering information" << endl;
-	Vector<Vector<int> > clusters( N );
-	for (i=0; i<N2; i++){
+	Vector<Vector<int> > clusters(N);
+	for (i = 0; i < N2; i++) {
 		int id = sequences[i]->cluster_id;
-		if( sequences[i]->state & IS_REDUNDANT ) clusters[id].Append( i );
+		if (sequences[i]->state & IS_REDUNDANT) clusters[id].Append(i);
 	}
 
-	fout = fopen( db_clstr.c_str(), "w+" );
-	for (i=0; i<N; i++) {
-		Sequence *seq = other.sequences[ i ];
-		fprintf( fout, ">Cluster %i\n", i );
-		seq->PrintInfo( 0, fout, options, buf );
-		for (k=0; k<(int)clusters[i].size(); k++)
-			sequences[ clusters[i][k] ]->PrintInfo( k+1, fout, options, buf );
+	fout = fopen(db_clstr.c_str(), "w+");
+	for (i = 0; i < N; i++) {
+		Sequence* seq = other.sequences[i];
+		fprintf(fout, ">Cluster %i\n", i);
+		seq->PrintInfo(0, fout, options, buf);
+		for (k = 0; k < (int)clusters[i].size(); k++)
+			sequences[clusters[i][k]]->PrintInfo(k + 1, fout, options, buf);
 	}
-	delete []buf;
+	delete[]buf;
 }
-void WorkingParam::ControlShortCoverage( int len, const Options & options )
+void WorkingParam::ControlShortCoverage(int len, const Options& options)
 {
 	len_eff = len;
 	aln_cover_flag = 0;
-	if ((options.short_coverage > 0.0) || (options.min_control>0) ) { // has alignment coverage control
+	if ((options.short_coverage > 0.0) || (options.min_control > 0)) { // has alignment coverage control
 		aln_cover_flag = 1;
-		min_aln_lenS = (int) (double(len) * options.short_coverage);
-		if ( len-options.short_control > min_aln_lenS) min_aln_lenS = len-options.short_control;
-		if ( options.min_control > min_aln_lenS) min_aln_lenS = options.min_control;
+		min_aln_lenS = (int)(double(len) * options.short_coverage);
+		if (len - options.short_control > min_aln_lenS) min_aln_lenS = len - options.short_control;
+		if (options.min_control > min_aln_lenS) min_aln_lenS = options.min_control;
 	}
 	if (options.global_identity == 0) len_eff = min_aln_lenS; //global_identity==0
 }
-void WorkingParam::ControlLongCoverage( int len2, const Options & options )
+void WorkingParam::ControlLongCoverage(int len2, const Options& options)
 {
 	if (aln_cover_flag) {
-		min_aln_lenL = (int) (double(len2) * options.long_coverage);
-		if ( len2-options.long_control > min_aln_lenL) min_aln_lenL = len2-options.long_control;
-		if ( options.min_control > min_aln_lenL) min_aln_lenL = options.min_control;
+		min_aln_lenL = (int)(double(len2) * options.long_coverage);
+		if (len2 - options.long_control > min_aln_lenL) min_aln_lenL = len2 - options.long_control;
+		if (options.min_control > min_aln_lenL) min_aln_lenL = options.min_control;
 	}
 }
 
 
 // when alignment coverage such as -aL is specified
 // if a existing rep is too long, it won't be qulified 
-int upper_bound_length_rep(int len, double opt_s, int opt_S, double opt_aL, int opt_AL )
+int upper_bound_length_rep(int len, double opt_s, int opt_S, double opt_aL, int opt_AL)
 {
 	int len_upper_bound = 99999999;
 	double r1 = (opt_s > opt_aL) ? opt_s : opt_aL;
 	int    a2 = (opt_S < opt_AL) ? opt_S : opt_AL;
-	if (r1 > 0.0) len_upper_bound = (int) ( ((float) len)  / r1);
-	if ((len+a2) < len_upper_bound)  len_upper_bound = len+a2;
+	if (r1 > 0.0) len_upper_bound = (int)(((float)len) / r1);
+	if ((len + a2) < len_upper_bound)  len_upper_bound = len + a2;
 
 	return len_upper_bound;
 } // END upper_bound_length_rep
-int upper_bound_length_rep(int len, const Options & options )
+int upper_bound_length_rep(int len, const Options& options)
 {
 	double opt_s = options.diff_cutoff;
 	int    opt_S = options.diff_cutoff_aa;
 	double opt_aL = options.long_coverage;
 	int    opt_AL = options.long_control;
-	return upper_bound_length_rep( len, opt_s, opt_S, opt_aL, opt_AL );
+	return upper_bound_length_rep(len, opt_s, opt_S, opt_aL, opt_AL);
 }
 
 
-void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff,
-		double cluster_thd, int tolerance, int naa_stat_start_percent,
-		int naa_stat[5][61][4], int NAA)
+void cal_aax_cutoff(double& aa1_cutoff, double& aa2_cutoff, double& aan_cutoff,
+	double cluster_thd, int tolerance, int naa_stat_start_percent,
+	int naa_stat[5][61][4], int NAA)
 {
 	aa1_cutoff = cluster_thd;
-	aa2_cutoff = 1 - (1-cluster_thd)*2;
-	aan_cutoff = 1 - (1-cluster_thd)*NAA;
-	if (tolerance==0) return; 
+	aa2_cutoff = 1 - (1 - cluster_thd) * 2;
+	aan_cutoff = 1 - (1 - cluster_thd) * NAA;
+	if (tolerance == 0) return;
 
-	int clstr_idx = (int) (cluster_thd * 100) - naa_stat_start_percent;
-	if (clstr_idx <0) clstr_idx = 0;
-	double d2  = ((double) (naa_stat[tolerance-1][clstr_idx][3]     )) / 100;
-	double dn  = ((double) (naa_stat[tolerance-1][clstr_idx][5-NAA] )) / 100;
+	int clstr_idx = (int)(cluster_thd * 100) - naa_stat_start_percent;
+	if (clstr_idx < 0) clstr_idx = 0;
+	double d2 = ((double)(naa_stat[tolerance - 1][clstr_idx][3])) / 100;
+	double dn = ((double)(naa_stat[tolerance - 1][clstr_idx][5 - NAA])) / 100;
 	aa2_cutoff = d2 > aa2_cutoff ? d2 : aa2_cutoff;
 	aan_cutoff = dn > aan_cutoff ? dn : aan_cutoff;
 	return;
 } // END cal_aax_cutoff
 
 
-void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff,
-		int tolerance, int naa_stat_start_percent,
-		int naa_stat[5][61][4], int NAA, double cluster_thd)
+void update_aax_cutoff(double& aa1_cutoff, double& aa2_cutoff, double& aan_cutoff,
+	int tolerance, int naa_stat_start_percent,
+	int naa_stat[5][61][4], int NAA, double cluster_thd)
 {
 	if (cluster_thd > 1.0) cluster_thd = 1.00;
 
 	double aa1_t, aa2_t, aan_t;
 	cal_aax_cutoff(aa1_t, aa2_t, aan_t, cluster_thd, tolerance, naa_stat_start_percent,
-			naa_stat, NAA);
+		naa_stat, NAA);
 	if (aa1_t > aa1_cutoff) aa1_cutoff = aa1_t;
 	if (aa2_t > aa2_cutoff) aa2_cutoff = aa2_t;
 	if (aan_t > aan_cutoff) aan_cutoff = aan_t;
-	return;  
+	return;
 } // END update_aax_cutoff
 // 聚类参数初始化
-void WorkingParam::ComputeRequiredBases( int NAA, int ss, const Options & option )
+void WorkingParam::ComputeRequiredBases(int NAA, int ss, const Options& option)
 {
 	// d: distance, fraction of errors;
 	// e: number of errors;
@@ -3559,36 +3661,36 @@ void WorkingParam::ComputeRequiredBases( int NAA, int ss, const Options & option
 	// minimum word count is reached when g == n + 1 - 1/d
 	// so, minimum word count = 1/d - m.
 	// if g == band_width: word count = (n - band + 1)*(1 - d*m);
-	if( options.useDistance ){
+	if (options.useDistance) {
 		int band = options.band_width + 1;
-		int invd = int( 1.0 / (options.distance_thd + 1E-9) );
+		int invd = int(1.0 / (options.distance_thd + 1E-9));
 		int k = len_eff < invd ? len_eff : invd;
 		int ks = len_eff - ss + 1;
 		int kn = len_eff - NAA + 1;
 		int ks2 = invd - ss;
-		int kn2= invd - NAA;
-		int ks3 = int((len_eff - band + 1.0)*(1.0 - options.distance_thd * ss));
-		int kn3 = int((len_eff - band + 1.0)*(1.0 - options.distance_thd * NAA));
+		int kn2 = invd - NAA;
+		int ks3 = int((len_eff - band + 1.0) * (1.0 - options.distance_thd * ss));
+		int kn3 = int((len_eff - band + 1.0) * (1.0 - options.distance_thd * NAA));
 		//if( ks3 > ks2 ) ks2 = ks3;
 		//if( kn3 > kn2 ) kn2 = kn3;
 		required_aa1 = required_aas = (ks2 < ks ? ks2 : ks);
 		required_aan = kn2 < kn ? kn2 : kn;
-		if( required_aa1 <=0 ) required_aa1 = required_aas = 1;
-		if( required_aan <=0 ) required_aan = 1;
+		if (required_aa1 <= 0) required_aa1 = required_aas = 1;
+		if (required_aan <= 0) required_aan = 1;
 		//required_aa1 = required_aas = required_aan = 0;
 		return;
 	}
 	// (N-K)-K*(1-C)*N = C*K*N-(K-1)*N-K = (C*K-K+1)*N-K
-	required_aa1 = (len_eff - ss) - int(ss * ceil( (1.0 - aa1_cutoff) * len_eff ));
-	if( required_aa1 < 0 ) required_aa1 = 0;
+	required_aa1 = (len_eff - ss) - int(ss * ceil((1.0 - aa1_cutoff) * len_eff));
+	if (required_aa1 < 0) required_aa1 = 0;
 	required_aas = required_aa1;
-	required_aan = (len_eff - NAA) - int(NAA * ceil( (1.0 - aa1_cutoff) * len_eff ));
+	required_aan = (len_eff - NAA) - int(NAA * ceil((1.0 - aa1_cutoff) * len_eff));
 	//printf( "%i %i\n", required_aa1, required_aan );
-	if( required_aan < 0 ) required_aan = 0;
+	if (required_aan < 0) required_aan = 0;
 
-	int aa1_old = int (aa1_cutoff* (double) len_eff) - ss + 1;
-	int aas_old = int (aas_cutoff* (double) len_eff);
-	int aan_old = int (aan_cutoff* (double) len_eff);
+	int aa1_old = int(aa1_cutoff * (double)len_eff) - ss + 1;
+	int aas_old = int(aas_cutoff * (double)len_eff);
+	int aan_old = int(aan_cutoff * (double)len_eff);
 
 	double thd = option.cluster_thd;
 	//double rest = (len_eff - ss) / double(len_eff * ss);
@@ -3596,94 +3698,94 @@ void WorkingParam::ComputeRequiredBases( int NAA, int ss, const Options & option
 	double thd0 = 1.0 - rest;
 	double fnew = 0;
 	double fold = 1;
-	if( thd > thd0 ){
+	if (thd > thd0) {
 		fnew = (thd - thd0) / rest;
 		fold = 1.0 - fnew;
 	}
 	//printf( "%g %g %g\n", thd, thd0, fnew );
 
-	required_aa1 = (int)(fnew*required_aa1 + fold*aa1_old);
-	required_aas = (int)(fnew*required_aas + fold*aas_old);
-	required_aan = (int)(fnew*required_aan + fold*aan_old);
+	required_aa1 = (int)(fnew * required_aa1 + fold * aa1_old);
+	required_aas = (int)(fnew * required_aas + fold * aas_old);
+	required_aan = (int)(fnew * required_aan + fold * aan_old);
 }
 //编码 k-mer NAA-kmer 5
-int WorkingBuffer::EncodeWords( Sequence *seq, int NAA, bool est )
+int WorkingBuffer::EncodeWords(Sequence* seq, int NAA, bool est)
 {
-	char *seqi = seq->data;
+	char* seqi = seq->data;
 	int len = seq->size;
 	// check_word_encodes
 	int aan_no = len - NAA + 1;
 	int i, j, i0, i1;
 	int skip = 0;
 	unsigned char k, k1;
-	for (j=0; j<aan_no; j++) {
-		char *word = seqi + j;
+	for (j = 0; j < aan_no; j++) {
+		char* word = seqi + j;
 		int encode = 0;
-		for (k=0, k1=NAA-1; k<NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
+		for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
 		word_encodes[j] = word_encodes_backup[j] = encode;
 	}
 
-	if( est ){
-		for (j=0; j<len; j++){
-			if ( seqi[j] >= 4 ) {                      // here N is 4
-				i0 = (j-NAA+1 > 0) ? j-NAA+1 : 0;
+	if (est) {
+		for (j = 0; j < len; j++) {
+			if (seqi[j] >= 4) {                      // here N is 4
+				i0 = (j - NAA + 1 > 0) ? j - NAA + 1 : 0;
 				i1 = j < aan_no ? j : aan_no - 1;
-				for (i=i0; i<=i1; i++) word_encodes[i]=-1;
+				for (i = i0; i <= i1; i++) word_encodes[i] = -1;
 			}
 		}
-		for (j=0; j<aan_no; j++) skip += (word_encodes[j] == -1);
+		for (j = 0; j < aan_no; j++) skip += (word_encodes[j] == -1);
 	}
-	assert(aan_no<35808);
-	std::sort( word_encodes.begin(), word_encodes.begin() + aan_no );
-	for(j=0; j<aan_no; j++) word_encodes_no[j]=1;
-	for(j=aan_no-1; j; j--) {
-		if (word_encodes[j] == word_encodes[j-1]) {
-			word_encodes_no[j-1] += word_encodes_no[j];
-			word_encodes_no[j]=0;
+	assert(aan_no < 35808);
+	std::sort(word_encodes.begin(), word_encodes.begin() + aan_no);
+	for (j = 0; j < aan_no; j++) word_encodes_no[j] = 1;
+	for (j = aan_no - 1; j; j--) {
+		if (word_encodes[j] == word_encodes[j - 1]) {
+			word_encodes_no[j - 1] += word_encodes_no[j];
+			word_encodes_no[j] = 0;
 		}
 	}
 	return skip;
 	// END check_word_encodes
 }
 
-void WorkingBuffer::ComputeAAP( const char *seqi, int size )
+void WorkingBuffer::ComputeAAP(const char* seqi, int size)
 {
 	int len1 = size - 1;
 	int sk, j1, mm, c22;
-	for (sk=0; sk<NAA2; sk++) taap[sk] = 0;
-	for (j1=0; j1<len1; j1++) {
-		c22= seqi[j1]*NAA1 + seqi[j1+1];
+	for (sk = 0; sk < NAA2; sk++) taap[sk] = 0;
+	for (j1 = 0; j1 < len1; j1++) {
+		c22 = seqi[j1] * NAA1 + seqi[j1 + 1];
 		taap[c22]++;
 	}
-	for (sk=0,mm=0; sk<NAA2; sk++) {
-		aap_begin[sk] = mm; mm+=taap[sk]; taap[sk] = 0;
+	for (sk = 0, mm = 0; sk < NAA2; sk++) {
+		aap_begin[sk] = mm; mm += taap[sk]; taap[sk] = 0;
 	}
-	for (j1=0; j1<len1; j1++) {
-		c22= seqi[j1]*NAA1 + seqi[j1+1];
-		aap_list[aap_begin[c22]+taap[c22]++] =j1;
+	for (j1 = 0; j1 < len1; j1++) {
+		c22 = seqi[j1] * NAA1 + seqi[j1 + 1];
+		aap_list[aap_begin[c22] + taap[c22]++] = j1;
 	}
 }
-void WorkingBuffer::ComputeAAP2( const char *seqi, int size )
+void WorkingBuffer::ComputeAAP2(const char* seqi, int size)
 {
 	int len1 = size - 3;
 	int sk, j1, mm, c22;
-	for (sk=0; sk<NAA4; sk++) taap[sk] = 0;
-	for (j1=0; j1<len1; j1++) {
-		if ((seqi[j1]>=4) || (seqi[j1+1]>=4) || (seqi[j1+2]>=4) || (seqi[j1+3]>=4)) continue; //skip N
-		c22 = seqi[j1]*NAA3 + seqi[j1+1]*NAA2 + seqi[j1+2]*NAA1 + seqi[j1+3];
+	for (sk = 0; sk < NAA4; sk++) taap[sk] = 0;
+	for (j1 = 0; j1 < len1; j1++) {
+		if ((seqi[j1] >= 4) || (seqi[j1 + 1] >= 4) || (seqi[j1 + 2] >= 4) || (seqi[j1 + 3] >= 4)) continue; //skip N
+		c22 = seqi[j1] * NAA3 + seqi[j1 + 1] * NAA2 + seqi[j1 + 2] * NAA1 + seqi[j1 + 3];
 		taap[c22]++;
 	}
-	for (sk=0,mm=0; sk<NAA4; sk++) {
+	for (sk = 0, mm = 0; sk < NAA4; sk++) {
 		aap_begin[sk] = mm;  mm += taap[sk];  taap[sk] = 0;
 	}
-	for (j1=0; j1<len1; j1++) {
-		if ((seqi[j1]>=4) || (seqi[j1+1]>=4) || (seqi[j1+2]>=4) || (seqi[j1+3]>=4)) continue; //skip N
-		c22 = seqi[j1]*NAA3 + seqi[j1+1]*NAA2 + seqi[j1+2]*NAA1 + seqi[j1+3];
-		aap_list[aap_begin[c22]+taap[c22]++] =j1;
+	for (j1 = 0; j1 < len1; j1++) {
+		if ((seqi[j1] >= 4) || (seqi[j1 + 1] >= 4) || (seqi[j1 + 2] >= 4) || (seqi[j1 + 3] >= 4)) continue; //skip N
+		c22 = seqi[j1] * NAA3 + seqi[j1 + 1] * NAA2 + seqi[j1 + 2] * NAA1 + seqi[j1 + 3];
+		aap_list[aap_begin[c22] + taap[c22]++] = j1;
 	}
 }
-void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options)
+void SequenceDB::ClusterOne(Sequence* seq, int id, WordTable& table,
+	WorkingParam& param, WorkingBuffer& buffer, const Options& options)
 {
 	if (seq->state & IS_REDUNDANT) return;
 	int frag_size = options.frag_size;
@@ -3691,138 +3793,144 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
 	int len = seq->size;
 	int len_bound = upper_bound_length_rep(len, options);
 	param.len_upper_bound = len_bound;
-	int flag = CheckOne( seq, table, param, buffer, options );
+	int flag = CheckOne(seq, table, param, buffer, options);
 
-	if( flag == 0 ){
-		if ((seq->identity>0) && (options.cluster_best)) {
+	if (flag == 0) {
+		if ((seq->identity > 0) && (options.cluster_best)) {
 			// because of the -g option, this seq is similar to seqs in old SEGs
-			seq->state |= IS_REDUNDANT ;
+			seq->state |= IS_REDUNDANT;
 			seq->Clear();
-		} else {                  // else add to NR90 db
-			int aan_no = len - NAA + 1;
-			int size = rep_seqs.size();
-			rep_seqs.Append( id );
-			seq->cluster_id = size;
-			seq->identity = 0;
-			seq->state |= IS_REP;
-			if (frag_size){ /* not used for EST */
-				int frg1 = (len - NAA ) / frag_size + 1;
-				table.AddWordCountsFrag( aan_no, buffer.word_encodes_backup, 
-						buffer.word_encodes_no, frg1, frag_size );
-			}else{
-				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
-			}
-			table.sequences.Append( seq );
-			if( frag_size ){
-				while( table.sequences.size() < table.frag_count )
-					table.sequences.Append( seq );
-			}
 		}
-	}
-	if ( (id+1) % 1000 == 0 ) {
-		int size = rep_seqs.size();
-		printf( "." );
-		fflush( stdout );
-		if ( (id+1) % 10000 == 0 ) printf( "\r..........%9i  finished  %9i  clusters\n", id+1, size );
-	}
-}
-void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,int my_rank )
-{
-	if (seq->state & IS_REDUNDANT) return;
-	int frag_size = options.frag_size;
-	int NAA = options.NAA;
-	int len = seq->size;
-	int len_bound = upper_bound_length_rep(len, options);
-	param.len_upper_bound = len_bound;
-	int flag = CheckOne( seq, table, param, buffer, options,my_rank );
-
-	if( flag == 0 ){
-		if ((seq->identity>0) && (options.cluster_best)) {
-			// because of the -g option, this seq is similar to seqs in old SEGs
-			seq->state |= IS_REDUNDANT ;
-			seq->Clear();
-		} else {                  // else add to NR90 db
+		else {                  // else add to NR90 db
 			int aan_no = len - NAA + 1;
 			int size = rep_seqs.size();
-			rep_seqs.Append( id );
+			rep_seqs.Append(id);
 			seq->cluster_id = size;
 			seq->identity = 0;
 			seq->state |= IS_REP;
-			if (frag_size){ /* not used for EST */
-				int frg1 = (len - NAA ) / frag_size + 1;
-				table.AddWordCountsFrag( aan_no, buffer.word_encodes_backup, 
-						buffer.word_encodes_no, frg1, frag_size );
-			}else{
-				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
-			}
-			table.sequences.Append( seq );
-			if( frag_size ){
-				while( table.sequences.size() < table.frag_count )
-					table.sequences.Append( seq );
-			}
-		}
-	}
-	if ( (id+1) % 1000 == 0 ) {
-		int size = rep_seqs.size();
-		printf( "." );
-		fflush( stdout );
-		if ( (id+1) % 10000 == 0 ) printf( "\r..........%9i  finished  %9i  clusters\n", id+1, size );
-	}
-}
-void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & local_table,WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,int my_rank )
-{
-	if (seq->state & IS_REDUNDANT) return;
-	int frag_size = options.frag_size;
-	int NAA = options.NAA;
-	int len = seq->size;
-	int len_bound = upper_bound_length_rep(len, options);
-	param.len_upper_bound = len_bound;
-	int flag = CheckOne( seq, local_table, param, buffer, options,my_rank );
-
-	if( flag == 0 ){
-		if ((seq->identity>0) && (options.cluster_best)) {
-			// because of the -g option, this seq is similar to seqs in old SEGs
-			seq->state |= IS_REDUNDANT ;
-			seq->Clear();
-		} else {                  // else add to NR90 db
-			int aan_no = len - NAA + 1;
-			int size = rep_seqs.size();
-			rep_seqs.Append( id );
-			seq->cluster_id = size;
-			seq->identity = 0;
-			seq->state |= IS_REP;
-			if (frag_size){ /* not used for EST */
-				int frg1 = (len - NAA ) / frag_size + 1;
-				local_table.AddWordCountsFrag( aan_no, buffer.word_encodes_backup, 
-						buffer.word_encodes_no, frg1, frag_size );
+			if (frag_size) { /* not used for EST */
+				int frg1 = (len - NAA) / frag_size + 1;
 				table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup,
-										buffer.word_encodes_no, frg1, frag_size);
-			}else{
+					buffer.word_encodes_no, frg1, frag_size);
+			}
+			else {
+				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
+			}
+			table.sequences.Append(seq);
+			if (frag_size) {
+				while (table.sequences.size() < table.frag_count)
+					table.sequences.Append(seq);
+			}
+		}
+	}
+	if ((id + 1) % 1000 == 0) {
+		int size = rep_seqs.size();
+		printf(".");
+		fflush(stdout);
+		if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
+	}
+}
+void SequenceDB::ClusterOne(Sequence* seq, int id, WordTable& table,
+	WorkingParam& param, WorkingBuffer& buffer, const Options& options, int my_rank)
+{
+	if (seq->state & IS_REDUNDANT) return;
+	int frag_size = options.frag_size;
+	int NAA = options.NAA;
+	int len = seq->size;
+	int len_bound = upper_bound_length_rep(len, options);
+	param.len_upper_bound = len_bound;
+	int flag = CheckOne(seq, table, param, buffer, options, my_rank);
+
+	if (flag == 0) {
+		if ((seq->identity > 0) && (options.cluster_best)) {
+			// because of the -g option, this seq is similar to seqs in old SEGs
+			seq->state |= IS_REDUNDANT;
+			seq->Clear();
+		}
+		else {                  // else add to NR90 db
+			int aan_no = len - NAA + 1;
+			int size = rep_seqs.size();
+			rep_seqs.Append(id);
+			seq->cluster_id = size;
+			seq->identity = 0;
+			seq->state |= IS_REP;
+			if (frag_size) { /* not used for EST */
+				int frg1 = (len - NAA) / frag_size + 1;
+				table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup,
+					buffer.word_encodes_no, frg1, frag_size);
+			}
+			else {
+				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
+			}
+			table.sequences.Append(seq);
+			if (frag_size) {
+				while (table.sequences.size() < table.frag_count)
+					table.sequences.Append(seq);
+			}
+		}
+	}
+	if ((id + 1) % 1000 == 0) {
+		int size = rep_seqs.size();
+		printf(".");
+		fflush(stdout);
+		if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
+	}
+}
+void SequenceDB::ClusterOne(Sequence* seq, int id, WordTable& local_table, WordTable& table,
+	WorkingParam& param, WorkingBuffer& buffer, const Options& options, int my_rank)
+{
+	if (seq->state & IS_REDUNDANT) return;
+	int frag_size = options.frag_size;
+	int NAA = options.NAA;
+	int len = seq->size;
+	int len_bound = upper_bound_length_rep(len, options);
+	param.len_upper_bound = len_bound;
+	int flag = CheckOne(seq, local_table, param, buffer, options, my_rank);
+
+	if (flag == 0) {
+		if ((seq->identity > 0) && (options.cluster_best)) {
+			// because of the -g option, this seq is similar to seqs in old SEGs
+			seq->state |= IS_REDUNDANT;
+			seq->Clear();
+		}
+		else {                  // else add to NR90 db
+			int aan_no = len - NAA + 1;
+			int size = rep_seqs.size();
+			rep_seqs.Append(id);
+			seq->cluster_id = size;
+			seq->identity = 0;
+			seq->state |= IS_REP;
+			if (frag_size) { /* not used for EST */
+				int frg1 = (len - NAA) / frag_size + 1;
+				local_table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup,
+					buffer.word_encodes_no, frg1, frag_size);
+				table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup,
+					buffer.word_encodes_no, frg1, frag_size);
+			}
+			else {
 				local_table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, local_table.sequences.size(), options.isEST);
 				table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
 			}
-			table.sequences.Append( seq );
-			local_table.sequences.Append( seq );
-			if( frag_size ){
+			table.sequences.Append(seq);
+			local_table.sequences.Append(seq);
+			if (frag_size) {
 				while (local_table.sequences.size() < local_table.frag_count)
 					local_table.sequences.Append(seq);
 				while (table.sequences.size() < table.frag_count)
 					table.sequences.Append(seq);
 			}
-			
+
 		}
 	}
-	if ( (id+1) % 1000 == 0 ) {
+	if ((id + 1) % 1000 == 0) {
 		int size = rep_seqs.size();
-		printf( "." );
-		fflush( stdout );
-		if ( (id+1) % 10000 == 0 ) printf( "\r..........%9i  finished  %9i  clusters\n", id+1, size );
+		printf(".");
+		fflush(stdout);
+		if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
 	}
 }
 #include<assert.h>
-size_t SequenceDB::MinimalMemory( int frag_no, int bsize, int T, const Options & options, size_t extra )
+size_t SequenceDB::MinimalMemory(int frag_no, int bsize, int T, const Options& options, size_t extra)
 {
 	int N = total_num;
 	int F = frag_no < MAX_TABLE_SEQ ? frag_no : MAX_TABLE_SEQ;
@@ -3830,76 +3938,76 @@ size_t SequenceDB::MinimalMemory( int frag_no, int bsize, int T, const Options &
 	size_t mem, mega = 1000000;
 	int table = T > 1 ? 2 : 1;
 
-	printf( "\nApproximated minimal memory consumption:\n" );
-	mem = N*sizeof(Sequence) + total_desc + N + extra;
-	if( options.store_disk == false ) mem += total_letter + N;
-	printf( "%-16s: %zuM\n", "Sequence", mem/mega );
+	printf("\nApproximated minimal memory consumption:\n");
+	mem = N * sizeof(Sequence) + total_desc + N + extra;
+	if (options.store_disk == false) mem += total_letter + N;
+	printf("%-16s: %zuM\n", "Sequence", mem / mega);
 	mem_need += mem;
 
 	mem = bsize;
-	printf( "%-16s: %i X %zuM = %zuM\n", "Buffer", T, mem/mega, T*mem/mega );
-	mem_need += T*mem;
+	printf("%-16s: %i X %zuM = %zuM\n", "Buffer", T, mem / mega, T * mem / mega);
+	mem_need += T * mem;
 
-	mem = F*(sizeof(Sequence*) + sizeof(IndexCount)) + NAAN*sizeof(NVector<IndexCount>);
-	printf( "%-16s: %i X %zuM = %zuM\n", "Table", table, mem/mega, table*mem/mega );
-	mem_need += table*mem;
+	mem = F * (sizeof(Sequence*) + sizeof(IndexCount)) + NAAN * sizeof(NVector<IndexCount>);
+	printf("%-16s: %i X %zuM = %zuM\n", "Table", table, mem / mega, table * mem / mega);
+	mem_need += table * mem;
 
-	mem = sequences.capacity()*sizeof(Sequence*) + N*sizeof(int);
-	mem += Comp_AAN_idx.size()*sizeof(int);
-	printf( "%-16s: %zuM\n", "Miscellaneous", mem/mega );
+	mem = sequences.capacity() * sizeof(Sequence*) + N * sizeof(int);
+	mem += Comp_AAN_idx.size() * sizeof(int);
+	printf("%-16s: %zuM\n", "Miscellaneous", mem / mega);
 	mem_need += mem;
 
-	printf( "%-16s: %zuM\n\n", "Total", mem_need/mega );
+	printf("%-16s: %zuM\n\n", "Total", mem_need / mega);
 
-	if(options.max_memory and options.max_memory < mem_need + 50*table ){
+	if (options.max_memory and options.max_memory < mem_need + 50 * table) {
 		char msg[200];
-		sprintf( msg, "not enough memory, please set -M option greater than %zu\n", 
-				50*table + mem_need/mega );
+		sprintf(msg, "not enough memory, please set -M option greater than %zu\n",
+			50 * table + mem_need / mega);
 		bomb_error(msg);
 	}
 	return mem_need;
 }
-size_t MemoryLimit( size_t mem_need, const Options & options )
+size_t MemoryLimit(size_t mem_need, const Options& options)
 {
 	size_t mem_limit = (options.max_memory - mem_need) / sizeof(IndexCount);
 
 	//printf( "Table limit with the given memory limit:\n" );
-	if( options.max_memory == 0 ){
+	if (options.max_memory == 0) {
 		mem_limit = options.max_entries;
-		if( mem_limit > MAX_TABLE_SIZE ) mem_limit = MAX_TABLE_SIZE;
+		if (mem_limit > MAX_TABLE_SIZE) mem_limit = MAX_TABLE_SIZE;
 	}
 	//printf( "Max number of representatives: %zu\n", mem_limit );
 	//printf( "Max number of word counting entries: %zu\n\n", mem_limit );
 	return mem_limit;
 }
-void Options::ComputeTableLimits( int min_len, int max_len, int typical_len, size_t mem_need )
+void Options::ComputeTableLimits(int min_len, int max_len, int typical_len, size_t mem_need)
 {
-//liwz Fri Jan 15 15:44:47 PST 2016
-//T=1 scale=1
-//T=2 scale=0.6035
-//T=4 scale=0.375
-//T=8 scale=0.2392
-//T=16 scale=0.1562
-//T=32 scale=0.104
-//T=64 scale=0.0703
+	//liwz Fri Jan 15 15:44:47 PST 2016
+	//T=1 scale=1
+	//T=2 scale=0.6035
+	//T=4 scale=0.375
+	//T=8 scale=0.2392
+	//T=16 scale=0.1562
+	//T=32 scale=0.104
+	//T=64 scale=0.0703
 
-	double scale = 0.5/threads + 0.5/sqrt(threads);
+	double scale = 0.5 / threads + 0.5 / sqrt(threads);
 	max_sequences = (size_t)(scale * MAX_TABLE_SEQ);
-	max_entries = (size_t)(scale * (500*max_len + 500000*typical_len + 50000000));
-	if( max_memory ){
-		double frac = max_sequences / (double) max_entries;
+	max_entries = (size_t)(scale * (500 * max_len + 500000 * typical_len + 50000000));
+	if (max_memory) {
+		double frac = max_sequences / (double)max_entries;
 		max_entries = (options.max_memory - mem_need) / sizeof(IndexCount);
 		max_sequences = (size_t)(max_entries * frac);
-		if( max_sequences < MAX_TABLE_SEQ / 100 ) max_sequences = MAX_TABLE_SEQ / 100;
-		if( max_sequences > MAX_TABLE_SEQ ) max_sequences = MAX_TABLE_SEQ;
+		if (max_sequences < MAX_TABLE_SEQ / 100) max_sequences = MAX_TABLE_SEQ / 100;
+		if (max_sequences > MAX_TABLE_SEQ) max_sequences = MAX_TABLE_SEQ;
 	}
-	printf( "Table limit with the given memory limit:\n" );
-	printf( "Max number of representatives: %zu\n", max_sequences );
-	printf( "Max number of word counting entries: %zu\n\n", max_entries );
+	printf("Table limit with the given memory limit:\n");
+	printf("Max number of representatives: %zu\n", max_sequences);
+	printf("Max number of word counting entries: %zu\n\n", max_entries);
 }
 void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_id, int start, int end,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size ,int send_file_index,int start_global_id)
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size, int send_file_index, int start_global_id)
 {
 	int T = options.threads;
 	int len = end - start;
@@ -3915,7 +4023,7 @@ void SequenceDB::encode_WordTable(WordTable& table, long*& info_buf, int chunk_i
 	for (int i = start;i < end;i++) {
 		int index = i - start;
 		suffix_buf[index] = rep_seqs[i];
-		cluster_id_buf[index] = sequences[rep_seqs[i]-start_global_id]->cluster_id;
+		cluster_id_buf[index] = sequences[rep_seqs[i] - start_global_id]->cluster_id;
 	}
 
 	// cout << "    " <<chunk_id<< " " << table.sequences.size() << " " << len << endl;
@@ -3974,7 +4082,7 @@ void SequenceDB::prepare_to_decode(WordTable& table, long*& info_buf, long*& clu
 }
 void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	long*& cluster_id_buf, long*& suffix_buf,
-	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size,long start_id) {
+	long*& indexCount_buf, long long*& prefix_buf, long long& indexCount_buf_size, long& prefix_size, long start_id) {
 	int T = options.threads;
 	int len = info_buf[1];
 
@@ -3989,10 +4097,10 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 #pragma omp parallel for num_threads(T)
 	// cout << ">>> Len: " << len << endl;
 	for (int i = 0;i < len;i++) {
-		
+
 		int index = i;
 		// cerr<<"suffix_buf[index]  "<<suffix_buf[index]<<"start_id   "<<start_id<<endl;
-		Sequence* seq = rep_sequences[suffix_buf[index]-start_id];
+		Sequence* seq = rep_sequences[suffix_buf[index] - start_id];
 		// if (seq->swap == NULL) seq->ConvertBases();
 		// if(i==100)
 		// cerr<<"rep name   "<<seq->identifier<<endl;
@@ -4025,81 +4133,81 @@ void SequenceDB::decode_WordTable(WordTable& table, long*& info_buf,
 	}
 	table.size = prefix_buf[prefix_size - 1];
 }
-char *SequenceDB::str_copy(const char *str)
+char* SequenceDB::str_copy(const char* str)
 {
 	if (!str)
 		return nullptr;
-		char * data = new char[strlen(str) + 1];
+	char* data = new char[strlen(str) + 1];
 	strcpy(data, str);
 	return data;
 }
 void SequenceDB::send_cluster(
-    const std::vector<std::vector<std::string>> &clusters_identifier,
-    const std::vector<std::vector<int>> &clusters_size,
-    const std::vector<std::vector<float>> &clusters_identity,
-    const std::vector<std::vector<int>> &clusters_coverage,
-    int *&prefix_seq,
-    int *&flat_size,
-    float *&flat_identity,
-    int *&flat_coverage,
-    char *&flat_identifier,
-    int &C,
-    int &N,
-    int &IDLEN
+	const std::vector<std::vector<std::string>>& clusters_identifier,
+	const std::vector<std::vector<int>>& clusters_size,
+	const std::vector<std::vector<float>>& clusters_identity,
+	const std::vector<std::vector<int>>& clusters_coverage,
+	int*& prefix_seq,
+	int*& flat_size,
+	float*& flat_identity,
+	int*& flat_coverage,
+	char*& flat_identifier,
+	int& C,
+	int& N,
+	int& IDLEN
 )
 {
-     
 
-    int *seq_cnt = (int *)malloc(C * sizeof(int));
-    prefix_seq = (int *)malloc((C + 1) * sizeof(int));
+
+	int* seq_cnt = (int*)malloc(C * sizeof(int));
+	prefix_seq = (int*)malloc((C + 1) * sizeof(int));
 	int T = options.threads;
-    #pragma omp parallel for num_threads(T)
-    for (int c = 0; c < C; ++c)
-        seq_cnt[c] = clusters_identifier[c].size();
+#pragma omp parallel for num_threads(T)
+	for (int c = 0; c < C; ++c)
+		seq_cnt[c] = clusters_identifier[c].size();
 
-    prefix_seq[0] = 0;
-    for (int c = 0; c < C; ++c)
-        prefix_seq[c + 1] = prefix_seq[c] + seq_cnt[c];
+	prefix_seq[0] = 0;
+	for (int c = 0; c < C; ++c)
+		prefix_seq[c + 1] = prefix_seq[c] + seq_cnt[c];
 
-    N = prefix_seq[C];
+	N = prefix_seq[C];
 
-    // 分配定长 flat_identifier
-    flat_identifier = (char *)malloc(N * IDLEN);
-    flat_size = (int *)malloc(N * sizeof(int));
-    flat_identity = (float *)malloc(N * sizeof(float));
-    flat_coverage = (int *)malloc(N * 4 * sizeof(int));
+	// 分配定长 flat_identifier
+	flat_identifier = (char*)malloc(N * IDLEN);
+	flat_size = (int*)malloc(N * sizeof(int));
+	flat_identity = (float*)malloc(N * sizeof(float));
+	flat_coverage = (int*)malloc(N * 4 * sizeof(int));
 
-    #pragma omp parallel for num_threads(T)
-    for (int c = 0; c < C; ++c) {
-        int base = prefix_seq[c];
-        for (int j = 0; j < seq_cnt[c]; ++j) {
-            int g = base + j;
+#pragma omp parallel for num_threads(T)
+	for (int c = 0; c < C; ++c) {
+		int base = prefix_seq[c];
+		for (int j = 0; j < seq_cnt[c]; ++j) {
+			int g = base + j;
 
-            // identifier 拷贝 + 补零
-            const std::string &id = clusters_identifier[c][j];
-            char *dst = flat_identifier + g * IDLEN;
-            memcpy(dst, id.data(), id.size());
-            memset(dst + id.size(), 0, IDLEN - id.size());
+			// identifier 拷贝 + 补零
+			const std::string& id = clusters_identifier[c][j];
+			char* dst = flat_identifier + g * IDLEN;
+			memcpy(dst, id.data(), id.size());
+			memset(dst + id.size(), 0, IDLEN - id.size());
 
-            flat_size[g] = clusters_size[c][j];
-            flat_identity[g] = clusters_identity[c][j];
+			flat_size[g] = clusters_size[c][j];
+			flat_identity[g] = clusters_identity[c][j];
 
-            for (int k = 0; k < 4; ++k)
-                flat_coverage[g * 4 + k] = clusters_coverage[c][j * 4 + k];
-        }
-    }
+			for (int k = 0; k < 4; ++k)
+				flat_coverage[g * 4 + k] = clusters_coverage[c][j * 4 + k];
+		}
+	}
 
-    free(seq_cnt);
-	seq_cnt=nullptr;
+	free(seq_cnt);
+	seq_cnt = nullptr;
 }
 
-void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output) {
+void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank, const char* output) {
 
 	int rank_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
 	int source = 0;
 
-	int i, j, jj , k;
+	int i, j, jj, k;
 	int T = options.threads;
 	int NAA = options.NAA;
 	double aa1_cutoff = options.cluster_thd;
@@ -4119,7 +4227,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	// 			frag_no += (sequences[i]->size - NAA) / frag_size + 1;
 	// 	}
 	// 	MPI_Bcast(&frag_no, 1, MPI_INT, source, MPI_COMM_WORLD);
-		
+
 	// 	MPI_Barrier(MPI_COMM_WORLD);
 	// }
 
@@ -4149,9 +4257,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 	size_t mem_limit = MemoryLimit(mem_need, options);
 	size_t mem, mega = 50000;
-	
+
 	int remaining = 0;
-	int local_remaining=0;
+	int local_remaining = 0;
 	Options opts(options);
 	opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
 	size_t max_items = opts.max_entries;
@@ -4164,20 +4272,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long long* prefix_buf;
 	long long indexCount_buf_size;
 	long prefix_size;
-	int record_last=0;
-	int record=0;
+	int record_last = 0;
+	int record = 0;
 
-	
-	if (master) {   
-	WordTable local_last_table(options.NAA, NAAN);
-	WordTable local_word_table(options.NAA, NAAN);
-		cerr<<"chunks_num  "<<chunks_num<<endl;
+
+	if (master) {
+		WordTable local_last_table(options.NAA, NAAN);
+		WordTable local_word_table(options.NAA, NAAN);
+		cerr << "chunks_num  " << chunks_num << endl;
 		if (rank_size <= 1) {
 			cerr << "no workers found" << endl;
 			exit(0);
 		}
 		ofstream fout(output);
-		string clstr_output = options.output +".clstr";
+		string clstr_output = options.output + ".clstr";
 		ofstream clstr_fout(clstr_output);
 
 		vector<vector<string>> clusters_identifier(chunk_size);
@@ -4186,30 +4294,30 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		vector<vector<int>> clusters_coverage(chunk_size);
 		vector<string> rep_identifier(chunk_size);
 		vector<int> rep_size(chunk_size);
-		vector<int>read_flag(chunks_num,0);
-		int output_index=0;
-		int file_index=0;
-		bool first_block=true;
-		int first_size=5000;
+		vector<int>read_flag(chunks_num, 0);
+		int output_index = 0;
+		int file_index = 0;
+		bool first_block = true;
+		int first_size = 5000;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
-		int last_rep_index=0;
-		int C =0;
+		int last_rep_index = 0;
+		int C = 0;
 		int chunk_id = 0;
 		int start_id = -1;
 		int end_id = -1;
-		int len=0;
-		int remaining=0;
+		int len = 0;
+		int remaining = 0;
 		int target_worker = 1;
-		int start_global_id=sequences.size();
-		bool read_stop=0;
-		int send_file_index=0;
+		int start_global_id = sequences.size();
+		bool read_stop = 0;
+		int send_file_index = 0;
 		kseq_t* seq = nullptr;
 		Clear();
 		Sequence one;
 		std::string file = std::string("output/") + "_proc" + std::to_string(file_index) + ".fa";
-		
-		send_file_index=file_index;
+
+		send_file_index = file_index;
 		if (chunk_kseq[file_index] == nullptr)
 		{
 			gzFile fp = gzopen(file.c_str(), "r");
@@ -4222,52 +4330,52 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			seq = kseq_init(fp);
 
 		}
-		else seq=chunk_kseq[file_index];
+		else seq = chunk_kseq[file_index];
 		char* id_ptr = new char[max_idf + 1];
 		char* data_ptr = new char[max_len + 1];
 		char* true_ptr = new char[max_len + 1];
 		while ((len = kseq_read(seq)) >= 0) {
- 		memcpy(id_ptr, seq->name.s, seq->name.l);
-   		id_ptr[seq->name.l] = 0;
-    	one.identifier = id_ptr;
+			memcpy(id_ptr, seq->name.s, seq->name.l);
+			id_ptr[seq->name.l] = 0;
+			one.identifier = id_ptr;
 
-    	memcpy(data_ptr, seq->seq.s,seq->seq.l);
-    	data_ptr[seq->seq.l] = 0;
-    	one.data = data_ptr;
+			memcpy(data_ptr, seq->seq.s, seq->seq.l);
+			data_ptr[seq->seq.l] = 0;
+			one.data = data_ptr;
 
-    	memcpy(true_ptr, seq->seq.s, seq->seq.l);
-    	true_ptr[seq->seq.l] = 0;
-    	one.true_data = true_ptr;
-		one.size = len;
-		one.tot_length = len + seq->name.l;
-		one.index = sequences.size()+start_global_id;
-		sequences.Append(new Sequence(one));
-		if(sequences[sequences.size()-1]->swap==NULL)sequences[sequences.size()-1]->ConvertBases();
-		if(sequences.size()%chunk_size==0){
-			chunks_id.push_back(chunk_id);
-			// all_chunks.push_back(make_pair(start_global_id,sequences.size()));
-			chunk_id++;
-			chunk_kseq[file_index] =seq;
-			break;
+			memcpy(true_ptr, seq->seq.s, seq->seq.l);
+			true_ptr[seq->seq.l] = 0;
+			one.true_data = true_ptr;
+			one.size = len;
+			one.tot_length = len + seq->name.l;
+			one.index = sequences.size() + start_global_id;
+			sequences.Append(new Sequence(one));
+			if (sequences[sequences.size() - 1]->swap == NULL)sequences[sequences.size() - 1]->ConvertBases();
+			if (sequences.size() % chunk_size == 0) {
+				chunks_id.push_back(chunk_id);
+				// all_chunks.push_back(make_pair(start_global_id,sequences.size()));
+				chunk_id++;
+				chunk_kseq[file_index] = seq;
+				break;
+			}
+
 		}
-		
-	}
-	one.identifier = nullptr;
-    one.data = nullptr;
-	one.true_data=nullptr;
-	delete[] id_ptr;
-	delete[] data_ptr;
-	delete[] true_ptr;
-	file_index=(file_index+1)%(rank_size-1);
-	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
-	// std::vector<int> done_flags(rank_size - 1, 0);
+		one.identifier = nullptr;
+		one.data = nullptr;
+		one.true_data = nullptr;
+		delete[] id_ptr;
+		delete[] data_ptr;
+		delete[] true_ptr;
+		file_index = (file_index + 1) % (rank_size - 1);
+		// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
+		// std::vector<int> done_flags(rank_size - 1, 0);
 		for (i = 0;i < chunks_num;i++) {
-			int total_flag=0;
+			int total_flag = 0;
 			// cerr<<"remaining   "<<remaining<<endl;
 			bool all_done = false;
 			//vector<MPI_Request> requests(rank_size-1,MPI_REQUEST_NULL);
-			vector<MPI_Request> requests(rank_size-1,0);
-			vector<int> done_flags(rank_size-1,0);
+			vector<MPI_Request> requests(rank_size - 1, 0);
+			vector<int> done_flags(rank_size - 1, 0);
 			if (!first_block)
 				for (int ii = 0; ii < rank_size - 1; ++ii)
 				{
@@ -4278,14 +4386,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// if (i > 1) break;
 			// cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
 			int start_rep_suffix = rep_seqs.size();
-		
-			if(remaining){
+
+			if (remaining) {
 				// 				cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
 				// cerr<<"end    "<<all_chunks[i].second<<endl;
 				// cerr<<"last word  size"<<last_table.sequences.size()<<endl;
-				#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
-				// for (j = all_chunks[i].second-remaining;j < all_chunks[i].second;j++)
-				for (j = sequences.size()-remaining;j < sequences.size();j++)
+			#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+			// for (j = all_chunks[i].second-remaining;j < all_chunks[i].second;j++)
+				for (j = sequences.size() - remaining;j < sequences.size();j++)
 				{
 					Sequence* seq = sequences[j];
 					// if (options.store_disk) seq->SwapIn();
@@ -4294,35 +4402,35 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					int tid = omp_get_thread_num();
 
 					if (seq->state & IS_REDUNDANT) continue;
-					CheckOne(seq, last_table, params[tid], buffers[tid], options,my_rank);
+					CheckOne(seq, last_table, params[tid], buffers[tid], options, my_rank);
 					// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 				// cerr<<"over!!!!"<<endl;
 				// cerr<<"start        "<<chunks[i].second-remaining<<endl;
-				
-				for (j = sequences.size()-remaining;j < sequences.size();){
-				// cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
-				// cerr<<"end    "<<all_chunks[i].second<<endl;
-					
-				
 
-					if(!first_block){
+				for (j = sequences.size() - remaining;j < sequences.size();) {
+					// cerr<<"start   "<<all_chunks[i].second-remaining<<endl;
+					// cerr<<"end    "<<all_chunks[i].second<<endl;
 
-						for (int iii = 0; iii <rank_size-1 ; ++iii) {
+
+
+					if (!first_block) {
+
+						for (int iii = 0; iii < rank_size - 1; ++iii) {
 							int flag = 0;
 							MPI_Test(&requests[iii], &flag, MPI_STATUS_IGNORE);
-							if(flag){
-								total_flag+=done_flags[iii];
-								done_flags[iii]=0;
+							if (flag) {
+								total_flag += done_flags[iii];
+								done_flags[iii] = 0;
 								// requests[i] = MPI_REQUEST_NULL;
 							}
 						}
 					}
 
-					if (total_flag == rank_size - 1 && word_table.sequences.size() >= 1000&&j<(0.9*chunk_size))
-					// if(total_flag==rank_size-1)
+					if (total_flag == rank_size - 1 && word_table.sequences.size() >= 1000 && j < (0.9 * chunk_size))
+						// if(total_flag==rank_size-1)
 					{
-						remaining=sequences.size()-j;
+						remaining = sequences.size() - j;
 						// cerr<<"end        "<<j<<endl;
 						// i--;
 						break;
@@ -4343,7 +4451,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					}
 					while (m < N && (sum * redundancy) < max_seqs && items < max_items)
 					{
-						Sequence *seq = sequences[m];
+						Sequence* seq = sequences[m];
 						if (!(seq->state & IS_REDUNDANT))
 						{
 							// if (options.store_disk)
@@ -4367,10 +4475,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					{
 						// cerr<<"1111"<<endl;
 						int print = (m - j) / 20 + 1;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+					#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 						for (int jjj = j; jjj < m; jjj++)
 						{
-							Sequence *seq = sequences[jjj];
+							Sequence* seq = sequences[jjj];
 							if (seq->state & IS_REDUNDANT)
 								continue;
 							int tid = omp_get_thread_num();
@@ -4389,10 +4497,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						// int min = local_last_table.sequences[local_last_table.sequences.size() - 1]->size;
 						int m0 = m;
 						bool stop = false;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+					#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 						for (int jjj = m - 1; jjj < N; jjj++)
 						{
-#pragma omp flush(stop)
+						#pragma omp flush(stop)
 							if (!stop)
 							{
 								if (jjj + 1 == N)
@@ -4402,7 +4510,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									int tid = omp_get_thread_num();
 									for (int ks = j; ks < m; ks++)
 									{
-										Sequence *seq = sequences[ks];
+										Sequence* seq = sequences[ks];
 
 										j = ks + 1;
 										if (seq->state & IS_REDUNDANT)
@@ -4422,7 +4530,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 								else
 								{
-									Sequence *seq = sequences[jjj];
+									Sequence* seq = sequences[jjj];
 									if (seq->state & IS_REDUNDANT)
 										continue;
 
@@ -4460,11 +4568,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								mm = k + 1000;
 							if (mm > m)
 								mm = m;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+						#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 							for (kk = k; kk < mm; kk++)
 							{
 								// cerr<<"kk   "<<kk<<endl;
-								Sequence *seq = sequences[kk];
+								Sequence* seq = sequences[kk];
 								if (seq->state & IS_REDUNDANT)
 									continue;
 								int tid = omp_get_thread_num();
@@ -4477,10 +4585,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							// cerr<<"11111"<<endl;
 							for (int ks = k; ks < mm; ks++)
 							{
-								Sequence *seq = sequences[ks];
+								Sequence* seq = sequences[ks];
 								j = k = ks + 1;
-								if (j == sequences.size() )
-								remaining = 0;
+								if (j == sequences.size())
+									remaining = 0;
 								if (seq->state & IS_REDUNDANT)
 									continue;
 
@@ -4522,27 +4630,27 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					// ClusterOne(seq, seq->index, word_table, params[0], buffers[0], options, my_rank);
 					// if (options.store_disk && (seq->state & IS_REDUNDANT))
 					// 	seq->SwapOut();
-					
-				
+
+
+				}
 			}
-			}
-			else{
-			
-				if(first_block){
-				// cerr<<"chunks start     "<<all_chunks[i].first<<endl;
-				// cerr<<"chunks end     "<<first_size<<endl;
+			else {
+
+				if (first_block) {
+					// cerr<<"chunks start     "<<all_chunks[i].first<<endl;
+					// cerr<<"chunks end     "<<first_size<<endl;
 					for (j = 0;j < first_size;j++) {
-				Sequence* seq = sequences[j];
-				// cerr<<"seq  "<<sequences[j]->size<<endl;
-				// cerr<<"rep size  "<<rep_seqs.size()<<endl;
-				// if (seq->swap == NULL) seq->ConvertBases();
-				// if (options.store_disk) seq->SwapIn();
-				if (seq->state & IS_REDUNDANT) continue;
-				ClusterOne(seq, seq->index, word_table, params[0], buffers[0], options,my_rank);
-				// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
-			}
-				remaining=sequences.size()-first_size;
-				first_block=false;
+						Sequence* seq = sequences[j];
+						// cerr<<"seq  "<<sequences[j]->size<<endl;
+						// cerr<<"rep size  "<<rep_seqs.size()<<endl;
+						// if (seq->swap == NULL) seq->ConvertBases();
+						// if (options.store_disk) seq->SwapIn();
+						if (seq->state & IS_REDUNDANT) continue;
+						ClusterOne(seq, seq->index, word_table, params[0], buffers[0], options, my_rank);
+						// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+					}
+					remaining = sequences.size() - first_size;
+					first_block = false;
 				}
 				else
 				{
@@ -4551,7 +4659,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					for (j = 0; j < sequences.size(); )
 					{
 
-						if (!first_block&& i < chunks_num - 1)
+						if (!first_block && i < chunks_num - 1)
 						{
 
 							for (int iii = 0; iii < rank_size - 1; ++iii)
@@ -4566,29 +4674,29 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 							}
 						}
-						if (total_flag == rank_size - 1 && word_table.sequences.size() >= 1000&&j<(0.9*chunk_size))
-						// if(total_flag==rank_size-1&&word_table.sequences.size() >=100)
+						if (total_flag == rank_size - 1 && word_table.sequences.size() >= 1000 && j < (0.9 * chunk_size))
+							// if(total_flag==rank_size-1&&word_table.sequences.size() >=100)
 						{
 							remaining = sequences.size() - j;
-										// 	int src;
-			
-							//cerr<<"i    "<<i<<endl;
-							for (int src=1; src < rank_size; ++src)
+							// 	int src;
+
+				//cerr<<"i    "<<i<<endl;
+							for (int src = 1; src < rank_size; ++src)
 							{
 								int N;
 								//cerr<<"receive     "<<src<<"   size    "<< C<<endl;
 								MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-								int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
-								int *flat_size = (int *)malloc(N * sizeof(int));
-								float *flat_identity = (float *)malloc(N * sizeof(float));
-								int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
-								char *flat_identifier = (char *)malloc(N * (max_idf + 1));
+								int* prefix_seq = (int*)malloc((C + 1) * sizeof(int));
+								int* flat_size = (int*)malloc(N * sizeof(int));
+								float* flat_identity = (float*)malloc(N * sizeof(float));
+								int* flat_coverage = (int*)malloc(N * 4 * sizeof(int));
+								char* flat_identifier = (char*)malloc(N * (max_idf + 1));
 								MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 								MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-								#pragma omp parallel for num_threads(T)
+							#pragma omp parallel for num_threads(T)
 								for (int c = 0; c < C; ++c) // 串行循环
 								{
 									int begin = prefix_seq[c];
@@ -4599,7 +4707,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									for (int j = 0; j < len; ++j)
 									{
 										int i = begin + j;
-										const char *idptr = flat_identifier + i * (max_idf + 1);
+										const char* idptr = flat_identifier + i * (max_idf + 1);
 
 										clusters_identifier[c].emplace_back(std::string(idptr));
 										clusters_size[c].emplace_back(flat_size[i]);
@@ -4620,7 +4728,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								flat_coverage = nullptr;
 								flat_identifier = nullptr;
 							}
-		
+
 							for (int kk = 0; kk < C; kk++)
 							{
 								clstr_fout << ">Cluster " << (output_index + kk) << '\n';
@@ -4629,7 +4737,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 								{
 									clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-									int *c = &clusters_coverage[kk][kkk * 4];
+									int* c = &clusters_coverage[kk][kkk * 4];
 									clstr_fout << " at ";
 									if (options.print)
 										clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
@@ -4654,7 +4762,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							clusters_coverage.resize(chunk_size);
 							rep_size.resize(chunk_size);
 							rep_identifier.resize(chunk_size);
-							read_flag[i]=1;
+							read_flag[i] = 1;
 							// i--;
 							break;
 						}
@@ -4676,7 +4784,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						}
 						while (m < N && (sum * redundancy) < max_seqs && items < max_items)
 						{
-							Sequence *seq = sequences[m];
+							Sequence* seq = sequences[m];
 							if (!(seq->state & IS_REDUNDANT))
 							{
 								// if (options.store_disk)
@@ -4700,10 +4808,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						{
 							// cerr<<"1111"<<endl;
 							int print = (m - j) / 20 + 1;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+						#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 							for (int jjj = j; jjj < m; jjj++)
 							{
-								Sequence *seq = sequences[jjj];
+								Sequence* seq = sequences[jjj];
 								if (seq->state & IS_REDUNDANT)
 									continue;
 								int tid = omp_get_thread_num();
@@ -4722,10 +4830,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							// int min = local_last_table.sequences[local_last_table.sequences.size() - 1]->size;
 							int m0 = m;
 							bool stop = false;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+						#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 							for (int jjj = m - 1; jjj < N; jjj++)
 							{
-#pragma omp flush(stop)
+							#pragma omp flush(stop)
 								if (!stop)
 								{
 									if (jjj + 1 == N)
@@ -4735,12 +4843,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 										int tid = omp_get_thread_num();
 										for (int ks = j; ks < m; ks++)
 										{
-											Sequence *seq = sequences[ks];
-											
-											j = ks+1 ;
+											Sequence* seq = sequences[ks];
+
+											j = ks + 1;
 											if (seq->state & IS_REDUNDANT)
 												continue;
-											ClusterOne(seq, seq->index, local_word_table,word_table, params[tid], buffers[tid], options,my_rank);
+											ClusterOne(seq, seq->index, local_word_table, word_table, params[tid], buffers[tid], options, my_rank);
 											// if (options.store_disk && (seq->state & IS_REDUNDANT))
 											// 	seq->SwapOut();
 											if (may_stop and local_word_table.sequences.size() >= 100)
@@ -4755,14 +4863,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									}
 									else
 									{
-										Sequence *seq = sequences[jjj];
+										Sequence* seq = sequences[jjj];
 										if (seq->state & IS_REDUNDANT)
 											continue;
-// 										if (options.store_disk)
-// 										{
-// #pragma omp critical
-// 											seq->SwapIn();
-// 										}
+										// 										if (options.store_disk)
+										// 										{
+										// #pragma omp critical
+										// 											seq->SwapIn();
+										// 										}
 										int tid = omp_get_thread_num();
 										CheckOne(seq, local_last_table, params[tid], buffers[tid], options);
 										// if (options.store_disk && (seq->state & IS_REDUNDANT))
@@ -4787,7 +4895,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 							}
 						}
-						
+
 						if (j == start || m == N)
 						{
 							// printf( "comparing the first or last or very small group ...\n" ); fflush( stdout );
@@ -4805,16 +4913,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									mm = k + 1000;
 								if (mm > m)
 									mm = m;
-#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
+							#pragma omp parallel for num_threads(T) schedule(dynamic, 1)
 								for (kk = k; kk < mm; kk++)
 								{
 									// cerr<<"kk   "<<kk<<endl;
-									Sequence *seq = sequences[kk];
+									Sequence* seq = sequences[kk];
 									if (seq->state & IS_REDUNDANT)
 										continue;
 									int tid = omp_get_thread_num();
 									// cerr<<"tid  "<<tid<<endl;
-									CheckOne(seq, local_word_table, params[tid], buffers[tid], options,my_rank);
+									CheckOne(seq, local_word_table, params[tid], buffers[tid], options, my_rank);
 									// if (options.store_disk && (seq->state & IS_REDUNDANT))
 									// 	seq->SwapOut();
 								}
@@ -4822,9 +4930,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								// cerr<<"11111"<<endl;
 								for (int ks = k; ks < mm; ks++)
 								{
-									Sequence *seq = sequences[ks];
-									j= k = ks+1;
-									if (j == sequences.size()  && !read_flag[i])
+									Sequence* seq = sequences[ks];
+									j = k = ks + 1;
+									if (j == sequences.size() && !read_flag[i])
 									{
 										// cerr << "i    " << i << endl;
 										for (int src = 1; src < rank_size; ++src)
@@ -4832,17 +4940,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 											int N;
 											// cerr << "this     " << "receive     " << src << "   size    " << C << endl;
 											MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-											int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
-											int *flat_size = (int *)malloc(N * sizeof(int));
-											float *flat_identity = (float *)malloc(N * sizeof(float));
-											int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
-											char *flat_identifier = (char *)malloc(N * (max_idf + 1));
+											int* prefix_seq = (int*)malloc((C + 1) * sizeof(int));
+											int* flat_size = (int*)malloc(N * sizeof(int));
+											float* flat_identity = (float*)malloc(N * sizeof(float));
+											int* flat_coverage = (int*)malloc(N * 4 * sizeof(int));
+											char* flat_identifier = (char*)malloc(N * (max_idf + 1));
 											MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 											MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 											MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 											MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 											MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-#pragma omp parallel for num_threads(T)
+										#pragma omp parallel for num_threads(T)
 											for (int c = 0; c < C; ++c) // 串行循环
 											{
 												int begin = prefix_seq[c];
@@ -4853,7 +4961,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 												for (int cc = 0; cc < len; ++cc)
 												{
 													int i = begin + cc;
-													const char *idptr = flat_identifier + i * (max_idf + 1);
+													const char* idptr = flat_identifier + i * (max_idf + 1);
 
 													clusters_identifier[c].emplace_back(std::string(idptr));
 													clusters_size[c].emplace_back(flat_size[i]);
@@ -4883,7 +4991,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 											for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 											{
 												clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-												int *c = &clusters_coverage[kk][kkk * 4];
+												int* c = &clusters_coverage[kk][kkk * 4];
 												clstr_fout << " at ";
 												if (options.print)
 													clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
@@ -4941,7 +5049,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						local_last_table.indexCounts.swap(local_word_table.indexCounts);
 						local_last_table.size = local_word_table.size;
 						local_word_table.size = 0;
-						
+
 						// Sequence *seq = sequences[j];
 						// // cerr<<"seq  "<<sequences[j]->index<<endl;
 						// // cerr<<"rep size  "<<rep_seqs.size()<<endl;
@@ -4959,8 +5067,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 				cerr << "word table size" << word_table.sequences.size() << endl;
 			}
-				local_word_table.Clear();
-				local_last_table.Clear();
+			local_word_table.Clear();
+			local_last_table.Clear();
 			// cout << "\nSeqs 9885 state: " << sequences[9885]->state;
 			// cout << "\nSeqs 9891 state: " << sequences[9891]->state << endl;
 			// cout << "\n";
@@ -4970,37 +5078,37 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 			encode_WordTable(word_table, info_buf, i,
 				start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
-				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size,send_file_index,start_global_id);
-				
+				indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index, start_global_id);
+
 			if (i == total_chunk) {
-				info_buf[1]=0;
+				info_buf[1] = 0;
 			}
 			// cout<<"reach barrier from Rank   "<<my_rank<<endl;
 			MPI_Barrier(MPI_COMM_WORLD);
-			
+
 			MPI_Bcast((void*)info_buf, 6, MPI_LONG, source, MPI_COMM_WORLD);
 			// cerr<<"send len  "<<info_buf[1]<<endl;
-		
+
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			const size_t bcast_block_size = 512 * 1024 * 1024/sizeof(long);
+			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
 			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
-			for (size_t offset = 0; offset <  indexCount_buf_size; offset +=bcast_block_size) {
-    		size_t size = min(bcast_block_size,  indexCount_buf_size - offset);
-    		MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
+			for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size) {
+				size_t size = min(bcast_block_size, indexCount_buf_size - offset);
+				MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
 			}
 			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast(&remaining,1, MPI_INT,  source, MPI_COMM_WORLD);
-	
+			MPI_Bcast(&remaining, 1, MPI_INT, source, MPI_COMM_WORLD);
+
 			if (!remaining)
 			{
 				//cerr << "start_id    " << start_global_id << endl;
-				output_index=last_rep_index;
+				output_index = last_rep_index;
 				C = rep_seqs.size() - last_rep_index;
 				for (int kk = 0; kk < sequences.size(); kk++)
 				{
-					Sequence *seq = sequences[kk];
+					Sequence* seq = sequences[kk];
 					if (seq->state & IS_REDUNDANT && seq->cluster_id != -1)
 					{
 
@@ -5016,65 +5124,65 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						clusters_coverage[seq->cluster_id - last_rep_index].emplace_back(seq->coverage[3]);
 					}
 				}
-				 for (int kk = 0; kk < C; kk++){
-					rep_identifier[kk]=sequences[rep_seqs[kk+last_rep_index]-start_global_id]->identifier;
-					rep_size[kk]=sequences[rep_seqs[kk+last_rep_index]-start_global_id]->size;
+				for (int kk = 0; kk < C; kk++) {
+					rep_identifier[kk] = sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier;
+					rep_size[kk] = sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size;
 				}
 				for (int kk = last_rep_index; kk < rep_seqs.size(); kk++)
 				{
-					Sequence *seq = sequences[rep_seqs[kk] - start_global_id];
+					Sequence* seq = sequences[rep_seqs[kk] - start_global_id];
 					fout << ">" << seq->identifier << "\n";
 					fout << seq->true_data << "\n";
 					seq->Clear();
 				}
-				if(i==chunks_num - 1){
-	
-		
-				for (int kk = 0; kk < C; kk++)
-				{
-					clstr_fout << ">Cluster " << (last_rep_index + kk) << '\n';
-					clstr_fout << 0 << '\t' << sequences[rep_seqs[kk+last_rep_index]-start_global_id]->size << "aa, >" << sequences[rep_seqs[kk+last_rep_index]-start_global_id]->identifier << "..." << " *" << endl;
-					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
+				if (i == chunks_num - 1) {
+
+
+					for (int kk = 0; kk < C; kk++)
 					{
-						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-						int *c = &clusters_coverage[kk][kkk * 4];
-						clstr_fout << " at ";
-						if (options.print)
-							clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
-						clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
+						clstr_fout << ">Cluster " << (last_rep_index + kk) << '\n';
+						clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
+						for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
+						{
+							clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
+							int* c = &clusters_coverage[kk][kkk * 4];
+							clstr_fout << " at ";
+							if (options.print)
+								clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
+							clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
-						clstr_fout << '\n';
+							clstr_fout << '\n';
+						}
 					}
+
+
+					// 	// seq->Clear();
+					// }
+
+					// for(int jj=all_chunks[i].first;jj<all_chunks[i].second;jj++){
+					// 	Sequence *seq = sequences[jj];
+					// 	seq->Clear();
+					// }
+					// cerr<<"gogogog!"<<endl;
+					// clusters_identifier.clear();
+
+					// clusters_size.clear();
+					// clusters_identity.clear();
+					// clusters_coverage.clear();
+					clusters_identifier.clear();
+
+					clusters_size.clear();
+					clusters_identity.clear();
+					clusters_coverage.clear();
+					rep_size.clear();
+					rep_identifier.clear();
+					clusters_identifier.resize(chunk_size);
+					clusters_size.resize(chunk_size);
+					clusters_identity.resize(chunk_size);
+					clusters_coverage.resize(chunk_size);
+					rep_size.resize(chunk_size);
+					rep_identifier.resize(chunk_size);
 				}
-				
-
-				// 	// seq->Clear();
-				// }
-			
-				// for(int jj=all_chunks[i].first;jj<all_chunks[i].second;jj++){
-				// 	Sequence *seq = sequences[jj];
-				// 	seq->Clear();
-				// }
-				// cerr<<"gogogog!"<<endl;
-				// clusters_identifier.clear();
-
-				// clusters_size.clear();
-				// clusters_identity.clear();
-				// clusters_coverage.clear();
-				clusters_identifier.clear();
-
-				clusters_size.clear();
-				clusters_identity.clear();
-				clusters_coverage.clear();
-				rep_size.clear();
-				rep_identifier.clear();
-				clusters_identifier.resize(chunk_size);
-				clusters_size.resize(chunk_size);
-				clusters_identity.resize(chunk_size);
-				clusters_coverage.resize(chunk_size);
-				rep_size.resize(chunk_size);
-				rep_identifier.resize(chunk_size);
-			}
 				if (i == chunks_num - 1)
 				{
 					break;
@@ -5084,7 +5192,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// clusters_identity.resize(chunk_size);
 				// clusters_coverage.resize(chunk_size);
 				last_rep_index = rep_seqs.size();
-				start_global_id+=sequences.size();
+				start_global_id += sequences.size();
 				for (int i = 0; i < sequences.size(); i++)
 					delete sequences[i];
 				sequences.clear();
@@ -5107,9 +5215,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 				else
 					seq = chunk_kseq[file_index];
-				char *id_ptr = new char[max_idf + 1];
-				char *data_ptr = new char[max_len + 1];
-				char *true_ptr = new char[max_len + 1];
+				char* id_ptr = new char[max_idf + 1];
+				char* data_ptr = new char[max_len + 1];
+				char* true_ptr = new char[max_len + 1];
 				while ((len = kseq_read(seq)) >= 0)
 				{
 					memcpy(id_ptr, seq->name.s, seq->name.l);
@@ -5125,7 +5233,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					one.true_data = true_ptr;
 					one.size = len;
 					one.tot_length = len + seq->name.l;
-					one.index = sequences.size()+start_global_id;
+					one.index = sequences.size() + start_global_id;
 					// cerr<<"one.index  "<<one.index<<endl;
 					sequences.Append(new Sequence(one));
 					if (sequences[sequences.size() - 1]->swap == NULL)
@@ -5160,19 +5268,19 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// cerr<<"chunks start  "<<all_chunks[i+1].first<<endl;
 				// cerr<<"chunks end  "<<all_chunks[i+1].second<<endl;
 				// cerr<<"size  "<<size<<endl;
-				int *rep_chunk = (int *)malloc(size * 2 * sizeof(int));
+				int* rep_chunk = (int*)malloc(size * 2 * sizeof(int));
 				// float *identity_array = (float *)malloc(size * sizeof(float));
 				MPI_Recv(rep_chunk, size * 2, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				// MPI_Recv(identity_array, size, MPI_FLOAT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 				cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
 				target_worker = (target_worker + 1) % (rank_size - 1);
-				#pragma omp parallel for num_threads(T)
+			#pragma omp parallel for num_threads(T)
 				// for (int j = all_chunks[i + 1].first; j < all_chunks[i + 1].second; j++)
 				for (int j = 0; j < sequences.size(); j++)
 				{
 					// int index = (j - all_chunks[i + 1].first) * 2;
-					int index = j* 2;
-					Sequence *seq = sequences[j];
+					int index = j * 2;
+					Sequence* seq = sequences[j];
 					if (rep_chunk[index] == 0)
 					{
 						// continue_size++;
@@ -5194,7 +5302,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// free(identity_array);
 				// identity_array = NULL;
 				// cerr<<"continue_size   "<<continue_size<<endl;
-				}
+			}
 			if (i == chunks_num - 1)
 			{
 				break;
@@ -5210,7 +5318,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			local_last_table.Clear();
 			local_word_table.Clear();
 			word_table.Clear();
-			
+
 			// free momery
 			free(info_buf);
 			free(cluster_id_buf);
@@ -5232,7 +5340,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 		for (int kk = last_rep_index; kk < rep_seqs.size(); kk++)
 		{
-			Sequence *seq = sequences[rep_seqs[kk]-start_global_id];
+			Sequence* seq = sequences[rep_seqs[kk] - start_global_id];
 			fout << ">" << seq->identifier << "\n";
 			fout << seq->true_data << "\n";
 			// seq->Clear();
@@ -5256,34 +5364,34 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		seqs_suffix_buf = NULL;
 		prefix_buf = NULL;
 		indexCount_buf = NULL;
-		
+
 	}
 
 	if (worker) {
-		vector<int>read_chunk(chunks_num,0);
+		vector<int>read_chunk(chunks_num, 0);
 		kseq_t* seq = nullptr;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int start = 0;
 		// cerr<<"my_rank   "<<my_rank<<endl;
-		if(my_rank==1) start=1;
+		if (my_rank == 1) start = 1;
 		// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
 		int chunksNum = all_chunks.size() * (rank_size - 1) + 1;
-		int remaining=0;
-		long start_id=0;
-		int read_stop=0;
-		while(1){
+		int remaining = 0;
+		long start_id = 0;
+		int read_stop = 0;
+		while (1) {
 			// if (round > 1) break;
 			// cout<<"reach barrier from Rank   "<<my_rank<<endl;
 			MPI_Barrier(MPI_COMM_WORLD);
-			int done_flag=0;
-			int now_rank=0;
+			int done_flag = 0;
+			int now_rank = 0;
 			info_buf = (long*)malloc(6 * sizeof(long));
 
 			MPI_Bcast((void*)info_buf, 6, MPI_LONG, source, MPI_COMM_WORLD);
 			int soure_chunk = info_buf[0];
-			int file_index=info_buf[5];
-			start_id=soure_chunk*chunk_size;
+			int file_index = info_buf[5];
+			start_id = soure_chunk * chunk_size;
 			if (read_chunk[soure_chunk] == 0)
 			{
 				int id;
@@ -5308,8 +5416,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 				else
 					seq = chunk_kseq[file_index];
-				char *id_ptr = new char[max_idf + 1];
-				char *data_ptr = new char[max_len + 1];
+				char* id_ptr = new char[max_idf + 1];
+				char* data_ptr = new char[max_len + 1];
 				while ((len = kseq_read(seq)) >= 0)
 				{
 					memcpy(id_ptr, seq->name.s, seq->name.l);
@@ -5324,21 +5432,21 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					one.tot_length = len + seq->name.l;
 					one.index = rep_sequences.size();
 					rep_sequences.Append(new Sequence(one));
-			
-						
+
+
 					if (rep_sequences[rep_sequences.size() - 1]->swap == NULL)
 						rep_sequences[rep_sequences.size() - 1]->ConvertBases();
 					if (rep_sequences.size() % chunk_size == 0)
 					{
-						chunk_kseq[file_index] =seq;
+						chunk_kseq[file_index] = seq;
 						break;
 					}
 				}
-				read_chunk[soure_chunk]=1;
+				read_chunk[soure_chunk] = 1;
 				one.identifier = nullptr;
-    			one.data = nullptr;
+				one.data = nullptr;
 				delete[] id_ptr;
-    			delete[] data_ptr;
+				delete[] data_ptr;
 			}
 			// cerr<<"soure_chunk  "<<soure_chunk<<endl;
 			// cerr<<"my_rank    "<<my_rank<<"start    "<<start<<"chunks_id"<<chunks_id[start]<<endl;
@@ -5347,70 +5455,70 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Bcast((void*)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
 			MPI_Bcast((void*)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			const size_t bcast_block_size = 512 * 1024 * 1024/sizeof(long);
+			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
 			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
-			for (size_t offset = 0; offset < indexCount_buf_size; offset +=bcast_block_size) {
-    		size_t size = min(bcast_block_size, indexCount_buf_size - offset);
-    		MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
+			for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size) {
+				size_t size = min(bcast_block_size, indexCount_buf_size - offset);
+				MPI_Bcast((long*)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
 			}
 			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
-			record+=info_buf[1];
+			record += info_buf[1];
 
-				// cerr<<"hi   "<<endl;
+			// cerr<<"hi   "<<endl;
 			MPI_Bcast(&remaining, 1, MPI_INT, source, MPI_COMM_WORLD);
 			//cerr<<"remaining   "<<remaining<<endl;
 			decode_WordTable(word_table, info_buf,
 				cluster_id_buf, seqs_suffix_buf,
-				indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2],start_id);
-				// cerr<<"my rank   "<<my_rank<<"now word  table"<<word_table.sequences.size()<<endl;
+				indexCount_buf, prefix_buf, indexCount_buf_size, info_buf[2], start_id);
+			// cerr<<"my rank   "<<my_rank<<"now word  table"<<word_table.sequences.size()<<endl;
 			int remain_chunks = all_chunks.size() - start;
 
-			if(remain_chunks==0){
-				
-				if(info_buf[1]==0)
-				break;
-			// cerr<<"pass  "<<endl;
-			done_flag=1;
-			MPI_Send(&done_flag, 1, MPI_INT, 0,999, MPI_COMM_WORLD); 
-			
+			if (remain_chunks == 0) {
+
+				if (info_buf[1] == 0)
+					break;
+				// cerr<<"pass  "<<endl;
+				done_flag = 1;
+				MPI_Send(&done_flag, 1, MPI_INT, 0, 999, MPI_COMM_WORLD);
+
 			}
 			// cerr<<"my rank   "<<my_rank<<"remain_chunk"<<remain_chunks<<endl;
 			for (i = 0;i < remain_chunks; i++) {
 
 				int idx = i + start;
-				if(idx==all_chunks.size())break;
+				if (idx == all_chunks.size())break;
 				// cout <<my_rank<<"     "<<chunks_id[idx]<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
-				
+
 			#pragma omp parallel for num_threads(T) schedule(dynamic)
 				for (j = my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
 
 					Sequence* seq = sequences[j];
-					
+
 					// cerr<<seq->data<<endl;
 					// if(j==1234)
 					// cerr<<"rep name  "<<seq->identifier<<endl;
 					// if (options.store_disk) seq->SwapIn();
-				
+
 					if (seq->state & IS_REDUNDANT) continue;
 					int tid = omp_get_thread_num();
 
 					if (seq->state & IS_REDUNDANT) continue;
-					
-					CheckOne(seq, word_table, params[tid], buffers[tid], options,my_rank);
+
+					CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
 					// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 
-				if (chunks_id[start] == soure_chunk + 1&&!remaining) {
+				if (chunks_id[start] == soure_chunk + 1 && !remaining) {
 					// cerr<<"this"<<endl;
-					int size = my_chunks[start].second - my_chunks[start].first+1;
+					int size = my_chunks[start].second - my_chunks[start].first + 1;
 					// cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
 					int* rep_chunk = (int*)malloc(size * 2 * sizeof(int));
 					// float* identity_array = (float*)malloc(size * sizeof(float));
-					for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
-						int index = (j - my_chunks[start].first)*2;
+					for (j = my_chunks[start].first;j <= my_chunks[start].second;j++) {
+						int index = (j - my_chunks[start].first) * 2;
 						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT) {
-							
+
 							rep_chunk[index] = (int)seq->state;
 							rep_chunk[index + 1] = -1;
 							// rep_chunk[index + 2] = seq->distance;
@@ -5436,12 +5544,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
 					// MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
 					free(rep_chunk);
-					rep_chunk=NULL;
+					rep_chunk = NULL;
 					// free(identity_array);
 					// identity_array=NULL;
-						start++;
-						i--;
-						now_rank=1;
+					start++;
+					i--;
+					now_rank = 1;
 					// start++;
 					// i--;
 				}
@@ -5462,28 +5570,28 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			prefix_buf = NULL;
 			indexCount_buf = NULL;
 			// cerr<<"pass  "<<endl;
-			done_flag=1;
-			MPI_Send(&done_flag, 1, MPI_INT, 0,999, MPI_COMM_WORLD);  
+			done_flag = 1;
+			MPI_Send(&done_flag, 1, MPI_INT, 0, 999, MPI_COMM_WORLD);
 			if (!remaining)
-			{	
-				
-				int C = record-record_last;
+			{
+
+				int C = record - record_last;
 				//cerr<<"my rank"<<my_rank<<"send   size    "<< C<<endl;
 				vector<vector<string>> clusters_identifier(C);
 				vector<vector<float>> clusters_identity(C);
 				vector<vector<int>> clusters_size(C);
 				vector<vector<int>> clusters_coverage(C);
 				for (i = 0; i < remain_chunks; i++)
-				
-				{	
-					int idx ;
-					if (now_rank==1)
-					 idx = i + start-1;
+
+				{
+					int idx;
+					if (now_rank == 1)
+						idx = i + start - 1;
 					else
-					 idx = i + start;
+						idx = i + start;
 					for (j = my_chunks[idx].first; j <= my_chunks[idx].second; j++)
 					{
-						Sequence *seq = sequences[j];
+						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT && seq->cluster_id != -1)
 						{
 							clusters_identifier[seq->cluster_id - record_last].emplace_back(std::string(seq->identifier));
@@ -5497,13 +5605,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						}
 					}
 				}
-				int *prefix_seq,  *flat_size, *flat_coverage;  
-				float *flat_identity;
-				char *flat_identifier;
+				int* prefix_seq, * flat_size, * flat_coverage;
+				float* flat_identity;
+				char* flat_identifier;
 				int  N;
-				int IDLEN=max_idf+1;
-				send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
-				int CHAR_TOTAL = N * (max_idf+1);
+				int IDLEN = max_idf + 1;
+				send_cluster(clusters_identifier, clusters_size, clusters_identity, clusters_coverage, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier, C, N, IDLEN);
+				int CHAR_TOTAL = N * (max_idf + 1);
 				MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
 				MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
 				MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
@@ -5530,13 +5638,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// clusters_identity.resize(chunk_size);
 				// clusters_coverage.resize(chunk_size);
 			}
-			
+
 		}
 		for (int i = 0; i < rank_size - 1; i++) {
-    if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
-    if (chunk_fp[i]) gzclose(chunk_fp[i]);
-}
-	
+			if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
+			if (chunk_fp[i]) gzclose(chunk_fp[i]);
+		}
+
 	}
 
 	// if (master) {
@@ -5552,13 +5660,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	MPI_Barrier(MPI_COMM_WORLD);
 }
 // //执行聚类
-void SequenceDB::DoClustering( int T, const Options & options )
+void SequenceDB::DoClustering(int T, const Options& options)
 {
 	int i, j, k;
 	int NAA = options.NAA;
 	double aa1_cutoff = options.cluster_thd;//aa1：单个相同字符数的最小比例
-	double aas_cutoff = 1 - (1-options.cluster_thd)*4;
-	double aan_cutoff = 1 - (1-options.cluster_thd)*options.NAA;
+	double aas_cutoff = 1 - (1 - options.cluster_thd) * 4;
+	double aan_cutoff = 1 - (1 - options.cluster_thd) * options.NAA;
 	int seq_no = sequences.size();
 	int frag_no = seq_no;
 	int frag_size = options.frag_size;
@@ -5568,40 +5676,40 @@ void SequenceDB::DoClustering( int T, const Options & options )
 
 	//printf( "%li\n", options.mem_limit );
 
-	if (frag_size){ 
+	if (frag_size) {
 		frag_no = 0;
-		for (i=0; i<seq_no; i++) frag_no += (sequences[i]->size - NAA) / frag_size + 1;
+		for (i = 0; i < seq_no; i++) frag_no += (sequences[i]->size - NAA) / frag_size + 1;
 	}
 
-	if( not options.isEST )
+	if (not options.isEST)
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA);
 
 	Vector<WorkingParam> params(T);
 	Vector<WorkingBuffer> buffers(T);
-	for(i=0; i<T; i++){
-		params[i].Set( aa1_cutoff, aas_cutoff, aan_cutoff );
-		buffers[i].Set( frag_no, max_len, options );
+	for (i = 0; i < T; i++) {
+		params[i].Set(aa1_cutoff, aas_cutoff, aan_cutoff);
+		buffers[i].Set(frag_no, max_len, options);
 	}
 
 	// word_table as self comparing table and table buffer:
-	WordTable word_table( options.NAA, NAAN );
+	WordTable word_table(options.NAA, NAAN);
 
-	WordTable last_table( options.NAA, NAAN );
+	WordTable last_table(options.NAA, NAAN);
 
 	int N = sequences.size();
 	int K = N - 100 * T;
-	size_t mem_need = MinimalMemory( frag_no, buffers[0].total_bytes, T, options );
-	size_t mem_limit = MemoryLimit( mem_need, options );
+	size_t mem_need = MinimalMemory(frag_no, buffers[0].total_bytes, T, options);
+	size_t mem_limit = MemoryLimit(mem_need, options);
 	size_t mem, mega = 1000000;
 	size_t tabsize = 0;
 	int remaining = 0;
 
-	Options opts( options );
-	opts.ComputeTableLimits( min_len, max_len, len_n50, mem_need );
+	Options opts(options);
+	opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
 
 	omp_set_num_threads(T);
-	for(i=0; i<N; ){
+	for (i = 0; i < N; ) {
 		int start = i;
 		int m = i;
 		size_t sum = remaining;
@@ -5609,86 +5717,87 @@ void SequenceDB::DoClustering( int T, const Options & options )
 		size_t max_items = opts.max_entries;
 		size_t max_seqs = opts.max_sequences;
 		size_t items = 0;
-		if( i == 0 && max_seqs > 1000 ){ // first SCB with small size
+		if (i == 0 && max_seqs > 1000) { // first SCB with small size
 			max_items /= 8;
 			max_seqs /= 8;
 		}
-		while( m < N && (sum*redundancy) < max_seqs && items < max_items ){
-			Sequence *seq = sequences[m];
-			if( ! (seq->state & IS_REDUNDANT) ){
-				if ( options.store_disk ) seq->SwapIn();
+		while (m < N && (sum * redundancy) < max_seqs && items < max_items) {
+			Sequence* seq = sequences[m];
+			if (!(seq->state & IS_REDUNDANT)) {
+				if (options.store_disk) seq->SwapIn();
 				//items += seq->size;
 				items += (size_t)(seq->size * redundancy);
 				sum += 1;
 			}
-			m ++;
+			m++;
 		}
-		if( (m > i + 1E4) && (m > i + (N - i) / (2+T)) ) m = i + (N - i) / (2+T);
-		if( m == i || m >= N ){
+		if ((m > i + 1E4) && (m > i + (N - i) / (2 + T))) m = i + (N - i) / (2 + T);
+		if (m == i || m >= N) {
 			m = N;
-			if( m > i + 1E3 ) m = i + (N - i) / (2+T);
+			if (m > i + 1E3) m = i + (N - i) / (2 + T);
 		}
 		//printf( "m = %i  %i,  %i\n", i, m, m-i );
-		m=m*0.5;
-		printf( "\r# comparing sequences from  %9i  to  %9i\n", i, m );
-		if( last_table.size ){
-			int print = (m-i)/20 + 1;
-			#pragma omp parallel for schedule( dynamic, 1 )
-			for(int j=i; j<m; j++){
-				Sequence *seq = sequences[j];
+		m = m * 0.5;
+		printf("\r# comparing sequences from  %9i  to  %9i\n", i, m);
+		if (last_table.size) {
+			int print = (m - i) / 20 + 1;
+		#pragma omp parallel for schedule( dynamic, 1 )
+			for (int j = i; j < m; j++) {
+				Sequence* seq = sequences[j];
 				if (seq->state & IS_REDUNDANT) continue;
 				int tid = omp_get_thread_num();
-				CheckOne( seq, last_table, params[tid], buffers[tid], options );
-				if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
-				if( j%print==0 ){
-					printf( "." ); fflush( stdout );
+				CheckOne(seq, last_table, params[tid], buffers[tid], options);
+				if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+				if (j % print == 0) {
+					printf("."); fflush(stdout);
 				}
 			}
 			int may_stop = 0;
 			int self_stop = 0;
 			float p0 = 0;
-			int min = last_table.sequences[ last_table.sequences.size()-1 ]->size;
+			int min = last_table.sequences[last_table.sequences.size() - 1]->size;
 			int m0 = m;
 			bool stop = false;
-			#pragma omp parallel for schedule( dynamic, 1 )
-			for(int j=m-1; j<N; j++){
-				#pragma omp flush (stop)
-				if( ! stop ){
-					if( j+1 == N ) may_stop = 1;
-					if( j == (m0-1) ){ // use m0 to avoid other iterations satisfying the condition:
+		#pragma omp parallel for schedule( dynamic, 1 )
+			for (int j = m - 1; j < N; j++) {
+			#pragma omp flush (stop)
+				if (!stop) {
+					if (j + 1 == N) may_stop = 1;
+					if (j == (m0 - 1)) { // use m0 to avoid other iterations satisfying the condition:
 						int tid = omp_get_thread_num();
-						for(int ks=i; ks<m; ks++){
-							Sequence *seq = sequences[ks];
+						for (int ks = i; ks < m; ks++) {
+							Sequence* seq = sequences[ks];
 							i = ks + 1;
 							if (seq->state & IS_REDUNDANT) continue;
-							ClusterOne( seq, ks, word_table, params[tid], buffers[tid], options );
-							if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
-							if( may_stop and word_table.sequences.size() >= 100 ) break;
-							if( word_table.size >= max_items ) break;
+							ClusterOne(seq, ks, word_table, params[tid], buffers[tid], options);
+							if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+							if (may_stop and word_table.sequences.size() >= 100) break;
+							if (word_table.size >= max_items) break;
 							int tmax = max_seqs - (frag_size ? seq->size / frag_size + 1 : 0);
-							if( word_table.sequences.size() >= tmax ) break;
+							if (word_table.sequences.size() >= tmax) break;
 						}
 						self_stop = 1;
-					}else{
-						Sequence *seq = sequences[j];
+					}
+					else {
+						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT) continue;
-						if ( options.store_disk ){
-							#pragma omp critical
+						if (options.store_disk) {
+						#pragma omp critical
 							seq->SwapIn();
 						}
 						int tid = omp_get_thread_num();
-						CheckOne( seq, last_table, params[tid], buffers[tid], options );
-						if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
-						if( min > params[tid].len_upper_bound ){
+						CheckOne(seq, last_table, params[tid], buffers[tid], options);
+						if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+						if (min > params[tid].len_upper_bound) {
 							may_stop = 1;
 							stop = true;
-							#pragma omp flush (stop)
+						#pragma omp flush (stop)
 						}
-						if( self_stop && tid ==1 ){
-							float p = (100.0*j)/N;
-							if( p > p0+1E-1 ){ // print only if the percentage changed
-								printf( "\r%4.1f%%", p );
-								fflush( stdout );
+						if (self_stop && tid == 1) {
+							float p = (100.0 * j) / N;
+							if (p > p0 + 1E-1) { // print only if the percentage changed
+								printf("\r%4.1f%%", p);
+								fflush(stdout);
 								p0 = p;
 							}
 						}
@@ -5697,308 +5806,310 @@ void SequenceDB::DoClustering( int T, const Options & options )
 				}
 			}
 		}
-		if( i == start || m == N ){
+		if (i == start || m == N) {
 			//printf( "comparing the first or last or very small group ...\n" ); fflush( stdout );
-			for(k=i; k<m; ){
+			for (k = i; k < m; ) {
 				int kk, mm = k, sum = 0;
-				while( mm < m && sum < 1E5 ){
-					if( ! (sequences[mm]->state & IS_REDUNDANT) ) sum += sequences[mm]->size;
+				while (mm < m && sum < 1E5) {
+					if (!(sequences[mm]->state & IS_REDUNDANT)) sum += sequences[mm]->size;
 					mm += 1;
 				}
-				if( mm < k + 1000 ) mm = k + 1000;
-				if( mm > m ) mm = m;
-				#pragma omp parallel for schedule( dynamic, 1 )
-				for(kk=k; kk<mm; kk++){
-					Sequence *seq = sequences[kk];
+				if (mm < k + 1000) mm = k + 1000;
+				if (mm > m) mm = m;
+			#pragma omp parallel for schedule( dynamic, 1 )
+				for (kk = k; kk < mm; kk++) {
+					Sequence* seq = sequences[kk];
 					if (seq->state & IS_REDUNDANT) continue;
 					int tid = omp_get_thread_num();
-					CheckOne( seq, word_table, params[tid], buffers[tid], options );
-					if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
+					CheckOne(seq, word_table, params[tid], buffers[tid], options);
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
 				bool bk = false;
-				for(int ks=k; ks<mm; ks++){
-					Sequence *seq = sequences[ks];
+				for (int ks = k; ks < mm; ks++) {
+					Sequence* seq = sequences[ks];
 					i = k = ks + 1;
 					if (seq->state & IS_REDUNDANT) continue;
-					ClusterOne( seq, ks, word_table, params[0], buffers[0], options );
+					ClusterOne(seq, ks, word_table, params[0], buffers[0], options);
 					bk = true;
-					if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
-					if( word_table.size >= max_items ) break;
+					if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+					if (word_table.size >= max_items) break;
 					int tmax = max_seqs - (frag_size ? seq->size / frag_size + 1 : 0);
-					if( word_table.sequences.size() >= tmax ) break;
+					if (word_table.sequences.size() >= tmax) break;
 					bk = false;
 				}
-				if( bk ) break;
+				if (bk) break;
 			}
-		}else if( i < m ){
-			remaining = remaining/2 + (m - i);
-			printf( "\r---------- %6i remaining sequences to the next cycle\n", m-i );
 		}
-		printf( "---------- new table with %8i representatives\n", word_table.sequences.size() );
-		if( (last_table.size + word_table.size) > tabsize )
+		else if (i < m) {
+			remaining = remaining / 2 + (m - i);
+			printf("\r---------- %6i remaining sequences to the next cycle\n", m - i);
+		}
+		printf("---------- new table with %8i representatives\n", word_table.sequences.size());
+		if ((last_table.size + word_table.size) > tabsize)
 			tabsize = last_table.size + word_table.size;
 		last_table.Clear();
-		last_table.sequences.swap( word_table.sequences );
-		last_table.indexCounts.swap( word_table.indexCounts );
+		last_table.sequences.swap(word_table.sequences);
+		last_table.indexCounts.swap(word_table.indexCounts);
 		last_table.size = word_table.size;
 		word_table.size = 0;
 	}
-	printf( "\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size() );
-	mem = (mem_need + tabsize*sizeof(IndexCount))/mega;
-	printf( "\nApproximated maximum memory consumption: %zuM\n", mem );
+	printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
+	mem = (mem_need + tabsize * sizeof(IndexCount)) / mega;
+	printf("\nApproximated maximum memory consumption: %zuM\n", mem);
 	last_table.Clear();
 	word_table.Clear();
 }
 
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank )
+int SequenceDB::CheckOne(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int my_rank)
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
-	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options ,my_rank);
+	if (options.isEST) return CheckOneEST(seq, table, param, buf, options);
+	return CheckOneAA(seq, table, param, buf, options, my_rank);
 }
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOne(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options)
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
-	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options,1 );
+	if (options.isEST) return CheckOneEST(seq, table, param, buf, options);
+	return CheckOneAA(seq, table, param, buf, options, 1);
 }
-int SequenceDB::CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
+int SequenceDB::CheckOne_worker(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int id)
 {
 	int len = seq->size;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
-	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA_worker( seq, table, param, buf, options,id);
+	if (options.isEST) return CheckOneEST(seq, table, param, buf, options);
+	return CheckOneAA_worker(seq, table, param, buf, options, id);
 }
-int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
+int SequenceDB::CheckOneAA_worker(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int id)
 {
 	// cerr<<"seq   "<<seq->index<<endl;
 
-	NVector<IndexCount> & lookCounts = buf.lookCounts;
-	NVector<uint32_t> & indexMapping = buf.indexMapping;
-	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
-	Vector<INTs> & aap_list = buf.aap_list;
-	Vector<INTs> & aap_begin = buf.aap_begin;
-	Vector<int>  & word_encodes = buf.word_encodes;
-	Vector<int>  & taap = buf.taap;
+	NVector<IndexCount>& lookCounts = buf.lookCounts;
+	NVector<uint32_t>& indexMapping = buf.indexMapping;
+	Vector<INTs>& word_encodes_no = buf.word_encodes_no;
+	Vector<INTs>& aap_list = buf.aap_list;
+	Vector<INTs>& aap_begin = buf.aap_begin;
+	Vector<int>& word_encodes = buf.word_encodes;
+	Vector<int>& taap = buf.taap;
 	double aa1_cutoff = param.aa1_cutoff;
 	double aa2_cutoff = param.aas_cutoff;
 	double aan_cutoff = param.aan_cutoff;
 
-	char *seqi = seq->data;
+	char* seqi = seq->data;
 	int j, k, j1, len = seq->size;
 	int flag = 0;
 	int frag_size = options.frag_size;
-	int & aln_cover_flag = param.aln_cover_flag;
-	int & required_aa1 = param.required_aa1;
-	int & required_aa2 = param.required_aas;
-	int & required_aan = param.required_aan;
-	int & min_aln_lenS = param.min_aln_lenS;
-	int & min_aln_lenL = param.min_aln_lenL;
+	int& aln_cover_flag = param.aln_cover_flag;
+	int& required_aa1 = param.required_aa1;
+	int& required_aa2 = param.required_aas;
+	int& required_aan = param.required_aan;
+	int& min_aln_lenS = param.min_aln_lenS;
+	int& min_aln_lenL = param.min_aln_lenL;
 
 	int NAA = options.NAA;
 	int S = table.sequences.size();
 	int len_eff = len;
 
-	if( S ){
-		int min = table.sequences[S-1]->size;
-		if( min < len ){
-			if( len * options.diff_cutoff2 > min ) min = (int)(len * options.diff_cutoff2);
-			if( (len - options.diff_cutoff_aa2) > min ) min = len - options.diff_cutoff_aa2;
+	if (S) {
+		int min = table.sequences[S - 1]->size;
+		if (min < len) {
+			if (len * options.diff_cutoff2 > min) min = (int)(len * options.diff_cutoff2);
+			if ((len - options.diff_cutoff_aa2) > min) min = len - options.diff_cutoff_aa2;
 			len_eff = min;
 		}
 	}
 
-    //liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
-    //longer seqeunce * -aL -band_width
-    if ( S ) {
-		int min = table.sequences[S-1]->size;
+	//liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
+	//longer seqeunce * -aL -band_width
+	if (S) {
+		int min = table.sequences[S - 1]->size;
 		int min_red = min * options.long_coverage - options.band_width;
 		if (len < min_red) return 0; // return flag=0
-	} 
+	}
 
-	param.ControlShortCoverage( len_eff, options );
-	param.ComputeRequiredBases( options.NAA, 2, options );
+	param.ControlShortCoverage(len_eff, options);
+	param.ComputeRequiredBases(options.NAA, 2, options);
 
-	
+
 
 	// if minimal alignment length > len, return
 	// I can not return earlier, because I need to calc the word_encodes etc
-	if (options.min_control>len) return 0; // return flag=0
+	if (options.min_control > len) return 0; // return flag=0
 
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	int M = frag_size ? table.frag_count : S;
-	table.CountWords_worker(aan_no, lookCounts, indexMapping,total_encodes[id], total_encodes_no[id],false, required_aan);
+	table.CountWords_worker(aan_no, lookCounts, indexMapping, total_encodes[id], total_encodes_no[id], false, required_aan);
 	// cerr<<"daozhe"<<endl;
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
 	int len_lower_bound = param.len_lower_bound;
 	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
 	int tiden_no, band_center;
-	float tiden_pc, distance=0;
+	float tiden_pc, distance = 0;
 	int talign_info[5];
 	int best1, sum;
-	INTs *lookptr;
-	char *seqj;
-	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
+	INTs* lookptr;
+	char* seqj;
+	int frg2 = frag_size ? (len - NAA + options.band_width) / frag_size + 1 + 1 : 0;
 	int lens;
 	int has_aa2 = 0;
 
-	IndexCount *ic = lookCounts.items;
+	IndexCount* ic = lookCounts.items;
 	ic = lookCounts.items;
-	for(; ic->count; ic++){
-		if( ! frag_size ){
-			indexMapping[ ic->index ] = 0;
-			if ( ic->count < required_aan ) continue;
+	for (; ic->count; ic++) {
+		if (!frag_size) {
+			indexMapping[ic->index] = 0;
+			if (ic->count < required_aan) continue;
 		}
 
-		Sequence *rep = table.sequences[ ic->index ];
+		Sequence* rep = table.sequences[ic->index];
 		len2 = rep->size;
-		if (len2 > len_upper_bound ) continue;
-		if (options.has2D && len2 < len_lower_bound ) continue;
-		if( frag_size ){
-			uint32_t *ims = & indexMapping[ ic->index ];
+		if (len2 > len_upper_bound) continue;
+		if (options.has2D && len2 < len_lower_bound) continue;
+		if (frag_size) {
+			uint32_t* ims = &indexMapping[ic->index];
 			int count = ic->count;
 			k = (len2 - NAA) / frag_size + 1;
 			sum = 0;
-			for (j1=0; j1<frg2; j1++){
+			for (j1 = 0; j1 < frg2; j1++) {
 				uint32_t im = ims[j1];
-				if( im ) sum += lookCounts[im-1].count;
+				if (im) sum += lookCounts[im - 1].count;
 			}
 			count = sum;
-			for (j1=frg2; j1<k; j1++) {
+			for (j1 = frg2; j1 < k; j1++) {
 				uint32_t im1 = ims[j1];
-				uint32_t im2 = ims[j1-frg2];
-				if( im1 ) sum += lookCounts[im1-1].count;
-				if( im2 ) sum -= lookCounts[im2-1].count;
+				uint32_t im2 = ims[j1 - frg2];
+				if (im1) sum += lookCounts[im1 - 1].count;
+				if (im2) sum -= lookCounts[im2 - 1].count;
 				if (sum > count) count = sum;
 			}
-			if ( count < required_aan ) continue;
+			if (count < required_aan) continue;
 		}
 
-		param.ControlLongCoverage( len2, options );
+		param.ControlLongCoverage(len2, options);
 
-		if ( has_aa2 == 0 )  { // calculate AAP array
-			buf.ComputeAAP( seqi, seq->size );
+		if (has_aa2 == 0) { // calculate AAP array
+			buf.ComputeAAP(seqi, seq->size);
 			has_aa2 = 1;
 		}
 		seqj = rep->data; //NR_seq[NR90_idx[j]];
 
-		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+		band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
-				band_width1, band_left, band_center, band_right, required_aa1);
-		if ( best_sum < required_aa2 ) continue;
+			band_width1, band_left, band_center, band_right, required_aa1);
+		if (best_sum < required_aa2) continue;
 
 		int rc = FAILED_FUNC;
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
 		else
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
-		if ( rc == FAILED_FUNC ) continue;
-		if ( tiden_no < required_aa1 ) continue;
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
+		if (rc == FAILED_FUNC) continue;
+		if (tiden_no < required_aa1) continue;
 		lens = len;
-		if( options.has2D && len > len2 ) lens = len2;
+		if (options.has2D && len > len2) lens = len2;
 		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
-		tiden_pc = tiden_no / (float) len_eff1;
-		if( options.useDistance ){
-			if (distance > options.distance_thd ) continue;
+		tiden_pc = tiden_no / (float)len_eff1;
+		if (options.useDistance) {
+			if (distance > options.distance_thd) continue;
 			if (distance >= seq->distance) continue; // existing distance
-		}else{
+		}
+		else {
 			if (tiden_pc < options.cluster_thd) continue;
 			if (tiden_pc <= seq->identity) continue; // existing iden_no
 		}
 		if (aln_cover_flag) {
-			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
-			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
+			if (talign_info[3] - talign_info[2] + 1 < min_aln_lenL) continue;
+			if (talign_info[1] - talign_info[0] + 1 < min_aln_lenS) continue;
 		}
-		if( options.has2D ) seq->state |= IS_REDUNDANT ;
+		if (options.has2D) seq->state |= IS_REDUNDANT;
 		flag = 1; seq->identity = tiden_pc; seq->cluster_id = rep->cluster_id;
 		seq->distance = distance;
-		seq->coverage[0] = talign_info[0] +1;
-		seq->coverage[1] = talign_info[1] +1;
-		seq->coverage[2] = talign_info[2] +1;
-		seq->coverage[3] = talign_info[3] +1;
+		seq->coverage[0] = talign_info[0] + 1;
+		seq->coverage[1] = talign_info[1] + 1;
+		seq->coverage[2] = talign_info[2] + 1;
+		seq->coverage[3] = talign_info[3] + 1;
 		if (not options.cluster_best) break;
 		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
-		param.ComputeRequiredBases( options.NAA, 2, options );
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+		param.ComputeRequiredBases(options.NAA, 2, options);
 	}
-	if( frag_size ) ic = lookCounts.items;
-	while( ic->count ){
-		indexMapping[ ic->index ] = 0;
+	if (frag_size) ic = lookCounts.items;
+	while (ic->count) {
+		indexMapping[ic->index] = 0;
 		ic += 1;
 	}
 	lookCounts.size = 0;
 	if (flag == 1) { // if similar to old one delete it
-		if (! options.cluster_best) {
+		if (!options.cluster_best) {
 			seq->Clear();
-			seq->state |= IS_REDUNDANT ;
+			seq->state |= IS_REDUNDANT;
 		}
 	}
 	return flag;
 
 }
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank)
+int SequenceDB::CheckOneAA(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options, int my_rank)
 {
-	NVector<IndexCount> & lookCounts = buf.lookCounts;
-	NVector<uint32_t> & indexMapping = buf.indexMapping;
-	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
-	Vector<INTs> & aap_list = buf.aap_list;
-	Vector<INTs> & aap_begin = buf.aap_begin;
-	Vector<int>  & word_encodes = buf.word_encodes;
-	Vector<int>  & taap = buf.taap;
+	NVector<IndexCount>& lookCounts = buf.lookCounts;
+	NVector<uint32_t>& indexMapping = buf.indexMapping;
+	Vector<INTs>& word_encodes_no = buf.word_encodes_no;
+	Vector<INTs>& aap_list = buf.aap_list;
+	Vector<INTs>& aap_begin = buf.aap_begin;
+	Vector<int>& word_encodes = buf.word_encodes;
+	Vector<int>& taap = buf.taap;
 	double aa1_cutoff = param.aa1_cutoff;
 	double aa2_cutoff = param.aas_cutoff;
 	double aan_cutoff = param.aan_cutoff;
 	// cerr<<seq->data<<endl;
-	char *seqi = seq->data;
+	char* seqi = seq->data;
 	int j, k, j1, len = seq->size;
 	int flag = 0;
 	int frag_size = options.frag_size;
-	int & aln_cover_flag = param.aln_cover_flag;
-	int & required_aa1 = param.required_aa1;
-	int & required_aa2 = param.required_aas;
-	int & required_aan = param.required_aan;
-	int & min_aln_lenS = param.min_aln_lenS;
-	int & min_aln_lenL = param.min_aln_lenL;
+	int& aln_cover_flag = param.aln_cover_flag;
+	int& required_aa1 = param.required_aa1;
+	int& required_aa2 = param.required_aas;
+	int& required_aan = param.required_aan;
+	int& min_aln_lenS = param.min_aln_lenS;
+	int& min_aln_lenL = param.min_aln_lenL;
 
 	int NAA = options.NAA;
 	int S = table.sequences.size();
 	int len_eff = len;
 
-	if( S ){
-		int min = table.sequences[S-1]->size;
-		if( min < len ){
-			if( len * options.diff_cutoff2 > min ) min = (int)(len * options.diff_cutoff2);
-			if( (len - options.diff_cutoff_aa2) > min ) min = len - options.diff_cutoff_aa2;
+	if (S) {
+		int min = table.sequences[S - 1]->size;
+		if (min < len) {
+			if (len * options.diff_cutoff2 > min) min = (int)(len * options.diff_cutoff2);
+			if ((len - options.diff_cutoff_aa2) > min) min = len - options.diff_cutoff_aa2;
 			len_eff = min;
 		}
 	}
 
-    //liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
-    //longer seqeunce * -aL -band_width
-    if ( S ) {
-		int min = table.sequences[S-1]->size;
+	//liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
+	//longer seqeunce * -aL -band_width
+	if (S) {
+		int min = table.sequences[S - 1]->size;
 		int min_red = min * options.long_coverage - options.band_width;
 		if (len < min_red) return 0; // return flag=0
-	} 
+	}
 
-	param.ControlShortCoverage( len_eff, options );
-	param.ComputeRequiredBases( options.NAA, 2, options );
+	param.ControlShortCoverage(len_eff, options);
+	param.ComputeRequiredBases(options.NAA, 2, options);
 
-	buf.EncodeWords( seq, options.NAA, false );
+	buf.EncodeWords(seq, options.NAA, false);
 
 	// if minimal alignment length > len, return
 	// I can not return earlier, because I need to calc the word_encodes etc
-	if (options.min_control>len) return 0; // return flag=0
+	if (options.min_control > len) return 0; // return flag=0
 
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
@@ -6010,172 +6121,173 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	int len_lower_bound = param.len_lower_bound;
 	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
 	int tiden_no, band_center;
-	float tiden_pc, distance=0;
+	float tiden_pc, distance = 0;
 	int talign_info[5];
 	int best1, sum;
-	INTs *lookptr;
-	char *seqj;
-	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
+	INTs* lookptr;
+	char* seqj;
+	int frg2 = frag_size ? (len - NAA + options.band_width) / frag_size + 1 + 1 : 0;
 	int lens;
 	int has_aa2 = 0;
 
-	IndexCount *ic = lookCounts.items;
+	IndexCount* ic = lookCounts.items;
 	ic = lookCounts.items;
-	for(; ic->count; ic++){
-		if( ! frag_size ){
-			indexMapping[ ic->index ] = 0;
-			if ( ic->count < required_aan ) continue;
+	for (; ic->count; ic++) {
+		if (!frag_size) {
+			indexMapping[ic->index] = 0;
+			if (ic->count < required_aan) continue;
 		}
 
-		Sequence *rep = table.sequences[ ic->index ];
+		Sequence* rep = table.sequences[ic->index];
 		// if(my_rank==3)
 		// cerr<<"error   "<<rep->data<<endl;
 		len2 = rep->size;
-		if (len2 > len_upper_bound ) continue;
-		if (options.has2D && len2 < len_lower_bound ) continue;
-		if( frag_size ){
-			uint32_t *ims = & indexMapping[ ic->index ];
+		if (len2 > len_upper_bound) continue;
+		if (options.has2D && len2 < len_lower_bound) continue;
+		if (frag_size) {
+			uint32_t* ims = &indexMapping[ic->index];
 			int count = ic->count;
 			k = (len2 - NAA) / frag_size + 1;
 			sum = 0;
-			for (j1=0; j1<frg2; j1++){
+			for (j1 = 0; j1 < frg2; j1++) {
 				uint32_t im = ims[j1];
-				if( im ) sum += lookCounts[im-1].count;
+				if (im) sum += lookCounts[im - 1].count;
 			}
 			count = sum;
-			for (j1=frg2; j1<k; j1++) {
+			for (j1 = frg2; j1 < k; j1++) {
 				uint32_t im1 = ims[j1];
-				uint32_t im2 = ims[j1-frg2];
-				if( im1 ) sum += lookCounts[im1-1].count;
-				if( im2 ) sum -= lookCounts[im2-1].count;
+				uint32_t im2 = ims[j1 - frg2];
+				if (im1) sum += lookCounts[im1 - 1].count;
+				if (im2) sum -= lookCounts[im2 - 1].count;
 				if (sum > count) count = sum;
 			}
-			if ( count < required_aan ) continue;
+			if (count < required_aan) continue;
 		}
 
-		param.ControlLongCoverage( len2, options );
+		param.ControlLongCoverage(len2, options);
 
-		if ( has_aa2 == 0 )  { // calculate AAP array
-			buf.ComputeAAP( seqi, seq->size );
+		if (has_aa2 == 0) { // calculate AAP array
+			buf.ComputeAAP(seqi, seq->size);
 			has_aa2 = 1;
 		}
 		seqj = rep->data; //NR_seq[NR90_idx[j]];
-		
-		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+
+		band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 
 		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
-				band_width1, band_left, band_center, band_right, required_aa1);
-		if ( best_sum < required_aa2 ) continue;
+			band_width1, band_left, band_center, band_right, required_aa1);
+		if (best_sum < required_aa2) continue;
 
 		int rc = FAILED_FUNC;
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
 		else
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
-		if ( rc == FAILED_FUNC ) continue;
-		if ( tiden_no < required_aa1 ) continue;
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
+		if (rc == FAILED_FUNC) continue;
+		if (tiden_no < required_aa1) continue;
 		lens = len;
-		if( options.has2D && len > len2 ) lens = len2;
+		if (options.has2D && len > len2) lens = len2;
 		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
-		tiden_pc = tiden_no / (float) len_eff1;
-		if( options.useDistance ){
-			if (distance > options.distance_thd ) continue;
+		tiden_pc = tiden_no / (float)len_eff1;
+		if (options.useDistance) {
+			if (distance > options.distance_thd) continue;
 			if (distance >= seq->distance) continue; // existing distance
-		}else{
+		}
+		else {
 			if (tiden_pc < options.cluster_thd) continue;
 			if (tiden_pc <= seq->identity) continue; // existing iden_no
 		}
 		if (aln_cover_flag) {
-			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
-			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
+			if (talign_info[3] - talign_info[2] + 1 < min_aln_lenL) continue;
+			if (talign_info[1] - talign_info[0] + 1 < min_aln_lenS) continue;
 		}
-		if( options.has2D ) seq->state |= IS_REDUNDANT ;
+		if (options.has2D) seq->state |= IS_REDUNDANT;
 		flag = 1; seq->identity = tiden_pc; seq->cluster_id = rep->cluster_id;
 		seq->distance = distance;
-		seq->coverage[0] = talign_info[0] +1;
-		seq->coverage[1] = talign_info[1] +1;
-		seq->coverage[2] = talign_info[2] +1;
-		seq->coverage[3] = talign_info[3] +1;
+		seq->coverage[0] = talign_info[0] + 1;
+		seq->coverage[1] = talign_info[1] + 1;
+		seq->coverage[2] = talign_info[2] + 1;
+		seq->coverage[3] = talign_info[3] + 1;
 		if (not options.cluster_best) break;
 		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
-		param.ComputeRequiredBases( options.NAA, 2, options );
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+		param.ComputeRequiredBases(options.NAA, 2, options);
 	}
-	if( frag_size ) ic = lookCounts.items;
-	while( ic->count ){
-		indexMapping[ ic->index ] = 0;
+	if (frag_size) ic = lookCounts.items;
+	while (ic->count) {
+		indexMapping[ic->index] = 0;
 		ic += 1;
 	}
 	lookCounts.size = 0;
 	if (flag == 1) { // if similar to old one delete it
-		if (! options.cluster_best) {
+		if (!options.cluster_best) {
 			seq->Clear();
-			seq->state |= IS_REDUNDANT ;
+			seq->state |= IS_REDUNDANT;
 		}
 	}
 	return flag;
 
 }
-int SequenceDB::CheckOneEST( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOneEST(Sequence* seq, WordTable& table, WorkingParam& param, WorkingBuffer& buf, const Options& options)
 {
-	NVector<IndexCount> & lookCounts = buf.lookCounts;
-	NVector<uint32_t> & indexMapping = buf.indexMapping;
-	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
-	Vector<INTs> & aap_list = buf.aap_list;
-	Vector<INTs> & aap_begin = buf.aap_begin;
-	Vector<int>  & word_encodes = buf.word_encodes;
-	Vector<int>  & taap = buf.taap;
-	Vector<int> & aan_list_comp = buf.aan_list_comp;
-	char *seqi_comp = & buf.seqi_comp[0];
+	NVector<IndexCount>& lookCounts = buf.lookCounts;
+	NVector<uint32_t>& indexMapping = buf.indexMapping;
+	Vector<INTs>& word_encodes_no = buf.word_encodes_no;
+	Vector<INTs>& aap_list = buf.aap_list;
+	Vector<INTs>& aap_begin = buf.aap_begin;
+	Vector<int>& word_encodes = buf.word_encodes;
+	Vector<int>& taap = buf.taap;
+	Vector<int>& aan_list_comp = buf.aan_list_comp;
+	char* seqi_comp = &buf.seqi_comp[0];
 
-	int & aln_cover_flag = param.aln_cover_flag;
-	int & required_aa1 = param.required_aa1;
-	int & required_aas = param.required_aas;
-	int & required_aan = param.required_aan;
-	int & min_aln_lenS = param.min_aln_lenS;
-	int & min_aln_lenL = param.min_aln_lenL;
+	int& aln_cover_flag = param.aln_cover_flag;
+	int& required_aa1 = param.required_aa1;
+	int& required_aas = param.required_aas;
+	int& required_aan = param.required_aan;
+	int& min_aln_lenS = param.min_aln_lenS;
+	int& min_aln_lenL = param.min_aln_lenL;
 
-	char *seqi = seq->data;
+	char* seqi = seq->data;
 	int j, len = seq->size;
 	int flag = 0;
 	int S = table.sequences.size();
 	int len_eff = len;
-	if( S ){
-		int min = table.sequences[S-1]->size;
-		if( min < len ){
-			if( len * options.diff_cutoff2 > min ) min = (int)(len * options.diff_cutoff2);
-			if( (len - options.diff_cutoff_aa2) > min ) min = len - options.diff_cutoff_aa2;
+	if (S) {
+		int min = table.sequences[S - 1]->size;
+		if (min < len) {
+			if (len * options.diff_cutoff2 > min) min = (int)(len * options.diff_cutoff2);
+			if ((len - options.diff_cutoff_aa2) > min) min = len - options.diff_cutoff_aa2;
 			len_eff = min;
 		}
 	}
 
 
-        //liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
-        //longer seqeunce * -aL -band_width
-        if ( S ) {
-		int min = table.sequences[S-1]->size;
+	//liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
+	//longer seqeunce * -aL -band_width
+	if (S) {
+		int min = table.sequences[S - 1]->size;
 		int min_red = min * options.long_coverage - options.band_width;
 		if (len < min_red) return 0; // return flag=0
-	} 
+	}
 
 
-	param.ControlShortCoverage( len_eff, options );
-	param.ComputeRequiredBases( options.NAA, 4, options );
-	int skip = buf.EncodeWords( seq, options.NAA, true );
+	param.ControlShortCoverage(len_eff, options);
+	param.ComputeRequiredBases(options.NAA, 4, options);
+	int skip = buf.EncodeWords(seq, options.NAA, true);
 	required_aan -= skip;
 	required_aas -= skip;
 	required_aa1 -= skip;
-	if( required_aan <= 0 ) required_aan = 1;
-	if( required_aas <= 0 ) required_aas = 1;
-	if( required_aa1 <= 0 ) required_aa1 = 1;
+	if (required_aan <= 0) required_aan = 1;
+	if (required_aas <= 0) required_aas = 1;
+	if (required_aa1 <= 0) required_aa1 = 1;
 
 	// if minimal alignment length > len, return
 	// I can not return earlier, because I need to calc the word_encodes etc
-	if (options.min_control>len) return 0; // return flag=0
+	if (options.min_control > len) return 0; // return flag=0
 
 	int aan_no = len - options.NAA + 1;
 
@@ -6184,16 +6296,16 @@ int SequenceDB::CheckOneEST( Sequence *seq, WordTable & table, WorkingParam & pa
 	int len_lower_bound = param.len_lower_bound;
 	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
 	int tiden_no, band_center;
-	float tiden_pc, distance=0;
+	float tiden_pc, distance = 0;
 	int talign_info[5];
 	int j0, comp, lens;
-	char *seqj;
+	char* seqj;
 
-	for(comp=0; comp<2; comp++){
-		if( comp ){
-			for (j0=0; j0<aan_no; j0++) {
+	for (comp = 0; comp < 2; comp++) {
+		if (comp) {
+			for (j0 = 0; j0 < aan_no; j0++) {
 				j = word_encodes[j0];
-				if ( j<0 ) aan_list_comp[j0] = j;
+				if (j < 0) aan_list_comp[j0] = j;
 				else       aan_list_comp[j0] = Comp_AAN_idx[j];
 			}
 			make_comp_iseq(len, seqi_comp, seqi);
@@ -6201,114 +6313,118 @@ int SequenceDB::CheckOneEST( Sequence *seq, WordTable & table, WorkingParam & pa
 		}
 		int has_aas = 0;
 
-		if( comp ){
-			table.CountWords(aan_no, aan_list_comp, word_encodes_no, lookCounts, indexMapping, true, required_aan );
-		}else{
-			table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, true, required_aan ); 
+		if (comp) {
+			table.CountWords(aan_no, aan_list_comp, word_encodes_no, lookCounts, indexMapping, true, required_aan);
+		}
+		else {
+			table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, true, required_aan);
 		}
 
-		IndexCount *ic = lookCounts.items;
+		IndexCount* ic = lookCounts.items;
 		ic = lookCounts.items;
-		for(; ic->count; ic++){
-			indexMapping[ ic->index ] = 0;
-			if ( ic->count < required_aan ) continue;
-			Sequence *rep = table.sequences[ic->index];
+		for (; ic->count; ic++) {
+			indexMapping[ic->index] = 0;
+			if (ic->count < required_aan) continue;
+			Sequence* rep = table.sequences[ic->index];
 
 			len2 = rep->size;
-			if (len2 > len_upper_bound ) continue;
-			if (options.has2D && len2 < len_lower_bound ) continue;
+			if (len2 > len_upper_bound) continue;
+			if (options.has2D && len2 < len_lower_bound) continue;
 
 			seqj = rep->data;
 
-			param.ControlLongCoverage( len2, options );
+			param.ControlLongCoverage(len2, options);
 
-			if ( has_aas == 0 )  { // calculate AAP array
-				buf.ComputeAAP2( seqi, seq->size );
+			if (has_aas == 0) { // calculate AAP array
+				buf.ComputeAAP2(seqi, seq->size);
 				has_aas = 1;
 			}
 
-			band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+			band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 			diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum,
-					band_width1, band_left, band_center, band_right, required_aa1);
-			if ( best_sum < required_aas ) continue;
+				band_width1, band_left, band_center, band_right, required_aa1);
+			if (best_sum < required_aas) continue;
 			//if( comp and flag and (not options.cluster_best) and j > rep->cluster_id ) goto Break;
 
 			int rc = FAILED_FUNC;
-			if (options.print || aln_cover_flag){ //return overlap region
+			if (options.print || aln_cover_flag) { //return overlap region
 				rc = local_band_align(seqi, seqj, len, len2, mat,
-						best_score, tiden_no, alnln, distance, talign_info,
-						band_left, band_center, band_right, buf);
-				if( comp ){
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+				if (comp) {
 					talign_info[0] = len - talign_info[0] - 1;
 					talign_info[1] = len - talign_info[1] - 1;
 				}
-			}else{
+			}
+			else {
 				//printf( "%5i %5i %5i %5i\n", band_width1, band_right-band_left, band_left, band_right );
 				rc = local_band_align(seqi, seqj, len, len2, mat,
-						best_score, tiden_no, alnln, distance, talign_info,
-						band_left, band_center, band_right, buf);
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
 			}
-			if ( rc == FAILED_FUNC ) continue;
+			if (rc == FAILED_FUNC) continue;
 			//printf( "%i  %i  %i\n", best_score, tiden_no, required_aa1 );
-			if ( tiden_no < required_aa1 ) continue;
-			if ( options.is454 ){
+			if (tiden_no < required_aa1) continue;
+			if (options.is454) {
 				if (talign_info[2] != talign_info[0]) continue; // same start
 				if (talign_info[0] > 1) continue; // one mismatch allowed at beginning
-				if ((len-talign_info[1]) > 2) continue; // one mismatch allowed at end
+				if ((len - talign_info[1]) > 2) continue; // one mismatch allowed at end
 			}
 
 			lens = len;
-			if( options.has2D && len > len2 ) lens = len2;
+			if (options.has2D && len > len2) lens = len2;
 			len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
 			tiden_pc = tiden_no / (float)len_eff1;
 			//printf( "%i %f\n", tiden_no, tiden_pc );
-			if( options.useDistance ){
-				if (distance > options.distance_thd ) continue;
+			if (options.useDistance) {
+				if (distance > options.distance_thd) continue;
 				if (options.cluster_best and distance >= seq->distance) continue; // existing distance
-			}else{
+			}
+			else {
 				if (tiden_pc < options.cluster_thd) continue;
 				if (options.cluster_best and tiden_pc < seq->identity) continue; // existing iden_no
 			}
 			if (aln_cover_flag) {
-				if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
-				if( comp ){
-					if ( talign_info[0]-talign_info[1]+1 < min_aln_lenS) continue;
-				}else{
-					if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
+				if (talign_info[3] - talign_info[2] + 1 < min_aln_lenL) continue;
+				if (comp) {
+					if (talign_info[0] - talign_info[1] + 1 < min_aln_lenS) continue;
+				}
+				else {
+					if (talign_info[1] - talign_info[0] + 1 < min_aln_lenS) continue;
 				}
 			}
-			if( options.cluster_best and fabs(tiden_pc - seq->identity) < 1E-9 and rep->cluster_id >= seq->cluster_id ) continue;
-			if( (not options.cluster_best) and flag !=0 and rep->cluster_id >= seq->cluster_id ) continue;
+			if (options.cluster_best and fabs(tiden_pc - seq->identity) < 1E-9 and rep->cluster_id >= seq->cluster_id) continue;
+			if ((not options.cluster_best) and flag != 0 and rep->cluster_id >= seq->cluster_id) continue;
 			flag = comp ? -1 : 1;
 			seq->identity = tiden_pc;
 			seq->distance = distance;
 			seq->cluster_id = rep->cluster_id;
-			seq->coverage[0] = talign_info[0] +1;
-			seq->coverage[1] = talign_info[1] +1;
-			seq->coverage[2] = talign_info[2] +1;
-			seq->coverage[3] = talign_info[3] +1;
+			seq->coverage[0] = talign_info[0] + 1;
+			seq->coverage[1] = talign_info[1] + 1;
+			seq->coverage[2] = talign_info[2] + 1;
+			seq->coverage[3] = talign_info[3] + 1;
 			if (not options.cluster_best) break;
 		}
-		while( ic->count ){
-			indexMapping[ ic->index ] = 0;
+		while (ic->count) {
+			indexMapping[ic->index] = 0;
 			ic += 1;
 		}
 		lookCounts.size = 0;
-		if (not options.option_r ) break;
+		if (not options.option_r) break;
 	}
 	if ((flag == 1) || (flag == -1)) { // if similar to old one delete it
-		if (! options.cluster_best) {
+		if (!options.cluster_best) {
 			seq->Clear();
-			seq->state |= IS_REDUNDANT ;
+			seq->state |= IS_REDUNDANT;
 		}
-		if( flag == -1 )
-			seq->state |= IS_MINUS_STRAND; 
+		if (flag == -1)
+			seq->state |= IS_MINUS_STRAND;
 		else
-			seq->state &= ~IS_MINUS_STRAND; 
+			seq->state &= ~IS_MINUS_STRAND;
 	}
 	return flag;
 }
-void SequenceDB::ComputeDistance( const Options & options )
+void SequenceDB::ComputeDistance(const Options& options)
 {
 	int i, j, N = sequences.size();
 	int best_score, best_sum;
@@ -6316,72 +6432,72 @@ void SequenceDB::ComputeDistance( const Options & options )
 	int tiden_no, alnln;
 	int talign_info[5];
 	float distance;
-	WorkingBuffer buf( N, max_len, options );
+	WorkingBuffer buf(N, max_len, options);
 
-	Vector<NVector<float> > dists( N, NVector<float>(N) );
+	Vector<NVector<float> > dists(N, NVector<float>(N));
 
-	Sequence comseq( *sequences[0] );
+	Sequence comseq(*sequences[0]);
 
-	for(i=0; i<N; i++){
-		Sequence *seq = sequences[i];
-		char *seqi = seq->data;
+	for (i = 0; i < N; i++) {
+		Sequence* seq = sequences[i];
+		char* seqi = seq->data;
 		int len = seq->size;
-		buf.EncodeWords( seq, options.NAA, false );
-		buf.ComputeAAP2( seqi, seq->size );
+		buf.EncodeWords(seq, options.NAA, false);
+		buf.ComputeAAP2(seqi, seq->size);
 		dists[i][i] = 0.0;
-		if((i+1)%1000 ==0) printf( "%9i\n", (i+1) );
-		for(j=0; j<i; j++){
-			Sequence *rep = sequences[j];
-			char *seqj = rep->data;
+		if ((i + 1) % 1000 == 0) printf("%9i\n", (i + 1));
+		for (j = 0; j < i; j++) {
+			Sequence* rep = sequences[j];
+			char* seqj = rep->data;
 			int len2 = rep->size;
-			band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+			band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 			diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum,
-					band_width1, band_left, band_center, band_right, 0);
+				band_width1, band_left, band_center, band_right, 0);
 			local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
 			dists[seq->index][rep->index] = dists[rep->index][seq->index] = distance;
 		}
-		if (not options.option_r ) break;
+		if (not options.option_r) break;
 		comseq.index = seq->index;
 		comseq.size = len;
-		for(j=0; j<len; j++) comseq.data[i] = seq->data[len-i-1];
+		for (j = 0; j < len; j++) comseq.data[i] = seq->data[len - i - 1];
 		seqi = comseq.data;
-		buf.EncodeWords( &comseq, options.NAA, false );
-		buf.ComputeAAP2( seqi, seq->size );
-		for(j=0; j<i; j++){
-			Sequence *rep = sequences[j];
-			char *seqj = rep->data;
+		buf.EncodeWords(&comseq, options.NAA, false);
+		buf.ComputeAAP2(seqi, seq->size);
+		for (j = 0; j < i; j++) {
+			Sequence* rep = sequences[j];
+			char* seqj = rep->data;
 			int len2 = rep->size;
-			band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+			band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 			diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum,
-					band_width1, band_left, band_center, band_right, 0);
+				band_width1, band_left, band_center, band_right, 0);
 			local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
-			if( distance < dists[seq->index][rep->index] )
+				best_score, tiden_no, alnln, distance, talign_info,
+				band_left, band_center, band_right, buf);
+			if (distance < dists[seq->index][rep->index])
 				dists[seq->index][rep->index] = dists[rep->index][seq->index] = distance;
 		}
 	}
 	std::string output = options.output + ".dist";
-	FILE *fout = fopen( output.c_str(), "w+" );
-	fprintf( fout, "1" );
-	for(i=1; i<N; i++) fprintf( fout, "\t%i", i+1 );
-	fprintf( fout, "\n" );
-	for(i=0; i<N; i++){
-		fprintf( fout, "%g", dists[i][0] );
-		for(j=1; j<N; j++) fprintf( fout, "\t%g", dists[i][j] );
-		fprintf( fout, "\n" );
+	FILE* fout = fopen(output.c_str(), "w+");
+	fprintf(fout, "1");
+	for (i = 1; i < N; i++) fprintf(fout, "\t%i", i + 1);
+	fprintf(fout, "\n");
+	for (i = 0; i < N; i++) {
+		fprintf(fout, "%g", dists[i][0]);
+		for (j = 1; j < N; j++) fprintf(fout, "\t%g", dists[i][j]);
+		fprintf(fout, "\n");
 	}
-	fclose( fout );
+	fclose(fout);
 }
-void SequenceDB::DoClustering( const Options & options )
+void SequenceDB::DoClustering(const Options& options)
 {
 	int i;
 	int NAA = options.NAA;
 	double aa1_cutoff = options.cluster_thd;
-	double aas_cutoff = 1 - (1-options.cluster_thd)*4;
-	double aan_cutoff = 1 - (1-options.cluster_thd)*options.NAA;
+	double aas_cutoff = 1 - (1 - options.cluster_thd) * 4;
+	double aan_cutoff = 1 - (1 - options.cluster_thd) * options.NAA;
 	int seq_no = sequences.size();
 	int frag_no = seq_no;
 	int frag_size = options.frag_size;
@@ -6389,42 +6505,42 @@ void SequenceDB::DoClustering( const Options & options )
 	int flag;
 
 #if 0
-	ComputeDistance( options );
+	ComputeDistance(options);
 	return;
 #endif
 
-	if( options.threads > 1 ){
-		DoClustering( options.threads, options );
+	if (options.threads > 1) {
+		DoClustering(options.threads, options);
 		temp_files.Clear();
 		return;
 	}
 
-	if (frag_size){ 
+	if (frag_size) {
 		frag_no = 0;
-		for (i=0; i<seq_no; i++) frag_no += (sequences[i]->size - NAA) / frag_size + 1;
+		for (i = 0; i < seq_no; i++) frag_no += (sequences[i]->size - NAA) / frag_size + 1;
 	}
 
-	if( not options.isEST )
+	if (not options.isEST)
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA);
 
-	WorkingParam param( aa1_cutoff, aas_cutoff, aan_cutoff );
-	WorkingBuffer buffer( frag_no, max_len, options );
+	WorkingParam param(aa1_cutoff, aas_cutoff, aan_cutoff);
+	WorkingBuffer buffer(frag_no, max_len, options);
 
-	WordTable word_table( options.NAA, NAAN );
+	WordTable word_table(options.NAA, NAAN);
 
-	size_t mem_need = MinimalMemory( frag_no, buffer.total_bytes, 1, options );
-	size_t mem_limit = MemoryLimit( mem_need, options );
+	size_t mem_need = MinimalMemory(frag_no, buffer.total_bytes, 1, options);
+	size_t mem_limit = MemoryLimit(mem_need, options);
 	size_t mem, mega = 1000000;
 	int N = sequences.size();
 
 	size_t total_letters = total_letter;
 	size_t tabsize = 0;
 
-	Options opts( options );
-	opts.ComputeTableLimits( min_len, max_len, len_n50, mem_need );
+	Options opts(options);
+	opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
 
-	for(i=0; i<N; ){
+	for (i = 0; i < N; ) {
 		float redundancy = (rep_seqs.size() + 1.0) / (i + 1.0);
 		int m = i;
 		size_t sum = 0;
@@ -6432,92 +6548,92 @@ void SequenceDB::DoClustering( const Options & options )
 		size_t max_seqs = opts.max_sequences;
 		size_t items = 0;
 
-// find a block from i to m, so that this block can fit into a word table
-//     ...
-//  i  ++++++++++++++++++++++++++
-//     ++++++++++++++++++++
-//     ++++++++++++++++
-//  m  +++++++++++++
-//     ...
-		while( m < N && (sum*redundancy) < max_seqs && items < max_items ){
-			Sequence *seq = sequences[m];
-			if( ! (seq->state & IS_REDUNDANT) ){
-				if ( options.store_disk ) seq->SwapIn();
+		// find a block from i to m, so that this block can fit into a word table
+		//     ...
+		//  i  ++++++++++++++++++++++++++
+		//     ++++++++++++++++++++
+		//     ++++++++++++++++
+		//  m  +++++++++++++
+		//     ...
+		while (m < N && (sum * redundancy) < max_seqs && items < max_items) {
+			Sequence* seq = sequences[m];
+			if (!(seq->state & IS_REDUNDANT)) {
+				if (options.store_disk) seq->SwapIn();
 				items += (size_t)(seq->size * redundancy);
 				sum += 1;
 			}
-			m ++;
+			m++;
 		}
-		if( m > N ) m = N;
-		printf( "\rcomparing sequences from  %9i  to  %9i\n", i, m );
-		fflush( stdout );
-		for(int ks=i; ks<m; ks++){ // clustering this block
-			Sequence *seq = sequences[ks];
+		if (m > N) m = N;
+		printf("\rcomparing sequences from  %9i  to  %9i\n", i, m);
+		fflush(stdout);
+		for (int ks = i; ks < m; ks++) { // clustering this block
+			Sequence* seq = sequences[ks];
 			i = ks + 1;
 			if (seq->state & IS_REDUNDANT) continue;
 
-			ClusterOne( seq, ks, word_table, param, buffer, options );
+			ClusterOne(seq, ks, word_table, param, buffer, options);
 			total_letters -= seq->size;
-			if( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
-			if( word_table.size >= max_items ) break;
+			if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
+			if (word_table.size >= max_items) break;
 			int tmax = max_seqs - (frag_size ? seq->size / frag_size + 1 : 0);
-			if( word_table.sequences.size() >= tmax ) break;
+			if (word_table.sequences.size() >= tmax) break;
 		} // finishing word table from this block
 		m = i;
-		if( word_table.size == 0 ) continue;
+		if (word_table.size == 0) continue;
 		float p0 = 0;
-		for(int j=m; j<N; j++){ // use this word table to screen rest sequences m->N
-			Sequence *seq = sequences[j];
+		for (int j = m; j < N; j++) { // use this word table to screen rest sequences m->N
+			Sequence* seq = sequences[j];
 			if (seq->state & IS_REDUNDANT) continue;
-			if ( options.store_disk ) seq->SwapIn();
-			CheckOne( seq, word_table, param, buffer, options );
+			if (options.store_disk) seq->SwapIn();
+			CheckOne(seq, word_table, param, buffer, options);
 			total_letters -= seq->size;
-			if ( options.store_disk && (seq->state & IS_REDUNDANT) ) seq->SwapOut();
+			if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 			int len_bound = param.len_upper_bound;
-			if( word_table.sequences[ word_table.sequences.size()-1 ]->size > len_bound ){
+			if (word_table.sequences[word_table.sequences.size() - 1]->size > len_bound) {
 				break;
 			}
-			float p = (100.0*j)/N;
-			if( p > p0+1E-1 ){ // print only if the percentage changed
-				printf( "\r%4.1f%%", p );
-				fflush( stdout );
+			float p = (100.0 * j) / N;
+			if (p > p0 + 1E-1) { // print only if the percentage changed
+				printf("\r%4.1f%%", p);
+				fflush(stdout);
 				p0 = p;
 			}
 		}
-		if( word_table.size > tabsize ) tabsize = word_table.size;
+		if (word_table.size > tabsize) tabsize = word_table.size;
 		//if( i && i < m ) printf( "\r---------- %6i remaining sequences to the next cycle\n", m-i );
 		word_table.Clear();
 	}
-	printf( "\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size() );
-	mem = (mem_need + tabsize*sizeof(IndexCount))/mega;
-	printf( "\nApproximated maximum memory consumption: %liM\n", mem );
+	printf("\n%9i  finished  %9i  clusters\n", sequences.size(), rep_seqs.size());
+	mem = (mem_need + tabsize * sizeof(IndexCount)) / mega;
+	printf("\nApproximated maximum memory consumption: %liM\n", mem);
 	temp_files.Clear();
 	word_table.Clear();
 
 #if 0
 	int zeros = 0;
-	for(i=0; i<word_table.indexCounts.size(); i++) zeros += word_table.indexCounts[i].Size() ==0;
-	printf( "%9i  empty entries out of  %9i\n", zeros, word_table.indexCounts.size() );
+	for (i = 0; i < word_table.indexCounts.size(); i++) zeros += word_table.indexCounts[i].Size() == 0;
+	printf("%9i  empty entries out of  %9i\n", zeros, word_table.indexCounts.size());
 #endif
 }
 
-void SequenceDB::ClusterTo( SequenceDB & other, const Options & options )
+void SequenceDB::ClusterTo(SequenceDB& other, const Options& options)
 {
 	int i, is, js, flag;
 	int len, len_tmp, len_lower_bound, len_upper_bound;
 	int NR2_red_no = 0;
 	int aan_no = 0;
-	char *seqi;
+	char* seqi;
 	int NAA = options.NAA;
 	double aa1_cutoff = options.cluster_thd;
-	double aas_cutoff = 1 - (1-options.cluster_thd)*4;
-	double aan_cutoff = 1 - (1-options.cluster_thd)*options.NAA;
-	Vector<int>  word_encodes( MAX_SEQ );
-	Vector<INTs> word_encodes_no( MAX_SEQ );
+	double aas_cutoff = 1 - (1 - options.cluster_thd) * 4;
+	double aan_cutoff = 1 - (1 - options.cluster_thd) * options.NAA;
+	Vector<int>  word_encodes(MAX_SEQ);
+	Vector<INTs> word_encodes_no(MAX_SEQ);
 
-	if( not options.isEST ){
+	if (not options.isEST) {
 		cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+			options.tolerance, naa_stat_start_percent, naa_stat, NAA);
 	}
 
 
@@ -6528,150 +6644,151 @@ void SequenceDB::ClusterTo( SequenceDB & other, const Options & options )
 	valarray<size_t>  counts(T);
 	Vector<WorkingParam> params(T);
 	Vector<WorkingBuffer> buffers(T);
-	WorkingParam & param = params[0];
-	WorkingBuffer & buffer = buffers[0];
-	for(i=0; i<T; i++){
-		params[i].Set( aa1_cutoff, aas_cutoff, aan_cutoff );
-		buffers[i].Set( N, max_len, options );
+	WorkingParam& param = params[0];
+	WorkingBuffer& buffer = buffers[0];
+	for (i = 0; i < T; i++) {
+		params[i].Set(aa1_cutoff, aas_cutoff, aan_cutoff);
+		buffers[i].Set(N, max_len, options);
 	}
-	if( T >1 ) omp_set_num_threads(T);
+	if (T > 1) omp_set_num_threads(T);
 
-	size_t mem_need = MinimalMemory( N, buffer.total_bytes, T, options, other.total_letter+other.total_desc );
-	size_t mem_limit = MemoryLimit( mem_need, options );
+	size_t mem_need = MinimalMemory(N, buffer.total_bytes, T, options, other.total_letter + other.total_desc);
+	size_t mem_limit = MemoryLimit(mem_need, options);
 
-	Options opts( options );
-	opts.ComputeTableLimits( min_len, max_len, len_n50, mem_need );
+	Options opts(options);
+	opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
 
-	WordTable word_table( options.NAA, NAAN );
+	WordTable word_table(options.NAA, NAAN);
 
 	size_t max_items = opts.max_entries;
 	size_t max_seqs = opts.max_sequences;
-	for(i=0; i<N; ){
+	for (i = 0; i < N; ) {
 		size_t items = 0;
 		size_t sum = 0;
 		int m = i;
-		while( m < N && sum < max_seqs && items < max_items ){
-			Sequence *seq = other.sequences[m];
-			if( ! (seq->state & IS_REDUNDANT) ){
-				if ( options.store_disk ) seq->SwapIn();
+		while (m < N && sum < max_seqs && items < max_items) {
+			Sequence* seq = other.sequences[m];
+			if (!(seq->state & IS_REDUNDANT)) {
+				if (options.store_disk) seq->SwapIn();
 				items += seq->size;
 				sum += 1;
 			}
-			m ++;
+			m++;
 		}
-		if( m > N ) m = N;
+		if (m > N) m = N;
 		//printf( "m = %i  %i,  %i\n", i, m, m-i );
-		for(int ks=i; ks<m; ks++){
-			Sequence *seq = other.sequences[ks];
+		for (int ks = i; ks < m; ks++) {
+			Sequence* seq = other.sequences[ks];
 			len = seq->size;
 			seqi = seq->data;
 			calc_ann_list(len, seqi, NAA, aan_no, word_encodes, word_encodes_no, options.isEST);
-			word_table.AddWordCounts(aan_no, word_encodes, word_encodes_no, ks-i, options.isEST);
-			word_table.sequences.Append( seq );
+			word_table.AddWordCounts(aan_no, word_encodes, word_encodes_no, ks - i, options.isEST);
+			word_table.sequences.Append(seq);
 			seq->cluster_id = ks;
 			seq->state |= IS_REP;
-			if ( (ks+1) % 1000 == 0 ) {
-				printf( "." );
-				fflush( stdout );
-				if ( (ks+1) % 10000 == 0 ) printf( "%9i  finished\n", ks+1 );
-			}  
+			if ((ks + 1) % 1000 == 0) {
+				printf(".");
+				fflush(stdout);
+				if ((ks + 1) % 10000 == 0) printf("%9i  finished\n", ks + 1);
+			}
 		}
 		float p0 = 0;
-		if( T > 1 ){
+		if (T > 1) {
 			int JM = M;
 			counts = 0;
-			#pragma omp parallel for schedule( dynamic, 1 )
-			for(int j=0; j<JM; j++){
-				Sequence *seq = sequences[j];
-				if( seq->state & IS_REDUNDANT ) continue;
+		#pragma omp parallel for schedule( dynamic, 1 )
+			for (int j = 0; j < JM; j++) {
+				Sequence* seq = sequences[j];
+				if (seq->state & IS_REDUNDANT) continue;
 				int len = seq->size;
-				char *seqi = seq->data;
-				int len_upper_bound = upper_bound_length_rep(len,options);
+				char* seqi = seq->data;
+				int len_upper_bound = upper_bound_length_rep(len, options);
 				int len_lower_bound = len - options.diff_cutoff_aa2;
 
-				int len_tmp = (int) ( ((double)len) * options.diff_cutoff2);
+				int len_tmp = (int)(((double)len) * options.diff_cutoff2);
 				if (len_tmp < len_lower_bound) len_lower_bound = len_tmp;
 
 				int tid = omp_get_thread_num();
 				params[tid].len_upper_bound = len_upper_bound;
 				params[tid].len_lower_bound = len_lower_bound;
 
-				if( word_table.sequences[ word_table.sequences.size()-1 ]->size > len_upper_bound ){
+				if (word_table.sequences[word_table.sequences.size() - 1]->size > len_upper_bound) {
 					JM = 0;
 					continue;
 				}
 
-				int flag = other.CheckOne( seq, word_table, params[tid], buffers[tid], options );
+				int flag = other.CheckOne(seq, word_table, params[tid], buffers[tid], options);
 				if ((flag == 1) || (flag == -1)) { // if similar to old one delete it
-					if (! options.cluster_best) {
+					if (!options.cluster_best) {
 						seq->Clear();
-						seq->state |= IS_REDUNDANT ;
-						counts[tid] ++;
+						seq->state |= IS_REDUNDANT;
+						counts[tid]++;
 					}
-					if( flag == -1 ) seq->state |= IS_MINUS_STRAND; // for EST only
+					if (flag == -1) seq->state |= IS_MINUS_STRAND; // for EST only
 				}
-				float p = (100.0*j)/M;
-				if( p > p0+1E-1 ){ // print only if the percentage changed
-					printf( "\r%4.1f%%", p );
-					fflush( stdout );
+				float p = (100.0 * j) / M;
+				if (p > p0 + 1E-1) { // print only if the percentage changed
+					printf("\r%4.1f%%", p);
+					fflush(stdout);
 					p0 = p;
 				}
 			}
-			for(int j=0; j<T; j++) NR2_red_no += counts[j];
-		}else{
-			for(int j=0; j<M; j++){
-				Sequence *seq = sequences[j];
-				if( seq->state & IS_REDUNDANT ) continue;
+			for (int j = 0; j < T; j++) NR2_red_no += counts[j];
+		}
+		else {
+			for (int j = 0; j < M; j++) {
+				Sequence* seq = sequences[j];
+				if (seq->state & IS_REDUNDANT) continue;
 				len = seq->size;
 				seqi = seq->data;
-				len_upper_bound = upper_bound_length_rep(len,options);
+				len_upper_bound = upper_bound_length_rep(len, options);
 				len_lower_bound = len - options.diff_cutoff_aa2;
 
-				len_tmp = (int) ( ((double)len) * options.diff_cutoff2);
+				len_tmp = (int)(((double)len) * options.diff_cutoff2);
 				if (len_tmp < len_lower_bound) len_lower_bound = len_tmp;
 				param.len_upper_bound = len_upper_bound;
 				param.len_lower_bound = len_lower_bound;
 
-				if( word_table.sequences[ word_table.sequences.size()-1 ]->size > len_upper_bound ){
+				if (word_table.sequences[word_table.sequences.size() - 1]->size > len_upper_bound) {
 					break;
 				}
 
-				flag = other.CheckOne( seq, word_table, param, buffer, options );
+				flag = other.CheckOne(seq, word_table, param, buffer, options);
 				if ((flag == 1) || (flag == -1)) { // if similar to old one delete it
-					if (! options.cluster_best) {
+					if (!options.cluster_best) {
 						seq->Clear();
-						seq->state |= IS_REDUNDANT ;
-						NR2_red_no ++;
+						seq->state |= IS_REDUNDANT;
+						NR2_red_no++;
 					}
-					if( flag == -1 ) seq->state |= IS_MINUS_STRAND; // for EST only
+					if (flag == -1) seq->state |= IS_MINUS_STRAND; // for EST only
 				}
-				float p = (100.0*j)/M;
-				if( p > p0+1E-1 ){ // print only if the percentage changed
-					printf( "\r%4.1f%%", p );
-					fflush( stdout );
+				float p = (100.0 * j) / M;
+				if (p > p0 + 1E-1) { // print only if the percentage changed
+					printf("\r%4.1f%%", p);
+					fflush(stdout);
 					p0 = p;
 				}
 			}
 		}
-		printf( "\r..........%9i  compared  %9i  clusters\n", i, NR2_red_no );
+		printf("\r..........%9i  compared  %9i  clusters\n", i, NR2_red_no);
 		word_table.Clear();
 		word_table.size = 0;
 		i = m;
 	}
 
 	if (options.cluster_best) {//delete redundant sequences in options.cluster_best mode
-		for (i=0; i<(int)sequences.size(); i++){
-			Sequence *seq = sequences[i];
-			if (seq->identity > 0 ){
+		for (i = 0; i < (int)sequences.size(); i++) {
+			Sequence* seq = sequences[i];
+			if (seq->identity > 0) {
 				seq->state |= IS_REDUNDANT;
-				NR2_red_no ++;
+				NR2_red_no++;
 			}
 		}
 	}
-	for (i=0; i<(int)sequences.size(); i++){
-		Sequence *seq = sequences[i];
-		if( seq->identity <0 ) seq->identity *= -1;
-		if( not(seq->state & IS_REDUNDANT) ) rep_seqs.Append( i );
+	for (i = 0; i < (int)sequences.size(); i++) {
+		Sequence* seq = sequences[i];
+		if (seq->identity < 0) seq->identity *= -1;
+		if (not(seq->state & IS_REDUNDANT)) rep_seqs.Append(i);
 	}
 
 	cout << endl;
@@ -6679,56 +6796,56 @@ void SequenceDB::ClusterTo( SequenceDB & other, const Options & options )
 	temp_files.Clear();
 }
 
-int calc_ann_list(int len, char *seqi, int NAA, int& aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, bool est) 
+int calc_ann_list(int len, char* seqi, int NAA, int& aan_no, Vector<int>& aan_list, Vector<INTs>& aan_list_no, bool est)
 {
 	int i, j, k, i0, i1, k1;
 
 	// check_aan_list 
 	aan_no = len - NAA + 1;
-	for (j=0; j<aan_no; j++) {
+	for (j = 0; j < aan_no; j++) {
 		aan_list[j] = 0;
-		for (k=0, k1=NAA-1; k<NAA; k++, k1--) aan_list[j] += seqi[j+k] * NAAN_array[k1];
+		for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) aan_list[j] += seqi[j + k] * NAAN_array[k1];
 	}
-	if( est ){
+	if (est) {
 		// for the short word containing 'N', mask it to '-1'
-		for (j=0; j<len; j++){
-			if ( seqi[j] >= 4 ) {                      // here N is 4
-				i0 = (j-NAA+1 > 0) ? j-NAA+1 : 0;
+		for (j = 0; j < len; j++) {
+			if (seqi[j] >= 4) {                      // here N is 4
+				i0 = (j - NAA + 1 > 0) ? j - NAA + 1 : 0;
 				i1 = j < aan_no ? j : aan_no - 1;
-				for (i=i0; i<=i1; i++) aan_list[i]=-1;
+				for (i = i0; i <= i1; i++) aan_list[i] = -1;
 			}
 		}
 	}
 
 	std::sort(aan_list.begin(), aan_list.begin() + aan_no);
-	for(j=0; j<aan_no; j++) aan_list_no[j]=1;
-	for(j=aan_no-1; j; j--) {
-		if (aan_list[j] == aan_list[j-1]) {
-			aan_list_no[j-1] += aan_list_no[j];
-			aan_list_no[j]=0;
+	for (j = 0; j < aan_no; j++) aan_list_no[j] = 1;
+	for (j = aan_no - 1; j; j--) {
+		if (aan_list[j] == aan_list[j - 1]) {
+			aan_list_no[j - 1] += aan_list_no[j];
+			aan_list_no[j] = 0;
 		}
 	}
 	return OK_FUNC;
 } // END calc_ann_list
 
-void make_comp_short_word_index(int NAA, int *NAAN_array, Vector<int> &Comp_AAN_idx) {
+void make_comp_short_word_index(int NAA, int* NAAN_array, Vector<int>& Comp_AAN_idx) {
 	int i, j, k, icomp, k1;
-	int c[4] = {3,2,1,0};
+	int c[4] = { 3,2,1,0 };
 	unsigned char short_word[32]; //short_word[12] is enough
 
 	int NAA1 = NAAN_array[1];
 	int NAAN = NAAN_array[NAA];
 
-	for (i=0; i<NAAN; i++) {
+	for (i = 0; i < NAAN; i++) {
 		// decompose i back to short_word
-		for (k=i, j=0; j<NAA; j++) {
-			short_word[j] = (unsigned char) (k % NAA1);
-			k  = k / NAA1;
+		for (k = i, j = 0; j < NAA; j++) {
+			short_word[j] = (unsigned char)(k % NAA1);
+			k = k / NAA1;
 		}
 
 		// calc_comp_aan_list
-		icomp=0;
-		for (k=0, k1=NAA-1; k<NAA; k++, k1--) icomp += c[short_word[k1]] * NAAN_array[k];
+		icomp = 0;
+		for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) icomp += c[short_word[k1]] * NAAN_array[k];
 
 		Comp_AAN_idx[i] = icomp;
 	}
@@ -6737,29 +6854,29 @@ void make_comp_short_word_index(int NAA, int *NAAN_array, Vector<int> &Comp_AAN_
 //quick_sort_idx calling (a, idx, 0, no-1)
 //sort a with another array idx
 //so that idx rearranged
-int quick_sort_idx (int *a, int *idx, int lo0, int hi0 ) {
-  int lo = lo0;
-  int hi = hi0;
-  int mid;
-  int tmp;
+int quick_sort_idx(int* a, int* idx, int lo0, int hi0) {
+	int lo = lo0;
+	int hi = hi0;
+	int mid;
+	int tmp;
 
-  if ( hi0 > lo0) {
-    mid = a[ ( lo0 + hi0 ) / 2 ];
+	if (hi0 > lo0) {
+		mid = a[(lo0 + hi0) / 2];
 
-    while( lo <= hi ) {
-      while( ( lo < hi0 ) && ( a[lo] < mid ) ) lo++;
-      while( ( hi > lo0 ) && ( a[hi] > mid ) ) hi--;
-      if( lo <= hi ) {
-        tmp=a[lo];   a[lo]=a[hi];     a[hi]=tmp;
-        tmp=idx[lo]; idx[lo]=idx[hi]; idx[hi]=tmp;
-        lo++; hi--;
-      }
-    } // while
+		while (lo <= hi) {
+			while ((lo < hi0) && (a[lo] < mid)) lo++;
+			while ((hi > lo0) && (a[hi] > mid)) hi--;
+			if (lo <= hi) {
+				tmp = a[lo];   a[lo] = a[hi];     a[hi] = tmp;
+				tmp = idx[lo]; idx[lo] = idx[hi]; idx[hi] = tmp;
+				lo++; hi--;
+			}
+		} // while
 
-    if( lo0 < hi ) quick_sort_idx(a, idx, lo0, hi );
-    if( lo < hi0 ) quick_sort_idx(a, idx, lo, hi0 );
-  } // if ( hi0 > lo0)
-  return 0;
+		if (lo0 < hi) quick_sort_idx(a, idx, lo0, hi);
+		if (lo < hi0) quick_sort_idx(a, idx, lo, hi0);
+	} // if ( hi0 > lo0)
+	return 0;
 } // quick_sort_idx
 
 
@@ -6767,29 +6884,29 @@ int quick_sort_idx (int *a, int *idx, int lo0, int hi0 ) {
 //quick_sort_idxr calling (a, idx, 0, no-1)
 //sort a with another array idx
 //so that idx rearranged
-int quick_sort_idxr (int *a, int *idx, int lo0, int hi0 ) {
-  int lo = lo0;
-  int hi = hi0;
-  int mid;
-  int tmp;
+int quick_sort_idxr(int* a, int* idx, int lo0, int hi0) {
+	int lo = lo0;
+	int hi = hi0;
+	int mid;
+	int tmp;
 
-  if ( hi0 > lo0) {
-    mid = a[ ( lo0 + hi0 ) / 2 ];
+	if (hi0 > lo0) {
+		mid = a[(lo0 + hi0) / 2];
 
-    while( lo <= hi ) {
-      while( ( lo < hi0 ) && ( a[lo] > mid ) ) lo++;
-      while( ( hi > lo0 ) && ( a[hi] < mid ) ) hi--;
-      if( lo <= hi ) {
-        tmp=a[lo];   a[lo]=a[hi];     a[hi]=tmp;
-        tmp=idx[lo]; idx[lo]=idx[hi]; idx[hi]=tmp;
-        lo++; hi--;
-      }
-    } // while
+		while (lo <= hi) {
+			while ((lo < hi0) && (a[lo] > mid)) lo++;
+			while ((hi > lo0) && (a[hi] < mid)) hi--;
+			if (lo <= hi) {
+				tmp = a[lo];   a[lo] = a[hi];     a[hi] = tmp;
+				tmp = idx[lo]; idx[lo] = idx[hi]; idx[hi] = tmp;
+				lo++; hi--;
+			}
+		} // while
 
-    if( lo0 < hi ) quick_sort_idxr(a, idx, lo0, hi );
-    if( lo < hi0 ) quick_sort_idxr(a, idx, lo, hi0 );
-  } // if ( hi0 > lo0)
-  return 0;
+		if (lo0 < hi) quick_sort_idxr(a, idx, lo0, hi);
+		if (lo < hi0) quick_sort_idxr(a, idx, lo, hi0);
+	} // if ( hi0 > lo0)
+	return 0;
 } // quick_sort_idxr
 
 /////////////////////////// END ALL ////////////////////////

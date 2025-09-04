@@ -1,0 +1,49 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# 日志 & 临时文件
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+
+# 依赖与产物
+node_modules/
+dist/
+build/
+out/
+coverage/
+*.tar
+*.zip
+
+# 本地配置 / 环境
+.env
+.env.*
+*.local
+*.secret
+*.key
+*.pem
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.iml
+
+# 图片/大文件缓存（如需要）
+*.psd
+*.ai
+
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+CMakeFiles/
+CMakeCache.txt
+cmake-build-*/
+
+output/
+tmp_runs/
