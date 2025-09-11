@@ -45,6 +45,7 @@
 #include <queue>
 #include <cstdio>
 #include <map>
+#include <chrono>
 #include <memory>
 #include <cassert>
 #include <cstring>
@@ -56,7 +57,7 @@
 #include<valarray>
 #include<vector>
 #include<map>
-
+#include"json.hpp"
 #define CDHIT_VERSION  "4.8.1"
 
 #ifndef MAX_SEQ
@@ -309,7 +310,7 @@ struct Options
 	size_t  max_entries;
 	size_t  max_sequences;
 	size_t  mem_limit;
-
+	bool    ready;
 	bool    has2D;
 	bool    isEST;
 	bool    is454;
@@ -328,6 +329,7 @@ struct Options
     int     sort_outputf; // -sf
 
 	Options(){
+		ready = false;
 		backupFile = false;
 		useIdentity = false;
 		useDistance = false;
@@ -711,7 +713,13 @@ class SequenceDB
 		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
 		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs);
-		void read_sorted_files( int rank, int rank_size);
+		void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options);
+
+		void WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix, int num_procs);
+
+		void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
+
+		void read_sorted_files( int rank, int rank_size,bool mpi_status);
 		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,

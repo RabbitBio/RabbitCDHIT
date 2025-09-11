@@ -25,7 +25,7 @@
 #include <numeric>
 #include <mpi.h>
 #include <fstream>
-#include <chrono>
+
 Options options;
 SequenceDB seq_db;
 
@@ -72,31 +72,60 @@ int main(int argc, char *argv[])
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
-	
-	if (rank == 0) {
-		
-		// 元数据排序
-		// seq_db.Read( db_in.c_str(), options ,meta_table);
-        // seq_db.SortDivideMetaTable(meta_table, options );
-		// seq_db.GenerateSortedRuns(db_in.c_str(), meta_table, 10 * 1024 * 1024, run_files);  // 50MB per chunk
-		// seq_db.MergeRuns_Sequential(run_files, "final_sorted_1.fa");
 
-		//外部排序
-		 auto start = std::chrono::high_resolution_clock::now();
-		seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
-		
-		seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
-		auto end = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double> elapsed = end - start;
-        std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
+	if (!options.ready)
+	{
+		if (rank == 0)  
+		{
+			// 外部排序
+			size_t min_file_size = 512ull * 1024 * 1024;
+			// seq_db.GenerateSorted_Parallel(db_in.c_str(), min_file_size , run_files,options);
+			auto start = std::chrono::high_resolution_clock::now();
+			seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options);
+			mkdir("output", 0755);
+			seq_db.MergeSortedRuns_KWay(run_files, "output/", size - 1);
+			auto end = std::chrono::high_resolution_clock::now();
+			std::chrono::duration<double> elapsed = end - start;
+			std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
+		}
+
+		else
+		{
+			// std::cout<<"Ready to read file!\n";
+			seq_db.read_sorted_files(rank, size, true);
+		}
+		MPI_Barrier(MPI_COMM_WORLD);
 	}
 
+	else
+	{
+		seq_db.ReadJsonInfo("info.json", "output/", options, master);
+		if (!master)
+		{
+			seq_db.read_sorted_files(rank, size, false);
+		}
+	}
+
+	// if (rank == 0) {
+		
+
+
+	// 	//外部排序
+	// 	 auto start = std::chrono::high_resolution_clock::now();
+	// 	seq_db.GenerateSorted_Parallel(db_in.c_str(), 500 * 1024 * 1024, run_files,options); 
+		
+	// 	seq_db.MergeSortedRuns_KWay(run_files, "output/",size-1);
+	// 	auto end = std::chrono::high_resolution_clock::now();
+    //     std::chrono::duration<double> elapsed = end - start;
+    //     std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
+	// }
+
   
-	else {
+	// else {
 		
-		seq_db.read_sorted_files(rank,size);
+	// 	seq_db.read_sorted_files(rank,size);
 		
-    }
+    // }
 	// sleep(10);
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
