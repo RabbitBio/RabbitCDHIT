@@ -251,6 +251,7 @@ bool Options::SetOptionCommon( const char *flag, const char *value )
 	else if (strcmp(flag, "-U") == 0) unmatch_len = intval;
 	else if (strcmp(flag, "-tmp" ) == 0) temp_dir  = value;
 	else if (strcmp(flag, "-bak" ) == 0) backupFile  = intval;
+	else if (strcmp(flag, "-ready" ) == 0) ready = true;
 	else if (strcmp(flag, "-T" ) == 0){
 #ifndef NO_OPENMP
 		int cpu = omp_get_num_procs();
@@ -2092,90 +2093,193 @@ void SequenceDB::Read(const char *file, const Options & options,vector<SequenceM
 
 
 
-//外排序先读后写
-void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options)
-{
-	
+static void write_run_fasta(const std::vector<std::pair<std::string, std::string>>& chunk, const std::string& path) {
+	FILE* fout = std::fopen(path.c_str(), "wb");
+	if (!fout) {
+		perror(("fopen" + path).c_str());
+		exit(1);
+	}
+	for (const auto& p : chunk) {
+		if (p.first.back() != '\n') {
+			fprintf(fout, ">%s\n", p.first.c_str());
+		}
+		else {
+			fprintf(fout, ">%s", p.first.c_str());
+		}
+		if (!p.second.empty() && p.second.back() != '\n') {
+			fprintf(fout, "%s\n", p.second.c_str());
+		}
+		else {
+			fprintf(fout, "%s", p.second.c_str());
+		}
+	}
+	fclose(fout);
+}
+
+void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options) {
 	int option_l = options.min_length;
-	chunk_size=500000;
+	chunk_size = 500000;
 	total_num = 0;
-	long long total_num_divede = 0;
-	string max_name = "";
-	string min_name = "";
+	long long total_num_divide = 0;
+	std::string max_name, min_name;
 	total_letter = 0;
 	total_desc = 0;
 	max_len = 0;
 	min_len = (size_t)-1;
-	vector<vector<pair<string, string>>> chunks;
-	vector<pair<string, string>> current_chunk;
-	vector<size_t> all_lengths;
-	size_t current_chunk_size = 0;
-	struct stat st;
-   if (stat(file, &st) == 0){
-	 std::cout << "File size: " << st.st_size << " bytes" << std::endl;
-	 if(st.st_size/1000>chunk_size_bytes)
-	 chunk_size_bytes=st.st_size/1000;
-	 std::cout << "chunk_size_bytes: " << chunk_size_bytes<< " bytes" << std::endl;
-   }
-       
-    else
-        perror("stat");
-	mkdir("tmp_runs", 0755);
-	gzFile fp = gzopen(file, "r");
-	kseq_t *seq = kseq_init(fp);
-	int len;
-	// Sequence one;
-	string data;
-	string identifier;
-	
-	while (true)
-	{
-		len = kseq_read(seq);
-		if (len < 0) break;
-		if (len <= option_l) continue;
-		total_num++;
-		data = seq->seq.s;
-		identifier = seq->name.s;
-		if (options.trim_len > 0){
-			if (options.trim_len >= len) return;
-    		len = options.trim_len;
-    		if (len) data[len]=0;
-		}
-		current_chunk.emplace_back(identifier, data);
-		total_letter += len;
-		total_desc += seq->name.l;
-		all_lengths.push_back(len);
-		if (len > max_len)
-		{
-			max_len = len;
-			max_name = identifier;
-		}
-		if (seq->name.l > max_idf)
-		{
-			max_idf = seq->name.l;
-			
-		}
-		if (len < min_len)
-		{
-			min_len = len;
-			min_name = identifier;
-		}
+	std::vector<size_t> all_lengths;
+	max_idf = 0;
 
-		current_chunk_size += seq->name.l + len;
-		if (current_chunk_size >= chunk_size_bytes)
-		{
-			total_num_divede += current_chunk.size();
-			chunks.push_back(std::move(current_chunk));
-			current_chunk.clear();
-			current_chunk_size = 0;
-		}
+	struct stat st;
+	if (stat(file, &st) == 0) {
+		// 0 表示获取成功， 1表示获取失败
+		std::cout << "File size: " << st.st_size << " bytes" << std::endl; // 输出文件字节大小
+		size_t perhaps_file_size = st.st_size / 1024;
+		chunk_size_bytes = max(perhaps_file_size, chunk_size_bytes);
+		std::cout << "chunk_size_bytes: " << chunk_size_bytes << " bytes" << std::endl;
 	}
-	if (current_chunk_size > 0)
+	else
+		perror("stat");
+	const char* RUN_DIR = "tmp_runs";
+	if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
+		perror("mkdir tmp_runs");
+		return;
+	}
+
+	std::cout<<"kseq init"<<endl;
+
+	// kseq init
+	gzFile fp = gzopen(file, "rb");
+	if (!fp) { perror("gzopen"); return; }
+	kseq_t* seq = kseq_init(fp);
+
+	// omp parallel process
+	static constexpr int MAX_INFLIGHT = 8;
+	static constexpr int MAX_WRITE_PAR = 1;
+
+	std::atomic<int> inflight{ 0 };               // 在途块数量（读→排→写）
+	std::atomic<int> write_slots{ MAX_WRITE_PAR };
+	std::atomic<int> run_id{ 0 };                 // run 文件编号（并发安全）
+	run_files.clear();
+	run_files.shrink_to_fit();                  // 清空列表
+	std::vector<std::pair<std::string, std::string>> current_chunk;
+	size_t current_chunk_size = 0;
+
+	using clock = std::chrono::steady_clock;
+	auto read_start = clock::now();
+
+	omp_set_dynamic(0);
+#pragma omp parallel
 	{
-		total_num_divede += current_chunk.size();
-		chunks.push_back(std::move(current_chunk));
-		current_chunk.clear();
-		current_chunk_size = 0;
+	#pragma omp single nowait
+		{
+			while (true) {
+				while (inflight.load(std::memory_order_relaxed) >= MAX_INFLIGHT) {
+				#pragma omp taskyield
+				}
+				int len = kseq_read(seq);
+				if (len < 0) break;
+				if (len <= option_l) continue;
+				std::string data = seq->seq.s ? seq->seq.s : "";
+				std::string idf = seq->name.s ? seq->name.s : "";
+				if (options.trim_len > 0) {
+					if (options.trim_len >= len) continue;
+					len = options.trim_len;
+					if (len) data[len] = 0;
+				}
+				total_num++;
+				total_letter += len;
+				total_desc += seq->name.l;
+				all_lengths.push_back((size_t)len);
+				if ((size_t)len > max_len) {
+					max_len = (size_t)len;
+					max_name = idf;
+				}
+				if (seq->name.l > max_idf)
+					max_idf = seq->name.l;
+				if ((size_t)len < min_len) {
+					min_len = (size_t)len;
+					min_name = idf;
+				}
+				current_chunk.emplace_back(std::move(idf), std::move(data));
+				current_chunk_size += seq->name.l + (size_t)len;
+				if (current_chunk_size >= chunk_size_bytes) {
+					auto read_end = clock::now();
+					auto read_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(read_end - read_start).count();
+					total_num_divide += current_chunk.size();
+					auto* ch = new std::vector<std::pair<std::string, std::string>>(std::move(current_chunk));
+					current_chunk.clear();
+					current_chunk_size = 0;
+					int my_run = run_id.fetch_add(1, std::memory_order_relaxed);
+					inflight.fetch_add(1, std::memory_order_relaxed);
+				#pragma omp task firstprivate(ch) depend(out: ch[0:1]) priority(1)
+					{
+						std::stable_sort(ch->begin(), ch->end(),
+							[](auto const& a, auto const& b) {
+								return a.second.size() > b.second.size();
+							});
+					}
+				#pragma omp task firstprivate(ch, my_run, read_ns) depend(in: ch[0:1])
+					{
+						// 限制并发写
+						while (true) {
+							int slots = write_slots.load(std::memory_order_relaxed);
+							if (slots > 0 &&
+								write_slots.compare_exchange_weak(slots, slots - 1)) break;
+						#pragma omp taskyield
+						}
+						auto sort_write_start = clock::now();
+						std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+						write_run_fasta(*ch, path);
+						auto sort_write_end = clock::now();
+						auto sort_write_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(sort_write_end - sort_write_start).count();
+					// #pragma omp critical(run_files_push)
+					// 	{
+					// 		run_files.push_back(path);
+					// 	}
+						std::cout << read_ns << "\tReading\n"
+							<< sort_write_ns << "\tSort+Write\n";
+
+						write_slots.fetch_add(1, std::memory_order_relaxed);
+						delete ch;
+						inflight.fetch_sub(1, std::memory_order_relaxed);
+					}
+				}
+			}
+			if (current_chunk_size > 0) {
+				total_num_divide += current_chunk.size();
+				auto* ch = new std::vector<std::pair<std::string, std::string>>(std::move(current_chunk));
+				current_chunk.clear(); current_chunk_size = 0;
+				int my_run = run_id.fetch_add(1, std::memory_order_relaxed);
+				inflight.fetch_add(1, std::memory_order_relaxed);
+
+			#pragma omp task firstprivate(ch) depend(out: ch[0:1]) priority(1)
+				{
+					std::stable_sort(ch->begin(), ch->end(),
+						[](auto const& a, auto const& b) {
+							return a.second.size() > b.second.size();
+						});
+				}
+			#pragma omp task firstprivate(ch, my_run) depend(in: ch[0:1])
+				{
+					while (true) {
+						int slots = write_slots.load(std::memory_order_relaxed);
+						if (slots > 0 &&
+							write_slots.compare_exchange_weak(slots, slots - 1)) break;
+					#pragma omp taskyield
+					}
+					std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+					write_run_fasta(*ch, path);
+				// #pragma omp critical(run_files_push)
+				// 	{
+				// 		run_files.push_back(path);
+				// 	}
+					write_slots.fetch_add(1, std::memory_order_relaxed);
+					delete ch;
+					inflight.fetch_sub(1, std::memory_order_relaxed);
+				}
+			}
+		#pragma omp taskwait
+		}
 	}
 	kseq_destroy(seq);
 	gzclose(fp);
@@ -2184,103 +2288,102 @@ void SequenceDB::GenerateSorted_Parallel(const char *file, size_t chunk_size_byt
 		bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
 	if (max_len > MAX_SEQ)
 		bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
-	// 计算N50
-	sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
+
+	std::sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
 	long long cumulative = 0;
-	for (size_t len : all_lengths)
-	{
-		cumulative += len;
-		if (cumulative >= total_letter / 2)
-		{
-			len_n50 = len;
-			break;
-	
-		}
+	for (size_t L : all_lengths) {
+		cumulative += L;
+		if (cumulative >= total_letter / 2) { len_n50 = L; break; }
 	}
-	
-	std::cout << "longest and shortest : " << max_name << " and " << min_name << std::endl;
-	std::cout << "longest and shortest : " << max_len << " and " << min_len << std::endl;
-	std::cout << "longest name : " << max_idf << std::endl;
-	std::cout << "Total letters: " << total_letter << std::endl;
-	std::cout << "total_num_divede: " << total_num_divede << std::endl;
-	std::cout << "Total number: " << total_num << std::endl;
-	std::cout << "N50 length: " << len_n50 << std::endl;
-	chunk_bytes = total_letter/total_num *chunk_size;
-	if(total_letter % chunk_bytes)
-	chunks_num = total_letter / chunk_bytes + 1;
-	else
-	chunks_num = total_letter / chunk_bytes;
-	// if(total_num % chunk_size)
-	// chunks_num = total_num / chunk_size+ 1;
-	// else
-	// chunks_num = total_num / chunk_size;
-	// cerr << "Before chunks_num: " << temp_files.files.Size() << " files." << endl;
-	// chunks_num=17;
-	// cerr << "After chunks_num: " << temp_files.files.Size() << " files." << endl;
-	std::cout << "chunk_num: " << chunks_num<< std::endl;
-	// exit(0);
-	run_files.resize(chunks.size());
-	long long chunk_total_num = 0;
-	
-#pragma omp parallel for schedule(dynamic)
-	for (int i = 0; i < (int)chunks.size(); ++i)
-	{
-		auto &chunk = chunks[i];
-		stable_sort(chunk.begin(), chunk.end(), [](const auto &a, const auto &b)
-					{ return a.second.size() > b.second.size(); });
-		string run_file = "tmp_runs/run_" + to_string(i) + ".fa";
-		run_files[i] = run_file;
-
-		FILE *fout = fopen(run_file.c_str(), "w");
-		if (!fout)
-			continue;
-		for (const auto &p : chunk)
-		{
-			if (p.first.back() != '\n')
-			{
-				fprintf(fout, ">%s\n", p.first.c_str());
-			}
-			else
-			{
-				fprintf(fout, ">%s", p.first.c_str());
-			}
-
-			if (!p.second.empty() && p.second.back() != '\n')
-			{
-				fprintf(fout, "%s\n", p.second.c_str());
-			}
-			else
-			{
-				fprintf(fout, "%s", p.second.c_str());
-			}
-		}
-		fclose(fout);
-		
-	}
-	// temp_files.Clear();
-	chunks.clear();
-	chunks.shrink_to_fit();
-	//  size_t total_memory = 0;
-
-    // // Calculate the memory used by the vector of vectors (chunks)
-    // total_memory += sizeof(chunks);  // memory for vector metadata (size, capacity)
-    
-    // // Iterate through each vector in chunks
-    // for (const auto& chunk : chunks) {
-    //     total_memory += sizeof(chunk);  // memory for each vector metadata
-        
-    //     // Calculate memory used by each pair in the chunk
-    //     for (const auto& p : chunk) {
-    //         total_memory += sizeof(p);  // memory for pair metadata (2 pointers)
-    //         total_memory += p.first.capacity();  // memory for the string's internal buffer
-    //         total_memory += p.second.capacity();  // memory for the string's internal buffer
-    //     }
-    // }
-
-    // cout << "Total memory used by 'chunks': " << total_memory / (1024 * 1024) << " MB" << endl;
-
 	all_lengths.clear();
 	all_lengths.shrink_to_fit();
+	for (int i = 0; i < run_id; i++)
+	{
+		std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(i) + ".fa";
+		run_files.push_back(path);
+	}
+	std::cout << "longest and shortest : " << max_name << " and " << min_name << "\n";
+	std::cout << "longest and shortest : " << max_len << " and " << min_len << "\n";
+	std::cout << "longest name : " << max_idf << "\n";
+	std::cout << "Total letters: " << total_letter << "\n";
+	std::cout << "total_num_divede: " << total_num_divide << "\n";
+	std::cout << "Total number: " << total_num << "\n";
+	std::cout << "N50 length: " << len_n50 << "\n";
+	chunk_bytes = total_letter / total_num * chunk_size;
+	if (total_letter % chunk_bytes) chunks_num = total_letter / chunk_bytes + 1;
+	else chunks_num = total_letter / chunk_bytes;
+	// if (total_num % chunk_size) chunks_num = total_num / chunk_size + 1;
+	// else chunks_num = total_num / chunk_size;
+	std::cout << "chunk_num: " << chunks_num << std::endl;
+}
+
+void SequenceDB::WriteToJSON(const std::string& file,
+                             const std::string& output_dir,
+                             const std::string& output_prefix,
+                             int num_procs)
+{
+    // 构造 JSON 对象
+	using json = nlohmann::json;
+    json j;
+
+    j["info"] = {
+        {"max_len",      max_len},
+        {"max_idf",      max_idf},
+        {"chunks_num",   chunks_num},
+        {"chunk_size",   chunk_size},
+        {"total_num",    total_num},
+        {"len_n50",      len_n50},
+        {"min_len",      min_len},
+        {"num_procs",    num_procs},
+        {"total_letter", total_letter},
+        {"total_desc",   total_desc},
+		{"total_chunk",  total_chunk},
+		{"chunk_bytes",  chunk_bytes},
+		
+
+    };
+
+    j["files"] = {
+        {"output_dir", output_dir},
+        {"out_prefix", output_prefix}
+    };
+
+    // 写文件（4 表示缩进，便于人类阅读）
+    std::ofstream ofs(output_dir + file, std::ios::binary);
+    if (!ofs) return;
+    ofs << j.dump(4) << "\n";
+}
+
+void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_dir,Options& options, bool master){
+	using json = nlohmann::json;
+	std::string path = output_dir+file;
+	std::ifstream ifs(path);
+    if (!ifs.is_open()) {
+        throw std::runtime_error("Cannot open JSON file: " + path);
+    }
+	json j;
+    ifs >> j;
+
+    // info 部分
+    max_len      = j["info"]["max_len"].get<size_t>();
+    max_idf      = j["info"]["max_idf"].get<size_t>();
+    chunks_num   = j["info"]["chunks_num"].get<int>();
+    chunk_size   = j["info"]["chunk_size"].get<int>();
+    total_num    = j["info"]["total_num"].get<long long>();
+    len_n50      = j["info"]["len_n50"].get<size_t>();
+    min_len      = j["info"]["min_len"].get<size_t>();
+	chunk_bytes  = j["info"]["chunk_bytes"].get<long long>();
+	if(master){
+    	total_letter = j["info"]["total_letter"].get<long long>();
+    	total_desc   = j["info"]["total_desc"].get<long long>();
+		total_chunk  = j["info"]["total_chunk"].get<int>();
+	}
+	// // files 部分
+    // this->output_dir    = j["files"]["output_dir"].get<std::string>();
+    // this->output_prefix = j["files"]["out_prefix"].get<std::string>();
+
+	options.max_entries = max_len * MAX_TABLE_SEQ;
+
 }
 
 // 归并
@@ -2428,7 +2531,9 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	fps.clear();
 	std::vector<FILE *>().swap(fps);
 	pq = std::priority_queue<FastaRecord>(); 
-	std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
+	WriteToJSON("info.json",output_prefix,"_proc",num_procs);
+	std::cout<<"Successfully write info.json!\n";
+	// std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2441,9 +2546,10 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	// exit(0);
 }
 
-void SequenceDB::read_sorted_files( int rank, int rank_size) {
+void SequenceDB::read_sorted_files( int rank, int rank_size,bool mpi_status) {
 
 	int file_index = rank;
+	if(mpi_status){
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2453,6 +2559,8 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	}
+
 	// Sequence one;
     // Sequence des;
    
@@ -2532,7 +2640,7 @@ void SequenceDB::read_sorted_files( int rank, int rank_size) {
 		my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 		chunks_id.push_back(chunk_id);
 		// cerr<<sequences.size()-1-start_my_id<<endl;
-		// cerr<<"chunk_id    "<<chunk_id<<endl;
+		cerr<<"chunk_id    "<<chunk_id<<endl;
 		// all_chunks.push_back(make_pair(start_global_id,global_id ));
 	}
 		kseq_destroy(seq);
@@ -4531,7 +4639,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	{
 		// if (i > 1) break;
 		// cout << ">>> Cluster Chunk " << i << " remaining sequences and build word_table " << endl;
-
+		auto start = std::chrono::high_resolution_clock::now();
 		int start_rep_suffix = rep_seqs.size();
 		// cerr << "chunks start     " << all_chunks[i].first << endl;
 		// cerr << "chunks end     " << all_chunks[i].second << endl;
@@ -4689,10 +4797,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 			}
 		}
-		
+		auto end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed = end - start;
+		std::cout << "chunk " <<i<<"  build word table  "<<elapsed.count() << " 秒\n";
 		cerr << "word table size" << rep_sequences.size() << endl;
 		cerr<<"cluster num     "<<rep_seqs.size()<<endl;
-	
+
+		
 	//----------------------------------------
 		if (i > 0)
 		{
@@ -5055,6 +5166,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		// cerr<<"size  "<<size<<endl;
 		int *rep_chunk = (int *)malloc(size * 2 * sizeof(int));
 		// float *identity_array = (float *)malloc(size * sizeof(float));
+		if(rank_size ==2) target_worker = 0;
 		MPI_Recv(rep_chunk, size * 2, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		// MPI_Recv(identity_array, size, MPI_FLOAT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
@@ -5103,6 +5215,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		seqs_suffix_buf = NULL;
 		prefix_buf = NULL;
 		indexCount_buf = NULL;
+		auto end1 = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double> elapsed1 = end1 - start;
+		std::cout << "chunk " <<i<<"  total time   "<<elapsed1.count() << " 秒\n";
 	}
 	for (int i = 0; i < rank_size - 1; i++)
 	{
@@ -5269,6 +5384,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// cout <<my_rank<<"     "<<chunks_id[idx]<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
 				// cout <<my_rank<<"     "<<chunks_id[idx]<< endl;
 				// if(chunks_id[idx]==32)cerr<<rep_sequences.size()<<endl;
+				// cerr<<chunks_id[start]<<endl;
 			#pragma omp parallel for num_threads(T) schedule(dynamic,1)
 				for (j = my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
 
@@ -5289,14 +5405,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					CheckOne(seq, word_table, params[tid], buffers[tid], options,my_rank);
 					// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
 				}
-					if (chunks_id[start] == soure_chunk + 1&&!done_flag) {
-					cerr<<"this  "<<chunks_id[start]<<endl;
-					int size = my_chunks[start].second - my_chunks[start].first+1;
+					if (chunks_id[idx] == soure_chunk + 1&&!done_flag) {
+					cerr<<"this  "<<chunks_id[idx]<<endl;
+					// int size = my_chunks[start].second - my_chunks[start].first+1;
+					int size = my_chunks[idx].second - my_chunks[idx].first+1;
 					// cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
 					int* rep_chunk = (int*)malloc(size * 2 * sizeof(int));
 					// float* identity_array = (float*)malloc(size * sizeof(float));
-					for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
-						int index = (j - my_chunks[start].first)*2;
+					// for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
+					// 	int index = (j - my_chunks[start].first)*2;
+					for (j =my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
+						int index = (j - my_chunks[idx].first)*2;
 						Sequence* seq = sequences[j];
 						if (seq->state & IS_REDUNDANT) {
 							
