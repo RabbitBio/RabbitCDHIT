@@ -670,6 +670,7 @@ class SequenceDB
 		vector<int> chunks_id;
 		int total_chunk;
 		int chunk_size;
+		int first_chunk_size;
 		long long chunk_bytes;
 		int chunks_num;
 		std::vector<std::vector<int>> total_encodes;
