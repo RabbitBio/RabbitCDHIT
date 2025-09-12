@@ -31,6 +31,7 @@
 #include<assert.h>
 #include<limits.h>
 #include<mpi.h>
+#include <sys/time.h>
 #ifndef NO_OPENMP
 
 #include<omp.h>
@@ -56,7 +57,12 @@ int aa2idx[] = {0, 2, 4, 3, 6, 13,7, 8, 9,20,11,10,12, 2,20,14,
     //          Q  R  S  T  U  V  W  X  Y  Z
     // so  aa2idx[ X - 'A'] => idx_of_X, eg aa2idx['A' - 'A'] => 0,
     // and aa2idx['M'-'A'] => 12
-
+double get_time()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
+}
 int BLOSUM62[] = {
   4,                                                                  // A
  -1, 5,                                                               // R
@@ -2119,6 +2125,7 @@ static void write_run_fasta(const std::vector<std::pair<std::string, std::string
 void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options) {
 	int option_l = options.min_length;
 	chunk_size = 500000;
+	first_chunk_size = 2000;
 	total_num = 0;
 	long long total_num_divide = 0;
 	std::string max_name, min_name;
@@ -2310,11 +2317,11 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 	std::cout << "Total number: " << total_num << "\n";
 	std::cout << "N50 length: " << len_n50 << "\n";
 	chunk_bytes = total_letter / total_num * chunk_size;
-	if (total_letter % chunk_bytes) chunks_num = total_letter / chunk_bytes + 1;
-	else chunks_num = total_letter / chunk_bytes;
-	// if (total_num % chunk_size) chunks_num = total_num / chunk_size + 1;
-	// else chunks_num = total_num / chunk_size;
-	std::cout << "chunk_num: " << chunks_num << std::endl;
+	// if (total_letter % chunk_bytes) chunks_num = total_letter / chunk_bytes + 1;
+	// else chunks_num = total_letter / chunk_bytes;
+	// // if (total_num % chunk_size) chunks_num = total_num / chunk_size + 1;
+	// // else chunks_num = total_num / chunk_size;
+	// std::cout << "chunk_num: " << chunks_num << std::endl;
 }
 
 void SequenceDB::WriteToJSON(const std::string& file,
@@ -2339,6 +2346,7 @@ void SequenceDB::WriteToJSON(const std::string& file,
         {"total_desc",   total_desc},
 		{"total_chunk",  total_chunk},
 		{"chunk_bytes",  chunk_bytes},
+		{"first_chunk_size",  first_chunk_size},
 		
 
     };
@@ -2373,6 +2381,7 @@ void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_
     len_n50      = j["info"]["len_n50"].get<size_t>();
     min_len      = j["info"]["min_len"].get<size_t>();
 	chunk_bytes  = j["info"]["chunk_bytes"].get<long long>();
+	first_chunk_size = j["info"]["first_chunk_size"].get<int>();
 	if(master){
     	total_letter = j["info"]["total_letter"].get<long long>();
     	total_desc   = j["info"]["total_desc"].get<long long>();
@@ -2397,7 +2406,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 	std::priority_queue<FastaRecord> pq;
 	std::vector<FILE *> fps(run_files.size(), nullptr);
-	long long total_num = 0;
+	// long long total_num = 0;
 
 
 	
@@ -2419,7 +2428,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 			rec.seq = seq;
 			rec.file_id = i;
 			pq.push(rec);
-			total_num++;
+			// total_num++;
 		}
 	}
 
@@ -2445,11 +2454,11 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 
 	size_t global_chunk_id = -1;
-	// size_t current_chunk_size = 0;
+	size_t current_chunk_size = 0;
  	size_t current_chunk_bytes = 0;
 	int current_proc = -1;
-	long long global_sequence_id = 0;			  
-	long long chunk_start_id = global_sequence_id; 
+	// long long global_sequence_id = 0;			  
+	// long long chunk_start_id = global_sequence_id; 
 
 
 	auto rotate_chunk = [&]
@@ -2463,10 +2472,10 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 		global_chunk_id++;
 		current_proc = (global_chunk_id) % num_procs;
-		// current_chunk_size = 0;
+		current_chunk_size = 0;
 		current_chunk_bytes = 0;
 		
-		chunk_start_id = global_sequence_id;
+		// chunk_start_id = global_sequence_id;
 
 		auto &pf = proc_files[current_proc];
 		// fprintf(pf.fp, "#CHUNK_START ID=%zu START_ID=%lld\n", global_chunk_id, chunk_start_id);
@@ -2484,8 +2493,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 		fwrite(rec.desc.data(), 1, rec.desc.size(), pf.fp);
 		fwrite(rec.seq.data(), 1, rec.seq.size(), pf.fp);
 		current_chunk_bytes += rec.seq.length() - 1;
-		// current_chunk_size++;
-		global_sequence_id++; 
+		current_chunk_size++;
+		// global_sequence_id++; 
 
 		
 		int fid = rec.file_id;
@@ -2497,20 +2506,24 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 			new_rec.seq = seq;
 			new_rec.file_id = fid;
 			pq.push(new_rec);
-			total_num++;
+			// total_num++;
 		}
 
 	// 	if (current_chunk_size >= chunk_size)
 	// 		rotate_chunk();
 	// }
-		if (current_chunk_bytes > chunk_bytes)
+		if ((current_chunk_bytes > chunk_bytes)||(chunks_num == 0 &&current_chunk_size >=first_chunk_size)){
 			rotate_chunk();
+			chunks_num++;
+		}
+			
 	}
 	// if (current_chunk_size > 0)
 	if (current_chunk_bytes > 0)
 	{
 
 		auto &pf = proc_files[current_proc];
+		chunks_num++;
 		// fprintf(pf.fp, "\n#CHUNK_END ID=%zu RECORDS=%zu\n", global_chunk_id, current_chunk_size);
 		fflush(pf.fp);
 	}
@@ -2534,7 +2547,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	WriteToJSON("info.json",output_prefix,"_proc",num_procs);
 	std::cout<<"Successfully write info.json!\n";
 	// std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
-
+	std::cout << "chunk_num: " << chunks_num << std::endl;
 	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2543,6 +2556,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	// exit(0);
 }
 
@@ -2559,6 +2573,7 @@ void SequenceDB::read_sorted_files( int rank, int rank_size,bool mpi_status) {
 	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	}
 
 	// Sequence one;
@@ -2613,7 +2628,7 @@ void SequenceDB::read_sorted_files( int rank, int rank_size,bool mpi_status) {
 		// 	start_my_id=sequences.size();
 
 		// }current_chunk_size >= chunk_size_bytes
-				if(now_bytes > chunk_bytes){
+				if(now_bytes > chunk_bytes||(rank == 1&&chunks_id.size() == 0&&sequences.size()>=first_chunk_size)){
 			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 				cerr<<"chunk_id    "<<chunk_id<<endl;
 			chunks_id.push_back(chunk_id);
@@ -4609,7 +4624,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		// 	chunk_kseq[file_index] =seq;
 		// 	break;
 		// }
-		if (now_bytes > chunk_bytes)
+		// if (now_bytes > chunk_bytes)
+		if (sequences.size()>=first_chunk_size)
 		{
 			chunks_id.push_back(chunk_id);
 			// all_chunks.push_back(make_pair(start_global_id,sequences.size()));
@@ -4646,7 +4662,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		int N = sequences.size();
 		neigh.clear();
 		neigh.assign(N, {});
-		
+		double t1 = get_time();
 #pragma omp parallel for schedule(dynamic, 1)
 		for (j = 0; j < N; j++)
 		{
@@ -4656,6 +4672,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			int tid = omp_get_thread_num();
 			ClusterOne_Test(seq, j, word_table, params[tid], buffers[tid], options);
 		}
+		double t3 = get_time();
+		cerr << "Encode  time: " << t3 - t1 << " seconds" << endl;
 
 #pragma omp parallel for schedule(static)
 		for (long long b = 0; b < (long long)NAAN; ++b)
@@ -4693,15 +4711,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						  return a.first < b.first; // seq_id 升序
 					  });
 		}
+		double t2 = get_time();
+		cerr << "Encode and insert word table time: " << t2 - t1 << " seconds" << endl;
+		double tA = get_time();
+		cerr<<N<<endl;
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int j = 0; j < N; j++)
-		{
-			int tid = omp_get_thread_num();
+		{	
 			Sequence *seq = sequences[j];
 			if (seq->state & IS_REDUNDANT) continue;
-			
+		// cerr<<j<<endl;
+			int tid = omp_get_thread_num();
 			CheckOne_Test(seq, j, all_wordtable, params[tid], buffers[tid], options);
 		}
+		double tB = get_time();
 		std::vector<size_t> cnt(N, 0);
 		for (int t = 0; t < T; t++)
 		{
@@ -4725,7 +4748,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 		// std::vector<char> redundant(N, 0);
 		// std::vector<int> parent(N, -1);
+		double tC = get_time();
+		std::cerr << "checkone time   : " << (tB - tA) << " s\n";
+		std::cerr << "checkone and merge time : " << (tC - tA) << " s\n";
 		int centers = 0;
+		
 		for (int j = 0; j < N; ++j)
 		{
 			Sequence *seq = sequences[j];
@@ -4758,6 +4785,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 		
 		// std::cerr << "cluster num    " << centers << endl;
+		double t7 = get_time();
 		omp_set_num_threads(T);
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int j = 0; j < N; j++)
@@ -4797,6 +4825,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				}
 			}
 		}
+			double t8 = get_time();
+		cerr << "real word table  time: " << t8 - t7 << " seconds" << endl;
 		auto end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double> elapsed = end - start;
 		std::cout << "chunk " <<i<<"  build word table  "<<elapsed.count() << " 秒\n";
@@ -5331,7 +5361,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					// 	chunk_kseq[file_index] =seq;
 					// 	break;
 					// }
-					if (now_byte > chunk_bytes)
+					if (now_byte > chunk_bytes||(soure_chunk==0&&rep_sequences.size()>=first_chunk_size))
 					{
 						chunk_kseq[file_index] = seq;
 						now_byte = 0;
