@@ -533,12 +533,12 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 {
 	int i, i1, j, k;
 	int *pp;
-	int nall = len1+len2-1;
+	int nall = len1+len2-1;//总“对角线”数
 	Vector<int> & taap = buffer.taap;
 	Vector<INTs> & aap_begin = buffer.aap_begin;
 	Vector<INTs> & aap_list = buffer.aap_list;
-	Vector<int> & diag_score = buffer.diag_score;
-	Vector<int> & diag_score2 = buffer.diag_score2;
+	Vector<int> & diag_score = buffer.diag_score;//记命中次数
+	Vector<int> & diag_score2 = buffer.diag_score2;//记加权命中次数
 
 	if (nall > MAX_DIAG) bomb_error("in diag_test_aapn, MAX_DIAG reached");
 	for (pp=&diag_score[0], i=nall; i; i--, pp++) *pp=0;
@@ -554,29 +554,9 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer & b
 		cpx = 1 + (iseq2[i] != iseq2[i+1]);
 		if ( (j=taap[c22]) == 0) continue;
 		int m = aap_begin[c22];
-
-		for (int k = 0; k < j; k++)
-		{
-			int pos = i1 - aap_list[m + k];
-
-			if (m + k >= aap_list.size())
-			{
-				std::cerr << "[ERROR] aap_list index out of bounds: m=" << m << " k=" << k
-						  << " m+k=" << (m + k) << " size=" << aap_list.size() << std::endl;
-			
-			}
-
-			if (pos < 0 || pos >= diag_score.size())
-			{
-				std::cerr << "[ERROR] diag_score index out of bounds: i1=" << i1
-						  << ", aap_list[m+k]=" << aap_list[m + k]
-						  << ", pos=" << pos
-						  << ", diag_score.Size()=" << diag_score.size() << std::endl;
-			
-			}
-
-			diag_score[i1 - aap_list[m + k]]++;
-			diag_score2[i1 - aap_list[m + k]] += cpx;
+		for(int k=0; k<j; k++){
+			diag_score[ i1 - aap_list[m+k] ] ++;
+			diag_score2[ i1 - aap_list[m+k] ] += cpx;
 		}
 	}
 
@@ -6110,6 +6090,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 				band_width1, band_left, band_center, band_right, required_aa1);
 		if ( best_sum < required_aa2 ) continue;
 
+		
 		int rc = FAILED_FUNC;
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,

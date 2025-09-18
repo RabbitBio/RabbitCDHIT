@@ -26,7 +26,7 @@ else
   CCFLAGS += -DWITH_ZLIB -g
   LDFLAGS += -lz -o
 endif
-
+# CCFLAGS += -DREADY
 # support debugging
 # in command line:
 # make debug=yes
