@@ -64,7 +64,8 @@ int main(int argc, char *argv[])
 	if (argc < 5) print_usage(argv[0]);
 	if (options.SetOptions( argc, argv ) == 0) print_usage(argv[0]);
 	options.Validate();
-
+	if (options.output.size()  == 0) bomb_error("no output file");
+	
 	db_in = options.input;
 	db_out = options.output;
 	
@@ -73,38 +74,19 @@ int main(int argc, char *argv[])
 	seq_db.NAAN = NAAN_array[options.NAA];
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
 
-	if (!options.ready)
-	{
-		if (rank == 0)  
-		{
-			// 外部排序
-			size_t min_file_size = 512ull * 1024 * 1024;
-			// seq_db.GenerateSorted_Parallel(db_in.c_str(), min_file_size , run_files,options);
-			auto start = std::chrono::high_resolution_clock::now();
-			seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options);
-			mkdir("output", 0755);
-			seq_db.MergeSortedRuns_KWay(run_files, "output/", size - 1);
-			auto end = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double> elapsed = end - start;
-			std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
-		}
 
-		else
-		{
-			// std::cout<<"Ready to read file!\n";
-			seq_db.read_sorted_files(rank, size, true);
-		}
-		MPI_Barrier(MPI_COMM_WORLD);
-	}
 
-	else
-	{
+	
 		seq_db.ReadJsonInfo("info.json", "output/", options, master);
+		if(size!=seq_db.total_mpi_num)
+		 bomb_error("Number of processes does not match");
+		 if(options.threads!=seq_db.Production_threads)
+		 bomb_error("Number of threads does not match");
 		if (!master)
 		{
 			seq_db.read_sorted_files(rank, size, false);
 		}
-	}
+	
 
 	// if (rank == 0) {
 		
