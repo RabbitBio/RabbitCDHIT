@@ -256,6 +256,8 @@ bool Options::SetOptionCommon( const char *flag, const char *value )
 	else if (strcmp(flag, "-uS") == 0) short_unmatch_per = atof(value);
 	else if (strcmp(flag, "-U") == 0) unmatch_len = intval;
 	else if (strcmp(flag, "-tmp" ) == 0) temp_dir  = value;
+	else if (strcmp(flag, "-N" ) == 0) NodeNum  =atof(value);
+	else if (strcmp(flag, "-NT" ) == 0) threads_per_node  = atof(value);
 	else if (strcmp(flag, "-bak" ) == 0) backupFile  = intval;
 	else if (strcmp(flag, "-ready" ) == 0) ready = true;
 	else if (strcmp(flag, "-T" ) == 0){
@@ -374,8 +376,8 @@ void Options::Validate()
 		if ((cluster_thd > 1.0) || (cluster_thd < 0.4)) bomb_error("invalid clstr");
 	}
 
-        if (input.size()  == 0) bomb_error("no input file");
-        if (output.size() == 0) bomb_error("no output file");
+        // if (input.size()  == 0) bomb_error("no input file");
+        // if (output.size() == 0) bomb_error("no output file");
         if (PE_mode) {
           if (input_pe.size()  == 0) bomb_error("no input file for R2 sequences in PE mode");
           if (output_pe.size() == 0) bomb_error("no output file for R2 sequences in PE mode");
@@ -2102,9 +2104,9 @@ static void write_run_fasta(const std::vector<std::pair<std::string, std::string
 	fclose(fout);
 }
 
-void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options) {
+void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_bytes, std::vector<std::string>& run_files, Options& options,size_t core_num) {
 	int option_l = options.min_length;
-	chunk_size = 500000;
+	// chunk_size = 100000;
 	first_chunk_size = 2000;
 	total_num = 0;
 	long long total_num_divide = 0;
@@ -2115,7 +2117,7 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 	min_len = (size_t)-1;
 	std::vector<size_t> all_lengths;
 	max_idf = 0;
-
+	int T = options.threads;
 	struct stat st;
 	if (stat(file, &st) == 0) {
 		// 0 表示获取成功， 1表示获取失败
@@ -2155,6 +2157,7 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 	auto read_start = clock::now();
 
 	omp_set_dynamic(0);
+	omp_set_num_threads(T);  
 #pragma omp parallel
 	{
 	#pragma omp single nowait
@@ -2296,12 +2299,54 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 	std::cout << "total_num_divede: " << total_num_divide << "\n";
 	std::cout << "Total number: " << total_num << "\n";
 	std::cout << "N50 length: " << len_n50 << "\n";
+	if(total_num>50000000)
+	{
+		chunk_size = 500000;
+	}
+	else{
+		chunk_size = total_num/50;
+	}
+	if(chunk_size<100000)
+	chunk_size = 100000;
+	int total_threads = options.NodeNum*options.threads_per_node;
+	int Consumption_threads;
+	int Production_rate;
+	int Consumption_rate;
+	int factor = 4 ;
+	if(total_num > 100000000)
+	factor = 8;
+	for(int t = 4 ;t<=8;t=t*2){
+		Production_threads =  options.threads_per_node/t;
+		Consumption_threads = total_threads - Production_threads;
+		Production_rate = chunk_size/Production_threads;
+		Consumption_rate = total_num/Consumption_threads;
+		cerr<<"Consumption_rate "<<Consumption_rate<<endl;
+		cerr<<"Production_rate "<<Production_rate<<endl;
+		if(Production_rate*factor < Consumption_rate)
+		mpi_size = t;
+		else
+		break;
+	}
+
+	Production_threads = options.threads_per_node / mpi_size;
+	if (Production_threads > core_num)
+	{
+		Production_threads = core_num;
+		mpi_size = options.threads_per_node / Production_threads;
+	}
+
+	total_mpi_num = options.NodeNum * mpi_size;
 	chunk_bytes = total_letter / total_num * chunk_size;
+	
 	// if (total_letter % chunk_bytes) chunks_num = total_letter / chunk_bytes + 1;
 	// else chunks_num = total_letter / chunk_bytes;
 	// // if (total_num % chunk_size) chunks_num = total_num / chunk_size + 1;
 	// // else chunks_num = total_num / chunk_size;
-	// std::cout << "chunk_num: " << chunks_num << std::endl;
+	std::cout << "chunk_size: " << chunk_size << std::endl;
+	std::cout << "threads_per_node : " << Production_threads << std::endl;
+	std::cout << "total_mpi_num : " << total_mpi_num << std::endl;
+
+	
 }
 
 void SequenceDB::WriteToJSON(const std::string& file,
@@ -2327,6 +2372,8 @@ void SequenceDB::WriteToJSON(const std::string& file,
 		{"total_chunk",  total_chunk},
 		{"chunk_bytes",  chunk_bytes},
 		{"first_chunk_size",  first_chunk_size},
+		{"threads_per_node",      Production_threads},
+        {"total_mpi_num",      total_mpi_num},
 		
 
     };
@@ -2362,6 +2409,8 @@ void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_
     min_len      = j["info"]["min_len"].get<size_t>();
 	chunk_bytes  = j["info"]["chunk_bytes"].get<long long>();
 	first_chunk_size = j["info"]["first_chunk_size"].get<int>();
+	Production_threads = j["info"]["threads_per_node"].get<int>();
+	total_mpi_num = j["info"]["total_mpi_num"].get<int>();
 	if(master){
     	total_letter = j["info"]["total_letter"].get<long long>();
     	total_desc   = j["info"]["total_desc"].get<long long>();
@@ -2377,13 +2426,12 @@ void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_
 
 // 归并
 void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
-									  const std::string &output_prefix,
-									  int num_procs)
+									  const std::string &output_prefix )
 {
 	
 	if (run_files.empty())
 		return;
-
+	int num_procs = total_mpi_num - 1;
 	std::priority_queue<FastaRecord> pq;
 	std::vector<FILE *> fps(run_files.size(), nullptr);
 	// long long total_num = 0;
@@ -2528,33 +2576,36 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	std::cout<<"Successfully write info.json!\n";
 	// std::cout << "[Merge Done] Total sequences: " << total_num << std::endl;
 	std::cout << "chunk_num: " << chunks_num << std::endl;
-	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunk_bytes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	if(chunks_num < total_mpi_num)
+	std::cout << "Warring:There is a waste of computing resources  " << std::endl;
+
+	// MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunk_bytes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	// exit(0);
 }
 
 void SequenceDB::read_sorted_files( int rank, int rank_size,bool mpi_status) {
 
 	int file_index = rank;
-	if(mpi_status){
-	MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&chunk_bytes, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// if(mpi_status){
+	// MPI_Bcast(&max_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&max_idf, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunks_num, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&chunk_bytes, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
-	MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
-	}
+	// MPI_Bcast(&total_num, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&len_n50, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&min_len, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// MPI_Bcast(&first_chunk_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+	// }
 
 	// Sequence one;
     // Sequence des;

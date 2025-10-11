@@ -41,7 +41,7 @@ ifdef MAX_SEQ
 CCFLAGS += -DMAX_SEQ=$(MAX_SEQ)
 endif
 
-PROGS = cd-hit cd-hit-est cd-hit-2d cd-hit-est-2d cd-hit-div cd-hit-454
+PROGS = cd-hit  cdhit-preprocess cd-hit-est cd-hit-2d cd-hit-est-2d cd-hit-div cd-hit-454
 
 # Propagate hardening flags
 CCFLAGS := $(CPPFLAGS) $(CCFLAGS) $(CXXFLAGS)
@@ -55,7 +55,8 @@ clean:
 	rm -f *.o $(PROGS)
 
 # programs
-
+cdhit-preprocess: cdhit-common.o cdhit-utility.o cdhit-preprocess.o
+	$(CC) $(CCFLAGS) cdhit-preprocess.o cdhit-common.o cdhit-utility.o $(LDFLAGS) cdhit-preprocess
 cd-hit: cdhit-common.o cdhit-utility.o cdhit.o
 	$(CC) $(CCFLAGS) cdhit.o cdhit-common.o cdhit-utility.o $(LDFLAGS) cd-hit
 
@@ -83,7 +84,8 @@ cdhit-utility.o: cdhit-utility.c++ cdhit-utility.h
 
 cdhit.o: cdhit.c++ cdhit-utility.h
 	$(CC) $(CCFLAGS) cdhit.c++ -c
-
+cdhit-preprocess.o: cdhit-preprocess.c++ cdhit-utility.h
+	$(CC) $(CCFLAGS) cdhit-preprocess.c++ -c
 cdhit-2d.o: cdhit-2d.c++ cdhit-utility.h
 	$(CC) $(CCFLAGS) cdhit-2d.c++ -c
 

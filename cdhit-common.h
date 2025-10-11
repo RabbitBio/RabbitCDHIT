@@ -274,7 +274,8 @@ struct Options
 	int     NAA;
 	int     NAAN;
 	int     NAA_top_limit;
-
+	int     NodeNum;
+	int     threads_per_node;
 	size_t  max_memory; // -M: 400,000,000 in bytes
 	int     min_length; // -l: 10 bases
 	bool    cluster_best;  // -g: 0, the first; 1, the best
@@ -337,10 +338,12 @@ struct Options
 		isEST = false;
 		is454 = false;
 		NAA = 5;
+		NodeNum = 0;
+		threads_per_node = 0;
 		NAA_top_limit = 5;
 		cluster_thd = 0.9;
 		distance_thd = 0.0;
-		max_memory = 800000000;
+		max_memory = 0;
 		min_length = 10;
 		cluster_best = false;
 		global_identity = true;
@@ -665,6 +668,9 @@ class SequenceDB
 		size_t min_len;
 		size_t max_idf;
 		size_t len_n50;
+		int Production_threads;
+		int mpi_size;
+		int total_mpi_num;
 		vector<pair<int, int>>all_chunks;
 		vector<pair<int, int>>my_chunks;
 		vector<int> chunks_id;
@@ -681,6 +687,8 @@ class SequenceDB
 		}
 
 		SequenceDB(){
+			mpi_size = 2;
+			total_mpi_num =0;
 			total_num = 0;
 			chunk_size = 0;
 			total_letter = 0;
@@ -713,8 +721,8 @@ class SequenceDB
 		void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,Options &options);
 		char* FindCharOrReadMore(FileContext& ctx, char target, size_t& buffer_pos);
 		//归并
-		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix,int num_procs);
-		void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options);
+		void MergeSortedRuns_KWay(const std::vector<std::string>& run_files,const std::string& output_prefix);
+		void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options,size_t core_num);
 
 		void WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix, int num_procs);
 
