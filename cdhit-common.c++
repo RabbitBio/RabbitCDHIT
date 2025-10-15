@@ -2313,13 +2313,15 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 	int Production_rate;
 	int Consumption_rate;
 	int factor = 4 ;
-	if(total_num > 100000000)
+	if(chunk_size >= 500000)
 	factor = 8;
+	if(chunk_size<=100000)
+	factor = 2;
 	for(int t = 4 ;t<=8;t=t*2){
 		Production_threads =  options.threads_per_node/t;
 		Consumption_threads = total_threads - Production_threads;
 		Production_rate = chunk_size/Production_threads;
-		Consumption_rate = total_num/Consumption_threads;
+		Consumption_rate = (total_num/2)/Consumption_threads;
 		cerr<<"Consumption_rate "<<Consumption_rate<<endl;
 		cerr<<"Production_rate "<<Production_rate<<endl;
 		if(Production_rate*factor < Consumption_rate)
@@ -2327,9 +2329,9 @@ void SequenceDB::Pipeline_External_Sort(const char* file, size_t chunk_size_byte
 		else
 		break;
 	}
-
+	
 	Production_threads = options.threads_per_node / mpi_size;
-	if (Production_threads > core_num)
+	if (Production_threads > core_num||options.NodeNum >= 4)
 	{
 		Production_threads = core_num;
 		mpi_size = options.threads_per_node / Production_threads;
