@@ -236,7 +236,7 @@ struct IndexCount
 };
 
 struct Sequence;
-
+struct Slot; 
 class WordTable
 {
 	private:
@@ -738,9 +738,10 @@ class SequenceDB
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index ,int start_global_id);
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
 							   long long *&prefix_buf, long long &indexCount_buf_size);
-		void decode_WordTable(WordTable &table, int start,long *&info_buf,
-							  long *&cluster_id_buf, long *&suffix_buf,
-							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
+		void decode_WordTable(WordTable &table, int start,Slot& s);
+		// void decode_WordTable(WordTable &table, int start,long *&info_buf,
+		// 					  long *&cluster_id_buf, long *&suffix_buf,
+		// 					  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
 		void WriteClusterDetail(const Options& options);
 		char* str_copy(const char* str);
 		void WriteClustersSort(const char* input, const char* output, const Options& options);				  
