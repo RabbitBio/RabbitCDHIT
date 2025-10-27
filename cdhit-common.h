@@ -325,6 +325,7 @@ struct Options
 	string  input2_pe;
 	string  output;
 	string  output_pe;
+	string  tmp_dir;
         
     int     sort_output;  // -sc
     int     sort_outputf; // -sf
@@ -337,6 +338,7 @@ struct Options
 		has2D = false;
 		isEST = false;
 		is454 = false;
+		tmp_dir = "tmp";
 		NAA = 5;
 		NodeNum = 0;
 		threads_per_node = 0;
@@ -543,6 +545,7 @@ struct WorkingBuffer
 	Vector<int> aan_list_comp;
 	Vector<char> seqi_comp;
 	
+	
 	int total_bytes;
 
 	WorkingBuffer( size_t frag=0, size_t maxlen=0, const Options & options=Options() ){
@@ -728,7 +731,7 @@ class SequenceDB
 
 		void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
 
-		void read_sorted_files( int rank, int rank_size,bool mpi_status);
+		void read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status);
 		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,

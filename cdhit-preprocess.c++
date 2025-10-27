@@ -102,8 +102,13 @@ int main(int argc, char *argv[])
 			// seq_db.GenerateSorted_Parallel(db_in.c_str(), min_file_size , run_files,options);
 			auto start = std::chrono::high_resolution_clock::now();
 			seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options,core_size);
-			mkdir("output", 0755);
-			seq_db.MergeSortedRuns_KWay(run_files, "output/");
+			mkdir(options.tmp_dir.c_str(), 0755);
+			string temp_dir = options.tmp_dir;
+			if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\')
+			{
+				temp_dir += '/'; 
+			}
+			seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
 			auto end = std::chrono::high_resolution_clock::now();
 			std::chrono::duration<double> elapsed = end - start;
 			std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
