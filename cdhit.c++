@@ -48,7 +48,6 @@ int main(int argc, char *argv[])
 	bool worker = false;
 	int worker_rank = -1;
 	
-
 	//初始化MPI
 	MPI_Init(&argc, &argv);
 	int rank, size;
@@ -74,19 +73,20 @@ int main(int argc, char *argv[])
 	seq_db.NAAN = NAAN_array[options.NAA];
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
 
-
-
-	
-		seq_db.ReadJsonInfo("info.json", "output/", options, master);
-		if(size!=seq_db.total_mpi_num)
-		 bomb_error("Number of processes does not match");
-		 if(options.threads!=seq_db.Production_threads)
-		 bomb_error("Number of threads does not match");
-		if (!master)
-		{
-			seq_db.read_sorted_files(rank, size, false);
-		}
-	
+	string temp_dir = options.tmp_dir;
+	if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\')
+	{
+		temp_dir += '/';
+	}
+	seq_db.ReadJsonInfo("info.json", temp_dir, options, master);
+	if (size != seq_db.total_mpi_num)
+		bomb_error("Number of processes does not match");
+	if (options.threads != seq_db.Production_threads)
+		bomb_error("Number of threads does not match");
+	if (!master)
+	{
+		seq_db.read_sorted_files(temp_dir,rank, size, false);
+	}
 
 	// if (rank == 0) {
 		
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 	// 	seq_db.read_sorted_files(rank,size);
 		
     // }
-	// sleep(10);
+	
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str());
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
