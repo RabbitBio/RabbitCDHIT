@@ -5372,7 +5372,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				for (int kk = 0; kk < C; kk++)
 				{
 					clstr_fout << ">Cluster " << (last_rep_index + kk) << '\n';
-					clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
+					//clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
+					clstr_fout << 0 << '\t' << rep_size[kk] << "aa, >" << rep_identifier[kk] << "..." << " *" << endl;
 					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 					{
 						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
@@ -5767,111 +5768,70 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		
 			
 			double t14 = get_time();
-			// cerr<<"my rank   "<<my_rank<<"remain_chunk"<<remain_chunks<<endl;
-			for (i = 0;i < remain_chunks; i++) {
-
-				int idx = i + start;
-				// if(idx==all_chunks.size())break;
-				// cout <<my_rank<<"     "<<chunks_id[idx]<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
-				// cout <<my_rank<<"     "<<chunks_id[idx]<< endl;
-				// if(chunks_id[idx]==32)cerr<<rep_sequences.size()<<endl;
-				// cerr<<chunks_id[start]<<endl;
-				// MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
-				// if (ibcast_flag)
-				// {
-				// 	post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
-				// 	// wait_all(slots[next]);
-
-				// 	ibcast_flag = 0;
-				// 	done_flag = 1;
-				// }
-#pragma omp parallel for num_threads(T) schedule(dynamic,1)
-				for (j = my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
-
-					Sequence* seq = sequences[j];
-					
-					// cerr<<seq->data<<endl;
-					// if(j==1234)
-					// cerr<<"rep name  "<<seq->identifier<<endl;
-					// if (options.store_disk) seq->SwapIn();
-					// if(seq->state & IS_REP){
-					// 	cerr<<seq->index<<endl;
-					// }
-					if ((seq->state & IS_REDUNDANT)||(seq->state & IS_REP ))continue;
-					int tid = omp_get_thread_num();
-					if (tid == 0 &&!done_flag )
-					{
-						MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
-						if (ibcast_flag)
-						{
-							post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
-							// wait_all(slots[next]);
-
-							ibcast_flag = 0;
-							done_flag = 1;
-						}
-					}
-					// if (seq->state & IS_REDUNDANT) continue;
-					
-					CheckOne(seq, word_table, params[tid], buffers[tid], options,my_rank);
-					// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
-				}
-					if (chunks_id[idx] == soure_chunk + 1) {
-					cerr<<"this  "<<chunks_id[idx]<<endl;
-					// int size = my_chunks[start].second - my_chunks[start].first+1;
-					int size = my_chunks[idx].second - my_chunks[idx].first+1;
-					// cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
-					rep_chunk = (int*)malloc(size * 2 * sizeof(int));
-					// float* identity_array = (float*)malloc(size * sizeof(float));
-					// for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
-					// 	int index = (j - my_chunks[start].first)*2;
-					for (j =my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
-						int index = (j - my_chunks[idx].first)*2;
-						Sequence* seq = sequences[j];
-						if (seq->state & IS_REDUNDANT) {
-							
-							rep_chunk[index] = (int)seq->state;
-							rep_chunk[index + 1] = -1;
-							// rep_chunk[index + 2] = seq->distance;
-							// rep_chunk[index + 3] = seq->coverage[0];
-							// rep_chunk[index + 4] = seq->coverage[1];
-							// rep_chunk[index + 5] = seq->coverage[2];
-							// rep_chunk[index + 6] = seq->coverage[3];
-							// identity_array[index / 7] = seq->identity;
-						}
-						else {
-							rep_chunk[index] = 0;
-							rep_chunk[index + 1] = -1;
-							// rep_chunk[index + 2] = -1;
-							// rep_chunk[index + 3] = -1;
-							// rep_chunk[index + 4] = -1;
-							// rep_chunk[index + 5] = -1;
-							// rep_chunk[index + 6] = -1;
-							// identity_array[index / 7] = -1;
-						}
-						// seq->Clear();
-					}
-					cerr<<"red_size  "<<size<<endl;
-					
-					MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
-					free(rep_chunk);
-					rep_chunk = NULL;
-					// MPI_Isend(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD, &send_request);
-					cerr<<"send by worker  "<<my_rank-1<<endl;
-	
-					// MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
+		#pragma omp parallel num_threads(T)
+			{
 				
-					
-					// free(identity_array);
-					// identity_array=NULL;
-						// start++;
-						// i--;
-						// now_rank=1;
-					// start++;
-					// i--;
-				}
+				int tid = omp_get_thread_num();
+
+				for (int i = 0; i < remain_chunks; ++i)
+				{
+					int idx = i + start;
 
 
+#pragma omp for schedule(dynamic, 1)
+					for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
+					{
+						Sequence *seq = sequences[j];
+						if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+							continue;
+
+						if (tid == 0 && !done_flag)
+						{
+							int flag_local = 0;
+							MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
+							if (ibcast_flag)
+							{
+								post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
+								ibcast_flag = 0;
+								done_flag = 1;
+							}
+						}
+
+						CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+					}
+
+
+#pragma omp master
+					{
+						if (chunks_id[idx] == soure_chunk + 1)
+						{
+							int size = my_chunks[idx].second - my_chunks[idx].first + 1;
+							int *rep_chunk = (int *)malloc((size_t)size * 2 * sizeof(int));
+
+							for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
+							{
+								int index = (j - my_chunks[idx].first) * 2;
+								Sequence *seq = sequences[j];
+								if (seq->state & IS_REDUNDANT)
+								{
+									rep_chunk[index] = (int)seq->state;
+									rep_chunk[index + 1] = -1;
+								}
+								else
+								{
+									rep_chunk[index] = 0;
+									rep_chunk[index + 1] = -1;
+								}
+							}
+
+							MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
+							free(rep_chunk);
+							// 可在此输出日志
+							// cerr << "send by worker " << my_rank - 1 << endl;
+						}
+					}
+
+				} 
 			}
 			double t15 = get_time();
 			cerr<<"-----checkone time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
