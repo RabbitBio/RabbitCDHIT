@@ -6,7 +6,7 @@ RabbitCD-HIT combines inter-node MPI parallelism with intra-node multithreading 
 #### Compile and install
 ```bash
 git clone --recursive https://github.com/RabbitBio/RabbitCDHIT.git
-cd RabbitTClust
+cd RabbitCDHIT
 make
 ```
 ## Usage
