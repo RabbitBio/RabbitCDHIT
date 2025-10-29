@@ -796,6 +796,8 @@ class SequenceDB
 
 
 int print_usage (char *arg);
+int print_usage_preprocess (char *arg);
+int print_usage_mpi (char *arg);
 void bomb_error(const char *message);
 void bomb_error(const char *message, const char *message2);
 void bomb_warning(const char *message);
