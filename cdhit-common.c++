@@ -4882,12 +4882,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	delete[] data_ptr;
 	delete[] true_ptr;
 	file_index=(file_index+1)%(rank_size-1);
-	vector<vector<string>> clusters_identifier(sequences.size());
-	vector<vector<float>> clusters_identity(sequences.size());
-	vector<vector<int>> clusters_size(sequences.size());
-	vector<vector<int>> clusters_coverage(sequences.size());
-	vector<string> rep_identifier(sequences.size());
-	vector<int> rep_size(sequences.size());
+	vector<vector<string>> clusters_identifier;
+	vector<vector<float>> clusters_identity;
+	vector<vector<int>> clusters_size;
+	vector<vector<int>> clusters_coverage;
+	vector<string> rep_identifier_cur;
+	vector<int> rep_size_cur;
+	vector<string> rep_identifier_next;
+	vector<int> rep_size_next;
 	omp_set_num_threads(T);
 	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
 	// std::vector<int> done_flags(rank_size - 1, 0);
@@ -5021,11 +5023,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			fout << ">" << seq->identifier << "\n";
 			fout << seq->true_data << "\n";
 			
-			rep_identifier.emplace_back(seq->identifier);
-			rep_size.emplace_back(seq->size);
+			rep_identifier_next.emplace_back(seq->identifier);
+			rep_size_next.emplace_back(seq->size);
 			
 		}
-		
 		// std::cerr << "cluster num    " << centers << endl;
 		double t7 = get_time();
 		omp_set_num_threads(T);
@@ -5155,6 +5156,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			//----------------------------------------
 		if (i > 0)
 		{
+			clusters_identifier.resize(C);
+			clusters_size.resize(C);
+			clusters_identity.resize(C);
+			clusters_coverage.resize(C);
 			std::vector<omp_lock_t> locks(C);
 			for (int c = 0; c < C; ++c)
 				omp_init_lock(&locks[c]);
@@ -5227,9 +5232,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 				for (int kk = 0; kk < C; kk++)
 				{
-					clstr_fout << ">Cluster " << (output_index + kk) << '\n';
+					clstr_fout << ">Cluster " << (output_index + kk) << "\n";
 					// clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
-					clstr_fout << 0 << '\t' << rep_size[kk] << "aa, >" << rep_identifier[kk] << "..." << " *" << endl;
+					clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
 					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 					{
 						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
@@ -5239,7 +5244,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
 						clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
-						clstr_fout << '\n';
+						clstr_fout << "\n";
 					}
 
 					// seq->Clear();
@@ -5250,14 +5255,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				clusters_size.clear();
 				clusters_identity.clear();
 				clusters_coverage.clear();
-				rep_size.clear();
-				rep_identifier.clear();
-				clusters_identifier.resize(sequences.size());
-				clusters_size.resize(sequences.size());
-				clusters_identity.resize(sequences.size());
-				clusters_coverage.resize(sequences.size());
-				rep_size.resize(sequences.size());
-				rep_identifier.resize(sequences.size());
+				rep_size_cur.clear();
+				rep_identifier_cur.clear();
+				// rep_size.resize(sequences.size());
+				// rep_identifier.resize(sequences.size());
 				read_flag[i] = 1;
 			}
 
@@ -5268,6 +5269,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// 汇总聚类结果
 			output_index = last_rep_index;
 			C = rep_seqs.size() - last_rep_index;
+
 			// for (int kk = 0; kk < sequences.size(); kk++)
 			// {
 			// 	Sequence *seq = sequences[kk];
@@ -5298,8 +5300,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// 	fout << seq->true_data << "\n";
 			// 	seq->Clear();
 			// }
+			rep_identifier_cur.swap(rep_identifier_next);
+			rep_size_cur.swap(rep_size_next);
+			rep_identifier_next.clear();
+			rep_size_next.clear();
 			if (i == chunks_num - 1)
 			{
+				clusters_identifier.resize(C);
+				clusters_size.resize(C);
+				clusters_identity.resize(C);
+				clusters_coverage.resize(C);
 				std::vector<omp_lock_t> locks(C);
 				for (int c = 0; c < C; ++c)
 					omp_init_lock(&locks[c]);
@@ -5371,9 +5381,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					omp_destroy_lock(&locks[c]);
 				for (int kk = 0; kk < C; kk++)
 				{
-					clstr_fout << ">Cluster " << (last_rep_index + kk) << '\n';
+					clstr_fout << ">Cluster " << (last_rep_index + kk) << "\n";
 					//clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
-					clstr_fout << 0 << '\t' << rep_size[kk] << "aa, >" << rep_identifier[kk] << "..." << " *" << endl;
+					clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
 					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 					{
 						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
@@ -5383,7 +5393,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
 						clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
-						clstr_fout << '\n';
+						clstr_fout << "\n";
 					}
 				}
 
@@ -5405,14 +5415,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				clusters_size.clear();
 				clusters_identity.clear();
 				clusters_coverage.clear();
-				rep_size.clear();
-				rep_identifier.clear();
-				clusters_identifier.resize(sequences.size());
-				clusters_size.resize(sequences.size());
-				clusters_identity.resize(sequences.size());
-				clusters_coverage.resize(sequences.size());
-				rep_size.resize(sequences.size());
-				rep_identifier.resize(sequences.size());
+				rep_size_cur.clear();
+				rep_identifier_cur.clear();
+				// clusters_identifier.resize(sequences.size());
+				// clusters_size.resize(sequences.size());
+				// clusters_identity.resize(sequences.size());
+				// clusters_coverage.resize(sequences.size());
+				// rep_size.resize(sequences.size());
+				// rep_identifier.resize(sequences.size());
 				// clusters_identifier.resize(chunk_size);
 				// clusters_size.resize(chunk_size);
 				// clusters_identity.resize(chunk_size);
@@ -5902,6 +5912,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int IDLEN=max_idf+1;
 				send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
 				int CHAR_TOTAL = N * (max_idf+1);
+				double t12 = get_time();
+				cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
 				MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
 				MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
 				MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
@@ -5933,8 +5945,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					
 					start++;
 				}
-				double t12 = get_time();
-				cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
+
 
 				double t16 = get_time();
 				if (!done_flag && soure_chunk < chunks_num - 1)
@@ -6533,6 +6544,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	}
 	lookCounts.size = 0;
 	if (flag == 1) { // if similar to old one delete it
+		
 		if (! options.cluster_best) {
 			seq->Clear();
 			seq->state |= IS_REDUNDANT ;
