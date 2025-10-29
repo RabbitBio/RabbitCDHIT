@@ -116,6 +116,6 @@ Here, total_mpi_num and threads_per_node correspond to the number of MPI process
 which are equivalent to the parameters -np and -T, respectively.
 The -tmp option should be set to the same directory specified above.
 ```bash
-mpirun -np 4 ./cdhit-mpi -o output -T 32 -M 0 -tmp huge_tmp
+mpirun -np 4 ./cdhit-mpi -o output -T 32 -tmp huge_tmp
 ```
 
