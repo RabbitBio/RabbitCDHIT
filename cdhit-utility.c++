@@ -37,6 +37,9 @@ char txt_option_c[] =
 \tthis is the default cd-hit's \"global sequence identity\" calculated as:\n \
 \tnumber of identical amino acids or bases in alignment\n \
 \tdivided by the full length of the shorter sequence\n";
+char txt_option_N[] = "\tnumber of nodes, required\n";
+char txt_option_NT[] = "\tnumber of threads per node, required\n";
+char txt_option_tmp[] = "\toutput directory for sequences after external sorting, default tmp\n";
 char txt_option_G[] = 
 "\tuse global sequence identity, default 1\n \
 \tif set to 0, then use local sequence identity, calculated as :\n \
@@ -58,6 +61,7 @@ char txt_option_n_est[] = "\tword_length, default 10, see user's guide for choos
 char txt_option_l[] = "\tlength of throw_away_sequences, default 10\n";
 char txt_option_t[] = "\ttolerance for redundance, default 2\n";
 char txt_option_T[] = "\tnumber of threads, default 1; with 0, all CPUs will be used\n";
+char txt_option_T_mpi[] = "\tnumber of threads per mpi process, required, must be consistent with the JSON file.\n";
 char txt_option_d[] =
 "\tlength of description in .clstr file, default 20\n \
 \tif set to 0, it takes the fasta defline and stops at first space\n";
@@ -147,6 +151,44 @@ char txt_option_mismatch2[] = "\tmismatching score, default -1\n";
 char txt_option_gap[] = "\tgap opening score, default -6\n";
 char txt_option_gap2[] = "\tgap opening score, default -3\n";
 char txt_option_gap_ext[] = "\tgap extension score, default -1\n";
+
+int print_usage_preprocess (char *arg) {
+  // cout << cd_hit_ver << "\n\n" ;
+  cout << "Usage: " << arg << " [Options] \n\nOptions\n\n";
+  cout << "   -i" << txt_option_i;
+  cout << "   -o" << txt_option_o;
+  cout << "   -N" << txt_option_N;
+  cout << "   -NT" << txt_option_NT;
+  cout << "   -tmp" << txt_option_tmp;
+  cout << "   -T" << txt_option_T;
+  cout << "   -l" << txt_option_l;
+  cout << "   -h\tprint this help\n\n";
+
+  exit(1);
+} // END print_usage
+
+int print_usage_mpi (char *arg) {
+  cout << "Usage: "<< arg << " [Options] \n\nOptions\n\n";
+  cout << "   -c" << txt_option_c;
+  cout << "   -G" << txt_option_G;
+  cout << "   -b" << txt_option_b;
+  cout << "   -T" << txt_option_T_mpi;
+  cout << "   -n" << txt_option_n;
+  cout << "   -t" << txt_option_t;
+  cout << "   -s" << txt_option_s;
+  cout << "   -S" << txt_option_S;
+  cout << "   -aL" << txt_option_aL;
+  cout << "   -AL" << txt_option_AL;
+  cout << "   -aS" << txt_option_aS;
+  cout << "   -AS" << txt_option_AS;
+  cout << "   -A" << txt_option_A;
+  cout << "   -uL" << txt_option_uL;
+  cout << "   -uS" << txt_option_uS;
+  cout << "   -U" << txt_option_U;
+  cout << "   -g" << txt_option_g;
+  cout << "   -h\tprint this help\n\n";
+  exit(1);
+} // END print_usage
 
 int print_usage (char *arg) {
   cout << cd_hit_ver << "\n\n" ;

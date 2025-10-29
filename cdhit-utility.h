@@ -5,3 +5,5 @@ int print_usage_est (char *arg);
 int print_usage_div (char *arg);
 int print_usage_est_2d (char *arg);
 int print_usage_454 (char *arg);
+int print_usage_preprocess (char *arg);
+int print_usage_mpi (char *arg);
