@@ -111,7 +111,7 @@ int main(int argc, char *argv[])
 			seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
 			auto end = std::chrono::high_resolution_clock::now();
 			std::chrono::duration<double> elapsed = end - start;
-			std::cout << "外部排序耗时:    " << elapsed.count() << " 秒\n";
+			std::cout << "external sorting cost:    " << elapsed.count() << " second\n";
 	
 	return 0;
 
