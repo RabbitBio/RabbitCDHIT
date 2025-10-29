@@ -2513,6 +2513,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	size_t current_chunk_size = 0;
  	size_t current_chunk_bytes = 0;
 	int current_proc = -1;
+	int flag = -1;
 	// long long global_sequence_id = 0;			  
 	// long long chunk_start_id = global_sequence_id; 
 
@@ -2529,6 +2530,10 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 
 		global_chunk_id++;
 		current_proc = (global_chunk_id) % num_procs;
+		if(current_proc == 0)
+		flag = -flag;
+		if(flag == -1)
+		current_proc = num_procs - current_proc - 1;
 		current_chunk_size = 0;
 		current_chunk_bytes = 0;
 		
@@ -2657,6 +2662,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 	// int start_global_id=global_id;
 	int start_my_id=sequences.size();
 	int chunk_id = (rank-1);
+	int chunk_id_tmp = chunk_id;
 	long long now_bytes = 0;
 	// int end_id = -1;
 	// int record=0;
@@ -2695,8 +2701,14 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 			my_chunks.push_back(make_pair(start_my_id, sequences.size()-1));
 				cerr<<"chunk_id    "<<chunk_id<<endl;
 			chunks_id.push_back(chunk_id);
+
 			// all_chunks.push_back(make_pair(start_global_id,global_id ));
-			chunk_id=(rank_size-1)+chunk_id;
+			chunk_id_tmp = (rank_size-1)+chunk_id_tmp;
+			if(chunks_id.size()%2){
+				chunk_id=chunk_id_tmp+((rank_size-1)-2*(rank-1)-1);
+			}
+			else
+			chunk_id = chunk_id_tmp;
 			// global_id=(global_id-chunk_size)+(rank_size-1)*chunk_size;
 			// start_global_id=global_id;
 		
@@ -4713,6 +4725,7 @@ int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<
 	}
 	return OK_FUNC;
 }
+
 void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output) {
 
 	int rank_size;
@@ -4802,6 +4815,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		vector<int>read_flag(chunks_num,0);
 		int output_index=0;
 		int file_index=0;
+		int rotate_flag = 1;
+		int rank_rotate_flag = 1;
 		vector<gzFile> chunk_fp(rank_size - 1, nullptr);
 		vector<kseq_t*> chunk_kseq(rank_size - 1, nullptr);
 		int last_rep_index=0;
@@ -5372,7 +5387,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				for (int kk = 0; kk < C; kk++)
 				{
 					clstr_fout << ">Cluster " << (last_rep_index + kk) << '\n';
-					clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
+					// clstr_fout << 0 << '\t' << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->size << "aa, >" << sequences[rep_seqs[kk + last_rep_index] - start_global_id]->identifier << "..." << " *" << endl;
+					clstr_fout << 0 << '\t' << rep_size[kk] << "aa, >" << rep_identifier[kk] << "..." << " *" << endl;
 					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
 					{
 						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
@@ -5510,7 +5526,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				chunks_id.push_back(chunk_id);
 				// all_chunks.push_back(make_pair(start_global_id, sequences.size()));
 			}
-			file_index = (file_index + 1) % (rank_size - 1);
+
+			file_index = chunk_id  % (rank_size - 1);
+			if (file_index == 0)
+				rotate_flag = -rotate_flag;
+			if (rotate_flag == -1)
+				file_index = rank_size - 2 - file_index;
+				
 			one.identifier = nullptr;
 			one.data = nullptr;
 			one.true_data = nullptr;
@@ -5528,12 +5550,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// float *identity_array = (float *)malloc(size * sizeof(float));
 			if (rank_size == 2)
 				target_worker = 0;
-			cerr << "receive size " << size << endl;
+			cerr << "receive size " << size<< " by worker " << target_worker+1 << endl;
 			MPI_Recv(rep_chunk, size * 2, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			// MPI_Recv(identity_array, size, MPI_FLOAT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			// cerr<<"receive size "<<size<<endl;
 			cout << "Recevie chunk " << i + 1 << " by worker " << target_worker << endl;
-			target_worker = (target_worker + 1) % (rank_size - 1);
+			target_worker = chunk_id % (rank_size - 1);
+			if (target_worker == 0)
+				rank_rotate_flag = -rank_rotate_flag;
+			if (rank_rotate_flag == -1)
+				target_worker = rank_size - 2 - target_worker;
+
 #pragma omp parallel for num_threads(T)
 		// for (int j = all_chunks[i + 1].first; j < all_chunks[i + 1].second; j++)
 		for (int j = 0; j < sequences.size(); j++)
@@ -5768,110 +5795,70 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			
 			double t14 = get_time();
 			// cerr<<"my rank   "<<my_rank<<"remain_chunk"<<remain_chunks<<endl;
-			for (i = 0;i < remain_chunks; i++) {
-
-				int idx = i + start;
-				// if(idx==all_chunks.size())break;
-				// cout <<my_rank<<"     "<<chunks_id[idx]<< "*>> Chunk begin " << my_chunks[idx].first<<" end "<<my_chunks[idx].second << endl;
-				// cout <<my_rank<<"     "<<chunks_id[idx]<< endl;
-				// if(chunks_id[idx]==32)cerr<<rep_sequences.size()<<endl;
-				// cerr<<chunks_id[start]<<endl;
-				// MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
-				// if (ibcast_flag)
-				// {
-				// 	post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
-				// 	// wait_all(slots[next]);
-
-				// 	ibcast_flag = 0;
-				// 	done_flag = 1;
-				// }
-#pragma omp parallel for num_threads(T) schedule(dynamic,1)
-				for (j = my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
-
-					Sequence* seq = sequences[j];
-					
-					// cerr<<seq->data<<endl;
-					// if(j==1234)
-					// cerr<<"rep name  "<<seq->identifier<<endl;
-					// if (options.store_disk) seq->SwapIn();
-					// if(seq->state & IS_REP){
-					// 	cerr<<seq->index<<endl;
-					// }
-					if ((seq->state & IS_REDUNDANT)||(seq->state & IS_REP ))continue;
-					int tid = omp_get_thread_num();
-					if (tid == 0 &&!done_flag )
-					{
-						MPI_Test(&request, &flag, MPI_STATUS_IGNORE);
-						if (ibcast_flag)
-						{
-							post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
-							// wait_all(slots[next]);
-
-							ibcast_flag = 0;
-							done_flag = 1;
-						}
-					}
-					// if (seq->state & IS_REDUNDANT) continue;
-					
-					CheckOne(seq, word_table, params[tid], buffers[tid], options,my_rank);
-					// if (options.store_disk && (seq->state & IS_REDUNDANT)) seq->SwapOut();
-				}
-					if (chunks_id[idx] == soure_chunk + 1) {
-					cerr<<"this  "<<chunks_id[idx]<<endl;
-					// int size = my_chunks[start].second - my_chunks[start].first+1;
-					int size = my_chunks[idx].second - my_chunks[idx].first+1;
-					// cerr<<"my rank   "<<my_rank<<"chunk_id   "<<chunks_id[start]<<endl;
-					rep_chunk = (int*)malloc(size * 2 * sizeof(int));
-					// float* identity_array = (float*)malloc(size * sizeof(float));
-					// for (j =my_chunks[start].first;j <= my_chunks[start].second;j++) {
-					// 	int index = (j - my_chunks[start].first)*2;
-					for (j =my_chunks[idx].first;j <= my_chunks[idx].second;j++) {
-						int index = (j - my_chunks[idx].first)*2;
-						Sequence* seq = sequences[j];
-						if (seq->state & IS_REDUNDANT) {
-							
-							rep_chunk[index] = (int)seq->state;
-							rep_chunk[index + 1] = -1;
-							// rep_chunk[index + 2] = seq->distance;
-							// rep_chunk[index + 3] = seq->coverage[0];
-							// rep_chunk[index + 4] = seq->coverage[1];
-							// rep_chunk[index + 5] = seq->coverage[2];
-							// rep_chunk[index + 6] = seq->coverage[3];
-							// identity_array[index / 7] = seq->identity;
-						}
-						else {
-							rep_chunk[index] = 0;
-							rep_chunk[index + 1] = -1;
-							// rep_chunk[index + 2] = -1;
-							// rep_chunk[index + 3] = -1;
-							// rep_chunk[index + 4] = -1;
-							// rep_chunk[index + 5] = -1;
-							// rep_chunk[index + 6] = -1;
-							// identity_array[index / 7] = -1;
-						}
-						// seq->Clear();
-					}
-					cerr<<"red_size  "<<size<<endl;
-					
-					MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
-					free(rep_chunk);
-					rep_chunk = NULL;
-					// MPI_Isend(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD, &send_request);
-					cerr<<"send by worker  "<<my_rank-1<<endl;
-	
-					// MPI_Send(identity_array, size, MPI_FLOAT, source, 0, MPI_COMM_WORLD);
+#pragma omp parallel num_threads(T)
+			{
 				
-					
-					// free(identity_array);
-					// identity_array=NULL;
-						// start++;
-						// i--;
-						// now_rank=1;
-					// start++;
-					// i--;
-				}
+				int tid = omp_get_thread_num();
+
+				for (int i = 0; i < remain_chunks; ++i)
+				{
+					int idx = i + start;
 
 
+#pragma omp for schedule(dynamic, 1)
+					for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
+					{
+						Sequence *seq = sequences[j];
+						if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+							continue;
+
+						if (tid == 0 && !done_flag)
+						{
+							int flag_local = 0;
+							MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
+							if (ibcast_flag)
+							{
+								post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
+								ibcast_flag = 0;
+								done_flag = 1;
+							}
+						}
+
+						CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+					}
+
+
+#pragma omp master
+					{
+						if (chunks_id[idx] == soure_chunk + 1)
+						{
+							int size = my_chunks[idx].second - my_chunks[idx].first + 1;
+							int *rep_chunk = (int *)malloc((size_t)size * 2 * sizeof(int));
+
+							for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
+							{
+								int index = (j - my_chunks[idx].first) * 2;
+								Sequence *seq = sequences[j];
+								if (seq->state & IS_REDUNDANT)
+								{
+									rep_chunk[index] = (int)seq->state;
+									rep_chunk[index + 1] = -1;
+								}
+								else
+								{
+									rep_chunk[index] = 0;
+									rep_chunk[index + 1] = -1;
+								}
+							}
+
+							MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
+							free(rep_chunk);
+							// 可在此输出日志
+							// cerr << "send by worker " << my_rank - 1 << endl;
+						}
+					}
+
+				} 
 			}
 			double t15 = get_time();
 			cerr<<"-----checkone time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
@@ -5942,6 +5929,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int IDLEN=max_idf+1;
 				send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
 				int CHAR_TOTAL = N * (max_idf+1);
+				double t12 = get_time();
+				cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
 				MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
 				MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
 				MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
@@ -5973,8 +5962,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					
 					start++;
 				}
-				double t12 = get_time();
-				cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
+
 
 				double t16 = get_time();
 				if (!done_flag && soure_chunk < chunks_num - 1)
