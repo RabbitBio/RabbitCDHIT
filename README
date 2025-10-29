@@ -86,7 +86,7 @@ Options
  ./cdhit-preprocess -i DB.fa  -T 64 -N 1 -NT 128 -tmp tmp
 ```
 After preprocessing, a JSON file will be generated in the tmp directory:
- ```json
+```json
  {
     "files": {
         "out_prefix": "_proc",
