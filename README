@@ -84,9 +84,9 @@ Options
 # The output files from external sorting are stored in the tmp directory.  
 # The external sorting process uses 64 threads.  
  ./cdhit-preprocess -i DB.fa  -T 64 -N 1 -NT 128 -tmp tmp
-
+```
 After preprocessing, a JSON file will be generated in the tmp directory:
- 
+ ```json
  {
     "files": {
         "out_prefix": "_proc",
@@ -110,9 +110,12 @@ After preprocessing, a JSON file will be generated in the tmp directory:
         "total_num": 1670150
     }
 }
+```
+
 Here, total_mpi_num and threads_per_node correspond to the number of MPI processes and threads required for clustering,
 which are equivalent to the parameters -np and -T, respectively.
 The -tmp option should be set to the same directory specified above.
+```bash
 mpirun -np 4 ./cdhit-mpi -o output -T 32 -M 0 -tmp huge_tmp
 ```
 
