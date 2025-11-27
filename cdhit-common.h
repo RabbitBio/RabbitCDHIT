@@ -27,6 +27,7 @@
 
 #include<iostream>
 #include<fstream>
+#include <mpi.h>
 #include<iomanip>
 #include<cstdlib>
 #include<stdio.h>
@@ -48,6 +49,7 @@
 #include <chrono>
 #include <memory>
 #include <cassert>
+#include <utility>
 #include <cstring>
 #include"kseq.h"
 // #ifdef WITH_ZLIB
@@ -676,6 +678,9 @@ class SequenceDB
 		int total_mpi_num;
 		vector<pair<int, int>>all_chunks;
 		vector<pair<int, int>>my_chunks;
+		// std::deque<std::pair<int, int>> sub_chunks; 
+		std::vector<std::pair<int, int>> sub_chunks; 
+		std::vector<int> sub_chunks_id;				
 		vector<int> chunks_id;
 		int total_chunk;
 		int chunk_size;
@@ -684,6 +689,7 @@ class SequenceDB
 		int chunks_num;
 		std::vector<std::vector<int>> total_encodes;
 		std::vector<std::vector<INTs>> total_encodes_no;
+		int SUB ;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
 			sequences.clear(); rep_seqs.clear();
@@ -701,7 +707,9 @@ class SequenceDB
 			max_idf = 0;
 			max_len = 0;
 			len_n50 = 0;
+			SUB = 10;
 		}
+		
 		~SequenceDB(){ Clear(); }
 
 		void Read( const char *file, const Options & options );
@@ -775,6 +783,8 @@ class SequenceDB
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		void ClusterOne_Test(Sequence *seq, int id, WordTable &table,
 							 WorkingParam &param, WorkingBuffer &buffer, const Options &options);
+		void ClusterOne_single(Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,int &centers);
 		//void SelfComparing( int start, int end, WordTable & table, 
 		//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
 
@@ -790,6 +800,9 @@ class SequenceDB
 		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
 		int  CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOne_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOneAA_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+
 
 		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
 };

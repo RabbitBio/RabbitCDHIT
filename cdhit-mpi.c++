@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
 	bool master = true;
 	bool worker = false;
 	int worker_rank = -1;
-	
+	// sleep(20);
 	//初始化MPI
 	MPI_Init(&argc, &argv);
 	int rank, size;
