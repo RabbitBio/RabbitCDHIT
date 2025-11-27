@@ -2760,6 +2760,35 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 				seq->ConvertBases();
 			// Encodeseqs(seq, options.NAA, i,false);
 		}
+
+
+				// 序列扁平视图（只读）
+		// std::vector<SeqMeta> meta_;
+		// std::vector<uint8_t> pool_data_;
+
+		// // 可写结果（SOA）
+		// std::vector<int16_t> res_state_; // 远端可 OR/CSW
+		// std::vector<int32_t> res_cluster_id_;
+		// std::vector<float> res_identity_;
+		// std::vector<float> res_distance_;
+		// std::vector<int32_t> res_coverage_; // 4*N，按 k*4..k*4+3
+		// std::vector<Update> mailbox_;
+		// int box_ctrl_[2] = {0, 0}; // 0=head(已消费), 1=tail(下一个可写)
+		// // 所有窗口句柄
+		// MPI_Win win_tasks_ = MPI_WIN_NULL;
+		// MPI_Win win_ctrl_ = MPI_WIN_NULL;
+
+		// MPI_Win win_meta_ = MPI_WIN_NULL;
+		// MPI_Win win_pool_d_ = MPI_WIN_NULL;
+
+		// MPI_Win win_state_ = MPI_WIN_NULL;
+		// MPI_Win win_cid_ = MPI_WIN_NULL;
+		// MPI_Win win_ident_ = MPI_WIN_NULL;
+		// MPI_Win win_dist_ = MPI_WIN_NULL;
+		// MPI_Win win_cov_ = MPI_WIN_NULL;
+
+		// MPI_Win win_box_ = MPI_WIN_NULL; // 可选邮箱
+		// MPI_Win win_boxctl_ = MPI_WIN_NULL;
 }
 void SequenceDB::Encodeseqs( Sequence *seq, int NAA, int id,bool est ){
 char *seqi = seq->data;
