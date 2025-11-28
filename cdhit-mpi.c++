@@ -46,15 +46,22 @@ int main(int argc, char *argv[])
 	float end_time;
 	bool master = true;
 	bool worker = false;
-	int worker_rank = -1;
-	// sleep(20);
+	sleep(20);
 	//初始化MPI
 	MPI_Init(&argc, &argv);
 	int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+	MPI_Comm worker_comm;
+    if (rank != 0) {
+        MPI_Comm_split(MPI_COMM_WORLD, 1, rank, &worker_comm);  // 工作进程（非主进程）创建一个新的group
+    } else {
+        MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &worker_comm);  // 主进程不属于工作进程组
+    }
+	int worker_rank, worker_size;
+    MPI_Comm_rank(worker_comm, &worker_rank);
+	MPI_Comm_size(worker_comm, &worker_size);
 	if(rank != 0){
-		worker_rank = rank - 1;
 		worker = true;
 		master = false;
 	}
@@ -85,7 +92,7 @@ int main(int argc, char *argv[])
 		bomb_error("Number of threads does not match");
 	if (!master)
 	{
-		seq_db.read_sorted_files(temp_dir,rank, size, false);
+		seq_db.read_sorted_files(temp_dir,rank, size, false,worker_comm);
 	}
 
 	// if (rank == 0) {
