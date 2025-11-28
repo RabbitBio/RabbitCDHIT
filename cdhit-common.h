@@ -714,7 +714,7 @@ class SequenceDB
 		int ctrl_[3] = {0, 0, 0};		// 0=top, 1=bottom, 2=n
 		std::vector<std::vector<int>> total_encodes;
 		std::vector<std::vector<INTs>> total_encodes_no;
-				std::vector<SeqMeta> meta_;
+		std::vector<SeqMeta> meta_;
 		std::vector<uint8_t> pool_data_;
 
 		// 可写结果（SOA）
@@ -732,14 +732,14 @@ class SequenceDB
 		MPI_Win win_meta_ = MPI_WIN_NULL;
 		MPI_Win win_pool_d_ = MPI_WIN_NULL;
 
-		MPI_Win win_state_ = MPI_WIN_NULL;
-		MPI_Win win_cid_ = MPI_WIN_NULL;
-		MPI_Win win_ident_ = MPI_WIN_NULL;
-		MPI_Win win_dist_ = MPI_WIN_NULL;
-		MPI_Win win_cov_ = MPI_WIN_NULL;
+		// MPI_Win win_state_ = MPI_WIN_NULL;
+		// MPI_Win win_cid_ = MPI_WIN_NULL;
+		// MPI_Win win_ident_ = MPI_WIN_NULL;
+		// MPI_Win win_dist_ = MPI_WIN_NULL;
+		// MPI_Win win_cov_ = MPI_WIN_NULL;
 
-		MPI_Win win_box_ = MPI_WIN_NULL; // 可选邮箱
-		MPI_Win win_boxctl_ = MPI_WIN_NULL;
+		// MPI_Win win_box_ = MPI_WIN_NULL; // 可选邮箱
+		// MPI_Win win_boxctl_ = MPI_WIN_NULL;
 		int SUB ;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
@@ -790,7 +790,7 @@ class SequenceDB
 
 		void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
 
-		void read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status);
+		void read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm);
 		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
