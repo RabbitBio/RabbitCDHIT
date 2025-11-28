@@ -2622,7 +2622,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	// exit(0);
 }
 
-void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status) {
+void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm) {
 
 	int file_index = rank;
 	// if(mpi_status){
@@ -2726,7 +2726,6 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 		
 		// sub_chunks.clear();
 		// sub_chunks_id.clear();
-		
 
 		for (size_t ci = 0; ci < my_chunks.size(); ++ci)
 		{
@@ -2762,7 +2761,83 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 		}
 
 
-				// 序列扁平视图（只读）
+
+		
+		tasks_local_.clear();
+		tasks_local_.reserve(sub_chunks.size());
+		for (auto &pr : sub_chunks)
+			tasks_local_.push_back(Task{pr.first, pr.second});
+
+		ctrl_[0] = 0;						 // top 从前端 0 开始（本地 front）
+		ctrl_[1] = (int)tasks_local_.size(); // bottom = n（尾后一位，远端 back）
+		ctrl_[2] = (int)tasks_local_.size();
+		MPI_Win_create(tasks_local_.empty() ? MPI_BOTTOM : (void *)tasks_local_.data(),
+					   (MPI_Aint)tasks_local_.size() * sizeof(Task),
+					   1, MPI_INFO_NULL, worker_comm, &win_tasks_);
+
+		MPI_Win_create((void *)ctrl_, 3 * (MPI_Aint)sizeof(int),
+					   sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
+
+		MPI_Win_lock_all(0, win_tasks_);
+		MPI_Win_lock_all(0, win_ctrl_);
+
+		const size_t Nseq = sequences.size();
+		meta_.clear();
+		meta_.resize(Nseq);
+		pool_data_.clear();
+		size_t est_data = 0;
+		for (size_t k = 0; k < Nseq; ++k)
+		{
+			Sequence *s = sequences[k];
+			est_data += (size_t)s->size;
+		}
+		pool_data_.reserve(est_data);
+		size_t off_d = 0;
+		for (size_t k = 0; k < Nseq; ++k)
+		{
+			Sequence *s = sequences[k];
+			SeqMeta m{};
+
+			// data
+			m.data_off = (int32_t)off_d;
+			m.data_len = (int32_t)s->size;
+			if (s->size > 0 && s->data)
+			{
+				pool_data_.insert(pool_data_.end(),
+								  (uint8_t *)s->data, (uint8_t *)s->data + s->size);
+				off_d += s->size;
+			}
+			m.size = s->size;
+			m.des_begin = (uint64_t)s->des_begin;
+			m.des_begin2 = (uint64_t)s->des_begin2;
+			m.state = s->state;
+			m.cluster_id = s->cluster_id;
+			m.identity = s->identity;
+			m.distance = s->distance;
+			for (int t = 0; t < 4; ++t)
+				m.coverage[t] = s->coverage[t];
+
+			meta_[k] = m;
+		}
+		MPI_Win_create(pool_data_.empty() ? MPI_BOTTOM : (void *)pool_data_.data(),
+					   (MPI_Aint)pool_data_.size(),
+					   1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
+		MPI_Win_create(meta_.empty() ? MPI_BOTTOM : (void *)meta_.data(),
+					   (MPI_Aint)meta_.size() * sizeof(SeqMeta),
+					   1, MPI_INFO_NULL, worker_comm, &win_meta_);
+		MPI_Win_lock_all(0, win_meta_);
+		MPI_Win_lock_all(0, win_pool_d_);
+		// MPI_Win_create((void *)ctrl_, 3 * sizeof(int),
+		// 			   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_ctrl_);
+		// MPI_Win_fence(0, win_ctrl_);
+		// MPI_Win_lock_all(0, win_tasks_);
+		// MPI_Win_lock_all(0, win_ctrl_);
+		// const size_t Nseq = sequences.size();
+		// meta_.clear();
+		// meta_.resize(Nseq);
+		// pool_data_.clear();
+
+		// 序列扁平视图（只读）
 		// std::vector<SeqMeta> meta_;
 		// std::vector<uint8_t> pool_data_;
 
@@ -2789,7 +2864,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 
 		// MPI_Win win_box_ = MPI_WIN_NULL; // 可选邮箱
 		// MPI_Win win_boxctl_ = MPI_WIN_NULL;
-}
+		}
 void SequenceDB::Encodeseqs( Sequence *seq, int NAA, int id,bool est ){
 char *seqi = seq->data;
 	int len = seq->size;
@@ -6028,16 +6103,24 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					for (int s = 0; s < SUB; ++s)
 					{
 						// 共享任务描述（也可在 parallel 前面声明成外部共享变量）
+
 						static int l_shared = 0, r_shared = -1;
 						static int have_task = 0; // 0/1
 
 // 只有一个线程安全地从队列取任务
 #pragma omp single
 						{
+							// MPI_Get(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
+							// MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+							
+							// MPI_Win_fence(0, win_ctrl_);
 							if (top<=bottom)
 							{
+
 								auto pr = sub_chunks[top];
 								top++;
+								// MPI_Put(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);
+								// MPI_Win_flush_all(win_ctrl_);
 								l_shared = pr.first;
 								r_shared = pr.second;
 								have_task = 1;
@@ -6230,7 +6313,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					start++;
 				}
 				top = start * SUB;
-				bottom = sub_chunks.size();
+				// bottom = sub_chunks.size();
+				ctrl_[0] = top;				  // 更新 top
+				// ctrl_[1] = bottom;			  // 更新 bottom
+				// ctrl_[2] = sub_chunks.size(); // 更新任务数量
+				// MPI_Put(ctrl_, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);  // 更新第一个进程的窗口中的 ctrl 数据
+				// MPI_Win_flush_all(win_ctrl_);
+
 				double t16 = get_time();
 				if (!done_flag && soure_chunk < chunks_num - 1)
 				{
