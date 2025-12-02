@@ -6323,11 +6323,19 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					continue;
 					while (true)
 					{
-						int stealing_top, stealing_bottom,stealing_size;
-						MPI_Get(&stealing_top, 1, MPI_INT, tt, 0, 1, MPI_INT, win_ctrl_);	   // 控制窗口
-						MPI_Get(&stealing_bottom, 1, MPI_INT, tt, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
-						MPI_Get(&stealing_size, 1, MPI_INT, tt, 2, 1, MPI_INT, win_ctrl_); 
+						int stealing_ctrl[3];
+						int stealing_top = stealing_ctrl[0];
+						int stealing_bottom = stealing_ctrl[1];
+						int stealing_size = stealing_ctrl[2];
+						// MPI_Win_lock(MPI_LOCK_EXCLUSIVE, tt, 0, win_ctrl_);
 						MPI_Win_flush(tt, win_ctrl_);
+
+						MPI_Get(&stealing_ctrl, 3, MPI_INT, tt, 0, 3, MPI_INT, win_ctrl_);	   // 控制窗口
+						
+						// MPI_Get(&stealing_bottom, 1, MPI_INT, tt, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+						// MPI_Get(&stealing_size, 1, MPI_INT, tt, 2, 1, MPI_INT, win_ctrl_); 
+							cerr<<"OOOOOOOOOOOOOOOOOOOOOOOOOO"<<endl;
+						// MPI_Win_unlock(tt, win_ctrl_); 
 						if (stealing_bottom - stealing_top > 1&&stealing_size>SUB)
 						{
 							cerr<<"tt   "<<tt<<"  by   "<<worker_rank<<endl;
@@ -6395,7 +6403,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							}
 #pragma omp parallel num_threads(T)
 							{
-
 #pragma omp for schedule(dynamic, 1)
 								for (int ttt = 0; ttt < local_batch.size(); ttt++)
 								{
@@ -6407,35 +6414,22 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 										continue;
 
 									CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+									if ((seq->state & IS_REDUNDANT))
+									{
+										auto &m = metas[ttt];
+										m.state = seq->state;
+										m.cluster_id = seq->cluster_id;
+										m.identity = seq->identity;
+										m.distance = seq->distance;
+										for (int tttt = 0; tttt < 4; ++tttt)
+											m.coverage[tttt] = seq->coverage[tttt];
+									}
 								}
+								}
+								MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+								MPI_Win_flush(tt, win_meta_);
+								cerr<<"over!!!!!!!!!!!!!by   "<<my_rank<<endl;
 							}
-
-							const size_t Nseq = local_batch.size();
-							for (size_t ttt = 0; ttt < Nseq; ++ttt)
-							{
-								Sequence *s = local_batch[ttt];
-								auto &m = metas[ttt];
-								m.state = s->state;
-								m.cluster_id = s->cluster_id;
-								m.identity = s->identity;
-								m.distance = s->distance;
-								for (int tttt = 0; tttt < 4; ++tttt)
-									m.coverage[tttt] = s->coverage[tttt];
-							}
-							MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
-							MPI_Win_flush(tt, win_meta_);
-							// #pragma omp for schedule(dynamic, 1)
-							// for (int ttt = 0; ttt < local_batch.size(); ttt++)
-							// {
-							// 	int tid = omp_get_thread_num();
-							// 	Sequence *seq = local_batch[ttt];
-							// 	if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
-							// 		continue;
-							// 	CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
-							// 	// cerr << local_batch[ttt]->data << endl;
-							// }
-							cerr<<"over!!!!!!!!!!!!!"<<endl;
-						}
 						else
 						break;
 					}
@@ -6443,8 +6437,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			
 
-		 t15 = get_time();
-			cerr<<"-----checkone2 time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
+		double t155 = get_time();
+			cerr<<"-----checkone2 time  "<<t155-t15<<"  by rank  "<<my_rank<<endl;
 			
 			word_table.Clear();
 			slots[cur].release();
