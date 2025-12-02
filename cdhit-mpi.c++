@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 	float end_time;
 	bool master = true;
 	bool worker = false;
-	// sleep(20);
+	// sleep(0);
 	//初始化MPI
 	MPI_Init(&argc, &argv);
 	int rank, size;

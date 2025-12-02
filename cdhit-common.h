@@ -438,14 +438,6 @@ struct SeqMeta
 	float identity, distance;
 	int32_t coverage[4];
 };
-struct Update
-{
-	int32_t idx;
-	int16_t new_state;
-	int32_t cluster_id;
-	float identity, distance;
-	int32_t coverage[4];
-};
 struct compare {
     bool operator()(const IndexCount& a, const IndexCount& b) const {
         return a.count > b.count; // 小顶堆，count 小的优先
@@ -717,14 +709,7 @@ class SequenceDB
 		std::vector<SeqMeta> meta_;
 		std::vector<uint8_t> pool_data_;
 
-		// 可写结果（SOA）
-		std::vector<int16_t> res_state_; // 远端可 OR/CSW
-		std::vector<int32_t> res_cluster_id_;
-		std::vector<float> res_identity_;
-		std::vector<float> res_distance_;
-		std::vector<int32_t> res_coverage_; // 4*N，按 k*4..k*4+3
-		std::vector<Update> mailbox_;
-		int box_ctrl_[2] = {0, 0}; // 0=head(已消费), 1=tail(下一个可写)
+		
 		// 所有窗口句柄
 		MPI_Win win_tasks_ = MPI_WIN_NULL;
 		MPI_Win win_ctrl_ = MPI_WIN_NULL;
@@ -732,14 +717,7 @@ class SequenceDB
 		MPI_Win win_meta_ = MPI_WIN_NULL;
 		MPI_Win win_pool_d_ = MPI_WIN_NULL;
 
-		// MPI_Win win_state_ = MPI_WIN_NULL;
-		// MPI_Win win_cid_ = MPI_WIN_NULL;
-		// MPI_Win win_ident_ = MPI_WIN_NULL;
-		// MPI_Win win_dist_ = MPI_WIN_NULL;
-		// MPI_Win win_cov_ = MPI_WIN_NULL;
 
-		// MPI_Win win_box_ = MPI_WIN_NULL; // 可选邮箱
-		// MPI_Win win_boxctl_ = MPI_WIN_NULL;
 		int SUB ;
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
@@ -758,7 +736,7 @@ class SequenceDB
 			max_idf = 0;
 			max_len = 0;
 			len_n50 = 0;
-			SUB = 10;
+			SUB = 100;
 		}
 		
 		~SequenceDB(){ Clear(); }
