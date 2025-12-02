@@ -790,8 +790,8 @@ class SequenceDB
 
 		void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
 
-		void read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm);
-		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output);
+		void read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm,Options& options);
+		void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output,MPI_Comm worker_comm);
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
 			const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq,int *&flat_size,float *&flat_identity,int *&flat_coverage,char *&flat_identifier,int &C,int &N,int &IDLEN);
@@ -845,9 +845,11 @@ class SequenceDB
 		void ClusterTo( SequenceDB & other, const Options & optioins );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
+		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank,int id);
 		int CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
 		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
 		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
+		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank,int id);
 		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
 		int  CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
