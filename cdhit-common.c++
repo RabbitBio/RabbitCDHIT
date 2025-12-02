@@ -2622,7 +2622,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
 	// exit(0);
 }
 
-void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm) {
+void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size,bool mpi_status,MPI_Comm worker_comm,Options& options) {
 
 	int file_index = rank;
 	// if(mpi_status){
@@ -2769,11 +2769,11 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 			tasks_local_.push_back(Task{pr.first, pr.second});
 
 		ctrl_[0] = 0;						 // top 从前端 0 开始（本地 front）
-		ctrl_[1] = (int)tasks_local_.size(); // bottom = n（尾后一位，远端 back）
+		ctrl_[1] = (int)tasks_local_.size()-1; // bottom = n（尾后一位，远端 back）
 		ctrl_[2] = (int)tasks_local_.size();
 		MPI_Win_create(tasks_local_.empty() ? MPI_BOTTOM : (void *)tasks_local_.data(),
 					   (MPI_Aint)tasks_local_.size() * sizeof(Task),
-					   1, MPI_INFO_NULL, worker_comm, &win_tasks_);
+					   sizeof(Task), MPI_INFO_NULL, worker_comm, &win_tasks_);
 
 		MPI_Win_create((void *)ctrl_, 3 * (MPI_Aint)sizeof(int),
 					   sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
@@ -2808,8 +2808,6 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 				off_d += s->size;
 			}
 			m.size = s->size;
-			m.des_begin = (uint64_t)s->des_begin;
-			m.des_begin2 = (uint64_t)s->des_begin2;
 			m.state = s->state;
 			m.cluster_id = s->cluster_id;
 			m.identity = s->identity;
@@ -2824,9 +2822,82 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 					   1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
 		MPI_Win_create(meta_.empty() ? MPI_BOTTOM : (void *)meta_.data(),
 					   (MPI_Aint)meta_.size() * sizeof(SeqMeta),
-					   1, MPI_INFO_NULL, worker_comm, &win_meta_);
+					   sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
 		MPI_Win_lock_all(0, win_meta_);
 		MPI_Win_lock_all(0, win_pool_d_);
+	// 	if(rank == 2){
+	// 		// sleep(1);
+	// 		int top,bottom;
+	// 		MPI_Get(&top, 1, MPI_INT, 0, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
+	// 		MPI_Get(&bottom, 1, MPI_INT, 0, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+	// 		MPI_Win_flush(0, win_ctrl_); 
+	// 		Task t;
+	// 		MPI_Get(&t, sizeof(Task), MPI_BYTE,
+    //         0, bottom-1,
+    //         sizeof(Task), MPI_BYTE, win_tasks_);
+	// 		MPI_Win_flush(0, win_tasks_);
+	// 		cerr<<"!!!!!!!!!!!!!!!!!!!!!!___________________"<<t.l<<"==================="<<t.r<<endl;
+	// 		const int cnt = t.r - t.l+1;
+	// 		std::vector<SeqMeta> metas(cnt);
+	// 		MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE,
+    //     0, /*disp = 元素下标*/ t.l,
+    //     (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+	// 	MPI_Win_flush(0, win_meta_);
+	// 	size_t total_bytes = 0;
+	// 	for (const auto &m : metas) total_bytes += (size_t)m.data_len;
+	// 	std::vector<uint8_t> slab(total_bytes);
+    //    size_t cursor = 0;
+	
+	//    for (int i = 0; i < cnt; ++i)
+	//    {
+	// 	   const auto &m = metas[i];
+	// 	   if (m.data_len > 0)
+	// 	   {
+	// 		   MPI_Get(slab.data() + cursor, m.data_len, MPI_BYTE,
+	// 				   0, (MPI_Aint)m.data_off, m.data_len, MPI_BYTE, win_pool_d_);
+	// 		   cursor += (size_t)m.data_len;
+	// 	   }
+	//    }
+	//    MPI_Win_flush(0, win_pool_d_);
+	//    std::vector<Sequence *> local_batch;
+	//    local_batch.reserve(cnt);
+	//    cursor = 0;
+	//     //   #pragma omp parallel for schedule(static) num_threads(options.threads)
+	//    for (int i = 0; i < cnt; ++i)
+	//    {
+	// 	   const auto &m = metas[i];
+
+	// 	   Sequence *s = new Sequence();
+	// 	   // data
+	// 	   if (m.data_len > 0)
+	// 	   {
+	// 		   char *buf = (char *)malloc((size_t)m.data_len + 1);
+	// 		   memcpy(buf, slab.data() + cursor, (size_t)m.data_len);
+	// 		   buf[m.data_len] = '\0';
+	// 		   s->data = buf;
+	// 	   }
+	// 	   else
+	// 	   {
+	// 		   s->data = nullptr;
+	// 	   }
+	// 	   cursor += (size_t)m.data_len;
+	// 	   s->size = m.size;
+	// 	   s->des_begin = (size_t)m.des_begin;
+	// 	   s->des_begin2 = (size_t)m.des_begin2;
+	// 	   s->state = m.state;
+	// 	   s->cluster_id = m.cluster_id;
+	// 	   s->identity = m.identity;
+	// 	   s->distance = m.distance;
+	// 	   for (int t = 0; t < 4; ++t)
+	// 		   s->coverage[t] = m.coverage[t];
+
+	// 	   local_batch.push_back(s);
+	//    }
+	//    for(int ttt=0;ttt<local_batch.size();ttt++){
+	// 	cerr<<local_batch[ttt]->data<<endl;
+	//    }
+	// }
+	
 		// MPI_Win_create((void *)ctrl_, 3 * sizeof(int),
 		// 			   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_ctrl_);
 		// MPI_Win_fence(0, win_ctrl_);
@@ -4981,7 +5052,7 @@ int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<
 	}
 	return OK_FUNC;
 }
-void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output) {
+void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output,MPI_Comm worker_comm) {
 
 	int rank_size;
 	MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
@@ -6110,19 +6181,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 // 只有一个线程安全地从队列取任务
 #pragma omp single
 						{
-							// MPI_Get(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
-							// MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+							MPI_Get(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
+							MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
 							
 							// MPI_Win_fence(0, win_ctrl_);
-							if (top<=bottom)
+							if (top <= bottom)
 							{
-
-								auto pr = sub_chunks[top];
+								Task t;
+								MPI_Get(&t, sizeof(Task), MPI_BYTE, worker_rank, top, sizeof(Task), MPI_BYTE, win_tasks_);
+								MPI_Win_flush(worker_rank, win_tasks_);
 								top++;
-								// MPI_Put(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);
-								// MPI_Win_flush_all(win_ctrl_);
-								l_shared = pr.first;
-								r_shared = pr.second;
+								MPI_Put(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);
+								MPI_Win_flush_all(win_ctrl_);
+								l_shared = t.l;
+								r_shared = t.r;
 								have_task = 1;
 							}
 							else
@@ -6165,16 +6237,51 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 							}
 
-							CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+							CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank, k);
 						}
 
+#pragma omp master
+{
+	const int cnt = r_shared - l_shared + 1;
+	MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+}
 // 确保所有线程都结束了本轮 for 再去取下一个小块
 #pragma omp barrier
 					}
 
+// #pragma omp master
+// {
+// 	MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
+// 	MPI_Win_flush(worker_rank, win_tasks_);
+	
+// 	if(bottom<sub_chunks.size()-1){
+// 		cerr<<"!!!!buchong   bootom   "<<bottom<<"    by     "<<worker_rank<<endl;
+// 		for(int tt = bottom+1;tt<=sub_chunks.size()-1;tt++)
+// 		{
+// 			cerr<<"...........   "<<tt<<endl;
+// 			const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
+// 			std::vector<SeqMeta> metas(cnt);
+// 			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+// 			MPI_Win_flush(worker_rank, win_tasks_);
+// 			cerr<<"...........   "<<sub_chunks[tt].first<<"........................."<<sub_chunks[tt].second<<endl;
+// 			for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
+// 			{
+// 				const auto &m = metas[ttt-sub_chunks[tt].first];
+// 				Sequence *seq = sequences[ttt];
+// 				seq->state = m.state;
+// 				seq->cluster_id = m.cluster_id;
+// 				seq->identity = m.identity;
+// 				seq->distance = m.distance;
+// 				for (int tttt = 0; tttt < 4; ++tttt)
+// 					seq->coverage[tttt] = m.coverage[tttt];
+// 			}
+// 		}
+// 	}
+// }
 // 发送 rep_chunk：只让一个线程做（且不与 omp for 交叉）
 #pragma omp master
 					{
+
 						if (chunks_id[idx] == soure_chunk + 1)
 						{ // 注意：soure_chunk 变量名是否写错？
 							const int size = my_chunks[idx].second - my_chunks[idx].first + 1;
@@ -6201,6 +6308,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							// 若没启用 MPI_THREAD_MULTIPLE，最好保证只有 master 线程调用 MPI
 							MPI_Send(rep_chunk, size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
 						}
+
 					}
 // 让其他线程等 master 线程发完
 #pragma omp barrier
@@ -6208,12 +6316,136 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 
 			double t15 = get_time();
-			cerr<<"-----checkone time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
-			// if(flag==1)
-			// start++;
-			// free momery
-			// cerr<<my_rank   <<"daozhe "<<endl;
+			cerr<<"-----checkone1 time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
+			for (int tt = 0; tt < rank_size - 1; tt++)
+			{
+				if (tt == worker_rank)
+					continue;
+					while (true)
+					{
+						int stealing_top, stealing_bottom,stealing_size;
+						MPI_Get(&stealing_top, 1, MPI_INT, tt, 0, 1, MPI_INT, win_ctrl_);	   // 控制窗口
+						MPI_Get(&stealing_bottom, 1, MPI_INT, tt, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+						MPI_Get(&stealing_size, 1, MPI_INT, tt, 2, 1, MPI_INT, win_ctrl_); 
+						MPI_Win_flush(tt, win_ctrl_);
+						if (stealing_bottom - stealing_top > 1&&stealing_size>SUB)
+						{
+							cerr<<"tt   "<<tt<<"  by   "<<worker_rank<<endl;
+							cerr<<"  !!!!stealing_top   "   <<stealing_top<<endl;
+							cerr<<"  !!!!stealing_bottom   "<<stealing_bottom<<endl;
+							int dec = -1;
+							MPI_Fetch_and_op(&dec, &stealing_bottom, MPI_INT, tt, 1, MPI_SUM, win_ctrl_);
+							// 刷新，确保同步
+							MPI_Win_flush(tt, win_ctrl_);
 
+							Task t;
+							MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE, win_tasks_);
+							MPI_Win_flush(tt, win_tasks_);
+							cerr << "!!!!!!!!!!!!!!!!!!!!!!___________________" << t.l << "===================" << t.r << endl;
+							const int cnt = t.r - t.l + 1;
+							std::vector<SeqMeta> metas(cnt);
+							MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+							MPI_Win_flush(tt, win_meta_);
+							size_t total_bytes = 0;
+							for (const auto &m : metas)
+								total_bytes += (size_t)m.data_len;
+							std::vector<uint8_t> slab(total_bytes);
+							size_t cursor = 0;
+
+							for (int i = 0; i < cnt; ++i)
+							{
+								const auto &m = metas[i];
+								if (m.data_len > 0)
+								{
+									MPI_Get(slab.data() + cursor, m.data_len, MPI_BYTE, tt, (MPI_Aint)m.data_off, m.data_len, MPI_BYTE, win_pool_d_);
+									cursor += (size_t)m.data_len;
+								}
+							}
+							MPI_Win_flush(tt, win_pool_d_);
+							std::vector<Sequence *> local_batch;
+							local_batch.reserve(cnt);
+							cursor = 0;
+							for (int i = 0; i < cnt; ++i)
+							{
+								const auto &m = metas[i];
+
+								Sequence *s = new Sequence();
+								// data
+								if (m.data_len > 0)
+								{
+									char *buf = (char *)malloc((size_t)m.data_len + 1);
+									memcpy(buf, slab.data() + cursor, (size_t)m.data_len);
+									buf[m.data_len] = '\0';
+									s->data = buf;
+								}
+								else
+								{
+									s->data = nullptr;
+								}
+								cursor += (size_t)m.data_len;
+								s->size = m.size;
+								s->state = m.state;
+								s->cluster_id = m.cluster_id;
+								s->identity = m.identity;
+								s->distance = m.distance;
+								for (int tttt = 0; tttt < 4; ++tttt)
+									s->coverage[tttt] = m.coverage[tttt];
+
+								local_batch.push_back(s);
+							}
+#pragma omp parallel num_threads(T)
+							{
+
+#pragma omp for schedule(dynamic, 1)
+								for (int ttt = 0; ttt < local_batch.size(); ttt++)
+								{
+									int tid = omp_get_thread_num();
+									// cerr<<"tid  "<<tid<<endl;
+									Sequence *seq = local_batch[ttt];
+
+									if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+										continue;
+
+									CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+								}
+							}
+
+							const size_t Nseq = local_batch.size();
+							for (size_t ttt = 0; ttt < Nseq; ++ttt)
+							{
+								Sequence *s = local_batch[ttt];
+								auto &m = metas[ttt];
+								m.state = s->state;
+								m.cluster_id = s->cluster_id;
+								m.identity = s->identity;
+								m.distance = s->distance;
+								for (int tttt = 0; tttt < 4; ++tttt)
+									m.coverage[tttt] = s->coverage[tttt];
+							}
+							MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+							MPI_Win_flush(tt, win_meta_);
+							// #pragma omp for schedule(dynamic, 1)
+							// for (int ttt = 0; ttt < local_batch.size(); ttt++)
+							// {
+							// 	int tid = omp_get_thread_num();
+							// 	Sequence *seq = local_batch[ttt];
+							// 	if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+							// 		continue;
+							// 	CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+							// 	// cerr << local_batch[ttt]->data << endl;
+							// }
+							cerr<<"over!!!!!!!!!!!!!"<<endl;
+						}
+						else
+						break;
+					}
+				
+			}
+			
+
+		 t15 = get_time();
+			cerr<<"-----checkone2 time  "<<t15-t14<<"  by rank  "<<my_rank<<endl;
+			
 			word_table.Clear();
 			slots[cur].release();
 			if (!done_flag&&soure_chunk < chunks_num -1)
@@ -6240,7 +6472,37 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// prefix_buf = NULL;
 			// indexCount_buf = NULL;
 			// cerr<<"pass  "<<endl;
-
+		
+		MPI_Barrier(worker_comm);
+		MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
+		MPI_Win_flush(worker_rank, win_ctrl_);
+	
+	if(bottom<sub_chunks.size()-1){
+		cerr<<"!!!!buchong   bootom   "<<bottom+1<<"    by     "<<worker_rank<<endl;
+		for(int tt = bottom+1;tt<=sub_chunks.size()-1;tt++)
+		{
+			cerr<<"...........   "<<tt<<endl;
+			const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
+			std::vector<SeqMeta> metas(cnt);
+			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+			MPI_Win_flush(worker_rank, win_meta_);
+			cerr<<"...........   "<<sub_chunks[tt].first<<"........................."<<sub_chunks[tt].second<<endl;
+			for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
+			{
+				const auto &m = metas[ttt-sub_chunks[tt].first];
+				Sequence *seq = sequences[ttt];
+				if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+								continue;
+				seq->state = m.state;
+				seq->cluster_id = m.cluster_id;
+				seq->identity = m.identity;
+				seq->distance = m.distance;
+				for (int tttt = 0; tttt < 4; ++tttt)
+					seq->coverage[tttt] = m.coverage[tttt];
+			}
+		}
+		cerr<<"buchong over!!!!!"<<endl;
+	}
 			double t11 = get_time();
 			int C = record - record_last;
 			// cerr<<"my rank"<<my_rank<<"send   size    "<< C<<endl;
@@ -6305,21 +6567,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// clusters_size.resize(chunk_size);
 				// clusters_identity.resize(chunk_size);
 				// clusters_coverage.resize(chunk_size);
-				
-				// sub_chunks.swap(sub_chunks_next);
-				if (chunks_id[start] == soure_chunk)
-				{
-
-					start++;
-				}
-				top = start * SUB;
-				// bottom = sub_chunks.size();
-				ctrl_[0] = top;				  // 更新 top
-				// ctrl_[1] = bottom;			  // 更新 bottom
-				// ctrl_[2] = sub_chunks.size(); // 更新任务数量
-				// MPI_Put(ctrl_, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);  // 更新第一个进程的窗口中的 ctrl 数据
-				// MPI_Win_flush_all(win_ctrl_);
-
 				double t16 = get_time();
 				if (!done_flag && soure_chunk < chunks_num - 1)
 				{
@@ -6328,13 +6575,32 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
 				}
 				double t17 = get_time();
-				cerr<<"-----wait time  "<<t17-t16<<"  by rank  "<<my_rank<<endl;
+				cerr << "-----wait time  " << t17 - t16 << "  by rank  " << my_rank << endl;
 				// else{
 				wait_all(slots[next]);
 				std::swap(cur, next);
-			
+				MPI_Barrier(worker_comm);
+
+
+
+
+				// sub_chunks.swap(sub_chunks_next);
+				if (chunks_id[start] == soure_chunk)
+				{
+
+					start++;
+				}
+				top = start * SUB;
+				bottom = sub_chunks.size()-1;
+				ctrl_[0] = top; // 更新 top
+				ctrl_[1] = bottom;			  // 更新 bottom
+				ctrl_[2] = bottom-top + 1; // 更新任务数量
+				MPI_Put(ctrl_, 3, MPI_INT, worker_rank, 0, 3, MPI_INT, win_ctrl_); // 更新第一个进程的窗口中的 ctrl 数据
+				MPI_Win_flush(worker_rank,win_ctrl_);
+
 				if (soure_chunk == chunks_num - 1)
 					break;
+				
 		}
 		for (int i = 0; i < rank_size - 1; i++) {
     if (chunk_kseq[i]) kseq_destroy(chunk_kseq[i]);
@@ -6554,7 +6820,16 @@ void SequenceDB::DoClustering( int T, const Options & options )
 	word_table.Clear();
 }
 
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank )
+int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank,int id )
+{
+	int len = seq->size;
+	// cerr<<seq->data<<endl;
+	param.len_upper_bound = upper_bound_length_rep(len, options);
+	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
+	return CheckOneAA( seq, table, param, buf, options ,my_rank,id);
+}
+
+int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank)
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
@@ -6742,6 +7017,189 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 	}
 	lookCounts.size = 0;
 	if (flag == 1) { // if similar to old one delete it
+		if (! options.cluster_best) {
+			seq->Clear();
+			seq->state |= IS_REDUNDANT ;
+		}
+	}
+	return flag;
+
+}
+int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank,int id)
+{
+	NVector<IndexCount> & lookCounts = buf.lookCounts;
+	NVector<uint32_t> & indexMapping = buf.indexMapping;
+	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
+	Vector<INTs> & aap_list = buf.aap_list;
+	Vector<INTs> & aap_begin = buf.aap_begin;
+	Vector<int>  & word_encodes = buf.word_encodes;
+	Vector<int>  & taap = buf.taap;
+	double aa1_cutoff = param.aa1_cutoff;
+	double aa2_cutoff = param.aas_cutoff;
+	double aan_cutoff = param.aan_cutoff;
+	// cerr<<seq->data<<endl;
+	char *seqi = seq->data;
+	int j, k, j1, len = seq->size;
+	int flag = 0;
+	int frag_size = options.frag_size;
+	int & aln_cover_flag = param.aln_cover_flag;
+	int & required_aa1 = param.required_aa1;
+	int & required_aa2 = param.required_aas;
+	int & required_aan = param.required_aan;
+	int & min_aln_lenS = param.min_aln_lenS;
+	int & min_aln_lenL = param.min_aln_lenL;
+
+	int NAA = options.NAA;
+	int S = table.sequences.size();
+	int len_eff = len;
+
+	if( S ){
+		int min = table.sequences[S-1]->size;
+		if( min < len ){
+			if( len * options.diff_cutoff2 > min ) min = (int)(len * options.diff_cutoff2);
+			if( (len - options.diff_cutoff_aa2) > min ) min = len - options.diff_cutoff_aa2;
+			len_eff = min;
+		}
+	}
+
+    //liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
+    //longer seqeunce * -aL -band_width
+    if ( S ) {
+		int min = table.sequences[S-1]->size;
+		int min_red = min * options.long_coverage - options.band_width;
+		if (len < min_red) return 0; // return flag=0
+	} 
+
+	param.ControlShortCoverage( len_eff, options );
+	param.ComputeRequiredBases( options.NAA, 2, options );
+
+	buf.EncodeWords( seq, options.NAA, false );
+
+	// if minimal alignment length > len, return
+	// I can not return earlier, because I need to calc the word_encodes etc
+	if (options.min_control>len) return 0; // return flag=0
+
+	// lookup_aan
+	int aan_no = len - options.NAA + 1;
+	int M = frag_size ? table.frag_count : S;
+	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan, my_rank);
+
+	// contained_in_old_lib()
+	int len_upper_bound = param.len_upper_bound;
+	int len_lower_bound = param.len_lower_bound;
+	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
+	int tiden_no, band_center;
+	float tiden_pc, distance=0;
+	int talign_info[5];
+	int best1, sum;
+	INTs *lookptr;
+	char *seqj;
+	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
+	int lens;
+	int has_aa2 = 0;
+
+	IndexCount *ic = lookCounts.items;
+	ic = lookCounts.items;
+	for(; ic->count; ic++){
+		if( ! frag_size ){
+			indexMapping[ ic->index ] = 0;
+			if ( ic->count < required_aan ) continue;
+		}
+
+		Sequence *rep = table.sequences[ ic->index ];
+		// if(my_rank==3)
+		// cerr<<"error   "<<rep->data<<endl;
+		len2 = rep->size;
+		if (len2 > len_upper_bound ||len2 < len) continue;
+		if (options.has2D && len2 < len_lower_bound ) continue;
+		if( frag_size ){
+			uint32_t *ims = & indexMapping[ ic->index ];
+			int count = ic->count;
+			k = (len2 - NAA) / frag_size + 1;
+			sum = 0;
+			for (j1=0; j1<frg2; j1++){
+				uint32_t im = ims[j1];
+				if( im ) sum += lookCounts[im-1].count;
+			}
+			count = sum;
+			for (j1=frg2; j1<k; j1++) {
+				uint32_t im1 = ims[j1];
+				uint32_t im2 = ims[j1-frg2];
+				if( im1 ) sum += lookCounts[im1-1].count;
+				if( im2 ) sum -= lookCounts[im2-1].count;
+				if (sum > count) count = sum;
+			}
+			if ( count < required_aan ) continue;
+		}
+
+		param.ControlLongCoverage( len2, options );
+
+		if ( has_aa2 == 0 )  { // calculate AAP array
+			buf.ComputeAAP( seqi, seq->size );
+			has_aa2 = 1;
+		}
+		seqj = rep->data; //NR_seq[NR90_idx[j]];
+		
+		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+
+		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
+				band_width1, band_left, band_center, band_right, required_aa1);
+		if ( best_sum < required_aa2 ) continue;
+
+		
+		int rc = FAILED_FUNC;
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+		if ( rc == FAILED_FUNC ) continue;
+		if ( tiden_no < required_aa1 ) continue;
+		lens = len;
+		if( options.has2D && len > len2 ) lens = len2;
+		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
+		tiden_pc = tiden_no / (float) len_eff1;
+		if( options.useDistance ){
+			if (distance > options.distance_thd ) continue;
+			if (distance >= seq->distance) continue; // existing distance
+		}else{
+			if (tiden_pc < options.cluster_thd) continue;
+			if (tiden_pc <= seq->identity) continue; // existing iden_no
+		}
+		if (aln_cover_flag) {
+			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
+			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
+		}
+		if( options.has2D ) seq->state |= IS_REDUNDANT ;
+		flag = 1; seq->identity = tiden_pc; seq->cluster_id = rep->cluster_id;
+		seq->distance = distance;
+		seq->coverage[0] = talign_info[0] +1;
+		seq->coverage[1] = talign_info[1] +1;
+		seq->coverage[2] = talign_info[2] +1;
+		seq->coverage[3] = talign_info[3] +1;
+		meta_[id].state = seq->state;
+		meta_[id].cluster_id = seq->cluster_id;
+		meta_[id].identity = seq->identity;
+		meta_[id].distance = seq->distance;
+		for (int t = 0; t < 4; ++t)
+		meta_[id].coverage[t] = seq->coverage[t];
+
+		if (not options.cluster_best) break;
+		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
+				options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+		param.ComputeRequiredBases( options.NAA, 2, options );
+	}
+	if( frag_size ) ic = lookCounts.items;
+	while( ic->count ){
+		indexMapping[ ic->index ] = 0;
+		ic += 1;
+	}
+	lookCounts.size = 0;
+	if (flag == 1) { // if similar to old one delete it
+		
 		if (! options.cluster_best) {
 			seq->Clear();
 			seq->state |= IS_REDUNDANT ;
