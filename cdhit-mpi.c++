@@ -31,6 +31,8 @@ SequenceDB seq_db;
 
 
 
+
+
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char *argv[])
 {
@@ -46,9 +48,15 @@ int main(int argc, char *argv[])
 	float end_time;
 	bool master = true;
 	bool worker = false;
-	// sleep(0);
+	sleep(0);
 	//初始化MPI
-	MPI_Init(&argc, &argv);
+	int provided;
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
+	 if (provided < MPI_THREAD_MULTIPLE)
+    {
+        cerr << "ERROR: Need MPI_THREAD_MULTIPLE" << endl;
+        return 1;
+    }
 	int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -78,6 +86,13 @@ int main(int argc, char *argv[])
 	InitNAA( MAX_UAA );
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
+	// for(int i = 0;i<size;i++){
+	// 	seq_db.stealing_rank.emplace_back(0);
+	// }
+	// MPI_Win_create(seq_db.stealing_rank.empty() ? MPI_BOTTOM : (void *)seq_db.stealing_rank.data(),
+	// 				   (MPI_Aint)seq_db.stealing_rank.size() * sizeof(int),
+	// 				   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &seq_db.stealing_rank_);
+	// MPI_Win_lock_all(0, seq_db.stealing_rank_);	   
 	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
 	// MPI_Barrier(MPI_COMM_WORLD);
 	string temp_dir = options.tmp_dir;

@@ -430,9 +430,9 @@ struct Task
 };
 struct SeqMeta
 {
-	int32_t data_off, data_len; // 对应 Sequence::data 的偏移与长度（字节）
+	int32_t data_len; // 对应 Sequence::data 的偏移与长度（字节）
+	size_t data_off;
 	int32_t size;
-	uint64_t des_begin, des_begin2;
 	int16_t state; // 初始状态备份（只读，不作为回写目标）
 	int32_t cluster_id;
 	float identity, distance;
@@ -695,7 +695,7 @@ class SequenceDB
 		vector<pair<int, int>>my_chunks;
 		// std::deque<std::pair<int, int>> sub_chunks; 
 		std::vector<std::pair<int, int>> sub_chunks; 
-		std::vector<int> sub_chunks_id;				
+		std::vector<int> sub_chunks_id;		
 		vector<int> chunks_id;
 		int total_chunk;
 		int chunk_size;
@@ -703,7 +703,9 @@ class SequenceDB
 		long long chunk_bytes;
 		int chunks_num;
 		std::vector<Task> tasks_local_; // 小块数组（只读）
+		std::vector<int> tasks_flag;
 		int ctrl_[3] = {0, 0, 0};		// 0=top, 1=bottom, 2=n
+		int SUB = 20;
 		std::vector<std::vector<int>> total_encodes;
 		std::vector<std::vector<INTs>> total_encodes_no;
 		std::vector<SeqMeta> meta_;
@@ -712,13 +714,14 @@ class SequenceDB
 		
 		// 所有窗口句柄
 		MPI_Win win_tasks_ = MPI_WIN_NULL;
+		MPI_Win win_tasks_flag_ = MPI_WIN_NULL;
 		MPI_Win win_ctrl_ = MPI_WIN_NULL;
-
 		MPI_Win win_meta_ = MPI_WIN_NULL;
 		MPI_Win win_pool_d_ = MPI_WIN_NULL;
 
 
-		int SUB ;
+
+		
 		void Clear(){
 			for(int i=0; i<sequences.size(); i++) delete sequences[i];
 			sequences.clear(); rep_seqs.clear();
@@ -736,7 +739,7 @@ class SequenceDB
 			max_idf = 0;
 			max_len = 0;
 			len_n50 = 0;
-			SUB = 100;
+			
 		}
 		
 		~SequenceDB(){ Clear(); }
