@@ -5135,7 +5135,19 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	vector<string> rep_identifier_cur;
 	vector<int> rep_size_cur;
 	vector<string> rep_identifier_next;
-	vector<int> rep_size_next;   
+	vector<int> rep_size_next;
+	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(Task), MPI_INFO_NULL, worker_comm, &win_tasks_);
+
+	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_tasks_flag_);
+
+	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
+	// MPI_Win_create(MPI_BOTTOM, 0, 1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
+	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
+	// MPI_Win_lock_all(0, win_tasks_);
+	// MPI_Win_lock_all(0, win_ctrl_);
+	// MPI_Win_lock_all(0, win_tasks_flag_);
+	// MPI_Win_lock_all(0, win_meta_);
+	// MPI_Win_lock_all(0, win_pool_d_);
 	omp_set_num_threads(T);
 	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
 	// std::vector<int> done_flags(rank_size - 1, 0);
@@ -6169,6 +6181,47 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 						if (chunks_id[idx] == soure_chunk + 1)
 						{ // 注意：soure_chunk 变量名是否写错？
+							int now_bottom;
+							MPI_Get(&now_bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
+							MPI_Win_flush_local(worker_rank, win_ctrl_);
+							// cerr<<"1111111111111111111111111           "<<now_bottom<<endl;
+							// cerr<<"2222222222222222222222222           "<<idx<<endl;
+							if (now_bottom < idx * SUB + SUB - 1)
+							{
+								
+								for (int tt = now_bottom + 1; tt <= idx * SUB + SUB - 1; tt++)
+								{
+									int task_flag;
+									MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
+									MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+									while (task_flag != 1)
+									{
+										MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
+										MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+										cerr << "等等等等等等等等等等等等等等等等等等等等等" << endl;
+										// 短暂休眠，避免 100% CPU
+										usleep(1000); // 休眠 1 毫秒
+									}
+									cerr << "task_flags     " << task_flag << endl;
+									const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
+									std::vector<SeqMeta> metas(cnt);
+									MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/ sub_chunks[tt].first, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+									MPI_Win_flush_local(worker_rank, win_meta_);
+									for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
+									{
+										const auto &m = metas[ttt - sub_chunks[tt].first];
+										Sequence *seq = sequences[ttt];
+										if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
+											continue;
+										seq->state = m.state;
+										seq->cluster_id = m.cluster_id;
+										seq->identity = m.identity;
+										seq->distance = m.distance;
+										for (int tttt = 0; tttt < 4; ++tttt)
+											seq->coverage[tttt] = m.coverage[tttt];
+									}
+								}
+							}
 							const int size = my_chunks[idx].second - my_chunks[idx].first + 1;
 							static std::vector<int> rep_buf; // 复用缓冲，避免频繁 malloc
 							rep_buf.resize((size_t)size * 2);
@@ -6222,7 +6275,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 			  
 						// MPI_Win_unlock(tt, win_ctrl_); 
-						if (stealing_bottom - stealing_top > 1&&stealing_bottom-origin_top > SUB)
+						// if (stealing_bottom - stealing_top > 1&&stealing_bottom-origin_top > SUB)
+						if (stealing_bottom - stealing_top > 1)
 						{
 	
 							int dec = -1;
@@ -6387,18 +6441,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		
 		MPI_Barrier(worker_comm);
 		MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
-		MPI_Win_flush(worker_rank, win_ctrl_);
+		MPI_Win_flush_local(worker_rank, win_ctrl_);
 	
 	if(bottom<sub_chunks.size()-1){
 		
 		for(int tt = bottom+1;tt<=sub_chunks.size()-1;tt++)
 		{
 			int task_flag = 0;
+			MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
+			MPI_Win_flush_local(worker_rank, win_tasks_flag_);
 			while (task_flag != 1)
 			{
 				MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
-				MPI_Win_flush(worker_rank, win_tasks_flag_);
-
+				MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+				cerr<<"等等等等等等等等等等等等等等等等等等等等等"<<endl;
 				// 短暂休眠，避免 100% CPU
 				usleep(1000); // 休眠 1 毫秒
 			}
@@ -6406,7 +6462,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
 			std::vector<SeqMeta> metas(cnt);
 			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
-			MPI_Win_flush(worker_rank, win_meta_);
+			MPI_Win_flush_local(worker_rank, win_meta_);
 
 			#pragma omp parallel for schedule(static)
 			for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
