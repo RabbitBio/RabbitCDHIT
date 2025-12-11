@@ -2448,8 +2448,8 @@ void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_
     // this->output_prefix = j["files"]["out_prefix"].get<std::string>();
 
 	options.max_entries = max_len * MAX_TABLE_SEQ;
-	if(output_dir != temp_dir)
-	bomb_error("no this temp_dir");
+	// if(output_dir != temp_dir)
+	// bomb_error("no this temp_dir");
 
 }
 
@@ -5136,21 +5136,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	vector<int> rep_size_cur;
 	vector<string> rep_identifier_next;
 	vector<int> rep_size_next;
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(Task), MPI_INFO_NULL, worker_comm, &win_tasks_);
-
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_tasks_flag_);
-
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
-	// MPI_Win_create(MPI_BOTTOM, 0, 1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
-	// MPI_Win_lock_all(0, win_tasks_);
-	// MPI_Win_lock_all(0, win_ctrl_);
-	// MPI_Win_lock_all(0, win_tasks_flag_);
-	// MPI_Win_lock_all(0, win_meta_);
-	// MPI_Win_lock_all(0, win_pool_d_);
 	omp_set_num_threads(T);
-	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
-	// std::vector<int> done_flags(rank_size - 1, 0);
+
 	for (i = 0; i < chunks_num; i++)
 	{
 		// if (i > 1) break;
@@ -5434,28 +5421,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				reqs_block.emplace_back(MPI_REQUEST_NULL);
 				MPI_Ibcast((long *)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD, &reqs_block.back());
 			}
-			MPI_Waitall((int)reqs_block.size(), reqs_block.data(), MPI_STATUSES_IGNORE);
 			cerr << "send over " << info_buf[0] << endl;
-		}
-		else
-		{
-			MPI_Bcast((void *)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD);
-			// cerr<<"send len  "<<info_buf[1]<<endl;
-			// cerr<<"info[2]  "<<info_buf[2]<<endl;
-			MPI_Bcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
-			MPI_Bcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
-			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
-			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
-			for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size)
-			{
-				size_t size = min(bcast_block_size, indexCount_buf_size - offset);
-				MPI_Bcast((long *)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
-			}
-		}
-			//----------------------------------------
-		if (i > 0)
-		{
+//--------------------------------------------------
 			clusters_identifier.resize(C);
 			clusters_size.resize(C);
 			clusters_identity.resize(C);
@@ -5560,7 +5527,24 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// rep_size.resize(sequences.size());
 				// rep_identifier.resize(sequences.size());
 				read_flag[i] = 1;
+				MPI_Waitall((int)reqs_block.size(), reqs_block.data(), MPI_STATUSES_IGNORE);
+		}
+		else
+		{
+			MPI_Bcast((void *)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD);
+			// cerr<<"send len  "<<info_buf[1]<<endl;
+			// cerr<<"info[2]  "<<info_buf[2]<<endl;
+			MPI_Bcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD);
+			MPI_Bcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD);
+			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
+			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
+			for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size)
+			{
+				size_t size = min(bcast_block_size, indexCount_buf_size - offset);
+				MPI_Bcast((long *)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
 			}
+		}
 
 			//------------------------------------------
 			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
@@ -6202,7 +6186,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 										// 短暂休眠，避免 100% CPU
 										usleep(1000); // 休眠 1 毫秒
 									}
-									cerr << "task_flags     " << task_flag << endl;
+									// cerr << "task_flags     " << task_flag << endl;
 									const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
 									std::vector<SeqMeta> metas(cnt);
 									MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/ sub_chunks[tt].first, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
@@ -6255,11 +6239,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			progress_running = true; 
 			std::thread progress(mpi_progress_thread);
-			for (int tt = 0; tt < rank_size - 1; tt++)
+			int worker_size = rank_size-1;
+			for (int offset = -3; offset <= 3; ++offset) 
 			{
-				if (tt == worker_rank)
+
+			
+				int tt = (worker_rank + offset + worker_size) % worker_size;
+					if (tt == worker_rank )
 					continue;
-				
 					while (true)
 					{
 
@@ -6284,9 +6271,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							
 							// 刷新，确保同步
 							MPI_Win_flush(tt, win_ctrl_);
-							cerr<<"tt   "<<tt<<"  by   "<<worker_rank<<endl;
-							cerr<<"  !!!!stealing_top   "   <<stealing_top<<endl;
-							cerr<<"  !!!!stealing_bottom   "<<stealing_bottom<<endl;
+							// cerr<<"tt   "<<tt<<"  by   "<<worker_rank<<endl;
+							// cerr<<"  !!!!stealing_top   "   <<stealing_top<<endl;
+							// cerr<<"  !!!!stealing_bottom   "<<stealing_bottom<<endl;
 							Task t;
 							MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE, win_tasks_);
 							MPI_Win_flush_local(tt, win_tasks_);
@@ -6399,7 +6386,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 								
 								
-								cerr<<"over!!!!!!!!!!!!!by   "<<worker_rank<<endl;
+								// cerr<<"over!!!!!!!!!!!!!by   "<<worker_rank<<endl;
 							}
 						else
 						break;
@@ -6458,7 +6445,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// 短暂休眠，避免 100% CPU
 				usleep(1000); // 休眠 1 毫秒
 			}
-			cerr<<"task_flags     "<<task_flag<<endl;
+			// cerr<<"task_flags     "<<task_flag<<endl;
 			const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
 			std::vector<SeqMeta> metas(cnt);
 			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
