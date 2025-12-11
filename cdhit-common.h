@@ -705,7 +705,7 @@ class SequenceDB
 		std::vector<Task> tasks_local_; // 小块数组（只读）
 		std::vector<int> tasks_flag;
 		int ctrl_[3] = {0, 0, 0};		// 0=top, 1=bottom, 2=n
-		int SUB = 20;
+		int SUB = 50;
 		std::vector<std::vector<int>> total_encodes;
 		std::vector<std::vector<INTs>> total_encodes_no;
 		std::vector<SeqMeta> meta_;
