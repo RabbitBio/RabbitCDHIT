@@ -11,7 +11,11 @@ ifeq ($(openmp),no)
 else
   CCFLAGS = -fopenmp
 endif
-
+ifeq ($(AVX512),yes)
+  CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq
+else
+   CCFLAGS += -DNO_AVX512
+endif
 #LDFLAGS = -static -lz -o
 #LDFLAGS = /usr/lib/x86_64-linux-gnu/libz.a -o
 
@@ -20,7 +24,7 @@ endif
 # in command line:
 # make zlib=no
 ifeq ($(zlib),no)
-  CCFLAGS += 
+  CCFLAGS += -g
   LDFLAGS += -o
 else
   CCFLAGS += -DWITH_ZLIB -g
@@ -34,7 +38,7 @@ endif
 ifeq ($(debug),yes)
 CCFLAGS += -ggdb
 else
-CCFLAGS += -O2
+CCFLAGS += -Ofast
 endif
 
 ifdef MAX_SEQ

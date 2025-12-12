@@ -36,6 +36,7 @@ SequenceDB seq_db;
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char *argv[])
 {
+	// sleep(20);
 	string db_in;
 	string db_out;
 	vector<SequenceMeta> meta_table;
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 	float end_time;
 	bool master = true;
 	bool worker = false;
-	sleep(0);
+	
 	//初始化MPI
 	int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
