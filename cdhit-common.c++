@@ -31,6 +31,7 @@
 #include<assert.h>
 #include<limits.h>
 #include<mpi.h>
+#include <immintrin.h>
 #include <sys/time.h>
 #ifndef NO_OPENMP
 
@@ -47,7 +48,7 @@
 #define omp_get_thread_num() 0
 
 #endif
-
+#define MAX_AA_2 529
 //class function definition
 const char aa[] = {"ARNDCQEGHILKMFPSTWYVBZX"};
 //{0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,2,6,20};
@@ -64,6 +65,65 @@ double get_time()
 	gettimeofday(&tv, NULL);
 	return (double)tv.tv_sec + (double)tv.tv_usec / 1000000;
 }
+alignas(256) static const uint8_t REVERSE_MASK_LUT[256] = {
+    0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48,
+    0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8, 0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4,
+    0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4, 0x0C, 0x8C, 0x4C, 0xCC, 0x2C, 0xAC, 0x6C, 0xEC, 0x1C,
+    0x9C, 0x5C, 0xDC, 0x3C, 0xBC, 0x7C, 0xFC, 0x02, 0x82, 0x42, 0xC2, 0x22, 0xA2, 0x62, 0xE2, 0x12, 0x92, 0x52, 0xD2,
+    0x32, 0xB2, 0x72, 0xF2, 0x0A, 0x8A, 0x4A, 0xCA, 0x2A, 0xAA, 0x6A, 0xEA, 0x1A, 0x9A, 0x5A, 0xDA, 0x3A, 0xBA, 0x7A,
+    0xFA, 0x06, 0x86, 0x46, 0xC6, 0x26, 0xA6, 0x66, 0xE6, 0x16, 0x96, 0x56, 0xD6, 0x36, 0xB6, 0x76, 0xF6, 0x0E, 0x8E,
+    0x4E, 0xCE, 0x2E, 0xAE, 0x6E, 0xEE, 0x1E, 0x9E, 0x5E, 0xDE, 0x3E, 0xBE, 0x7E, 0xFE, 0x01, 0x81, 0x41, 0xC1, 0x21,
+    0xA1, 0x61, 0xE1, 0x11, 0x91, 0x51, 0xD1, 0x31, 0xB1, 0x71, 0xF1, 0x09, 0x89, 0x49, 0xC9, 0x29, 0xA9, 0x69, 0xE9,
+    0x19, 0x99, 0x59, 0xD9, 0x39, 0xB9, 0x79, 0xF9, 0x05, 0x85, 0x45, 0xC5, 0x25, 0xA5, 0x65, 0xE5, 0x15, 0x95, 0x55,
+    0xD5, 0x35, 0xB5, 0x75, 0xF5, 0x0D, 0x8D, 0x4D, 0xCD, 0x2D, 0xAD, 0x6D, 0xED, 0x1D, 0x9D, 0x5D, 0xDD, 0x3D, 0xBD,
+    0x7D, 0xFD, 0x03, 0x83, 0x43, 0xC3, 0x23, 0xA3, 0x63, 0xE3, 0x13, 0x93, 0x53, 0xD3, 0x33, 0xB3, 0x73, 0xF3, 0x0B,
+    0x8B, 0x4B, 0xCB, 0x2B, 0xAB, 0x6B, 0xEB, 0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB, 0x07, 0x87, 0x47, 0xC7,
+    0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7, 0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F,
+    0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF};
+
+alignas(32) static const int32_t LEFT_SHIFT_TABLE[8][8] = {
+    {0, 1, 2, 3, 4, 5, 6, 7}, {7, 0, 1, 2, 3, 4, 5, 6}, {7, 7, 0, 1, 2, 3, 4, 5}, {7, 7, 7, 0, 1, 2, 3, 4},
+    {7, 7, 7, 7, 0, 1, 2, 3}, {7, 7, 7, 7, 7, 0, 1, 2}, {7, 7, 7, 7, 7, 7, 0, 1}, {7, 7, 7, 7, 7, 7, 7, 0}};
+
+alignas(32) static const int32_t RIGHT_SHIFT_TABLE[8][8] = {
+    {7, 6, 5, 4, 3, 2, 1, 0}, {6, 5, 4, 3, 2, 1, 0, 7}, {5, 4, 3, 2, 1, 0, 7, 7}, {4, 3, 2, 1, 0, 7, 7, 7},
+    {3, 2, 1, 0, 7, 7, 7, 7}, {2, 1, 0, 7, 7, 7, 7, 7}, {1, 0, 7, 7, 7, 7, 7, 7}, {0, 7, 7, 7, 7, 7, 7, 7}};
+alignas(32) static const int32_t SHUFFLE_TABLE[8][8] = {
+    {0, 1, 2, 3, 4, 5, 6, 7}, {1, 2, 3, 4, 5, 6, 7, 0}, {2, 3, 4, 5, 6, 7, 0, 1}, {3, 4, 5, 6, 7, 0, 1, 2},
+    {4, 5, 6, 7, 0, 1, 2, 3}, {5, 6, 7, 0, 1, 2, 3, 4}, {6, 7, 0, 1, 2, 3, 4, 5}, {7, 0, 1, 2, 3, 4, 5, 6}};
+void _mm256_load_char_array_forward(__m256i& vec_index, const char* arr, __m256i& seq_vals, __mmask8 mask) {
+    __mmask8 copy_mask = mask;
+    uint32_t lowbit = copy_mask & (-copy_mask);
+    int pos = _mm_popcnt_u32(lowbit - 1);
+    __m256i shuffle_perm = _mm256_load_si256((__m256i*)SHUFFLE_TABLE[pos]);
+    vec_index = seq_vals = _mm256_permutevar8x32_epi32(vec_index, shuffle_perm);
+    int base_index = _mm256_extract_epi32(vec_index, 0);
+    copy_mask >>= pos;
+    __mmask16 mask_16 = copy_mask;
+    __m128i bytes = _mm_maskz_loadu_epi8(mask_16, arr + base_index);
+    seq_vals = _mm256_cvtepu8_epi32(bytes);
+    __m256i perm = _mm256_load_si256((__m256i*)LEFT_SHIFT_TABLE[pos]);
+    seq_vals = _mm256_permutevar8x32_epi32(seq_vals, perm);
+    seq_vals = _mm256_maskz_mov_epi32(mask, seq_vals);
+}
+
+void _mm256_load_char_array_backward(__m256i& vec_index, const char* arr, __m256i& seq_vals, __mmask8 mask) {
+    __mmask8 reverse_mask = REVERSE_MASK_LUT[mask];
+    __mmask8 copy_mask = reverse_mask;
+    uint32_t lowbit = copy_mask & (-copy_mask);
+    int pos = _mm_popcnt_u32(lowbit - 1);
+    __m256i shuffle_perm = _mm256_load_si256((__m256i*)SHUFFLE_TABLE[7 - pos]);
+    vec_index = seq_vals = _mm256_permutevar8x32_epi32(vec_index, shuffle_perm);
+    int base_index = _mm256_extract_epi32(vec_index, 0);
+    copy_mask >>= pos;
+    __mmask16 mask_16 = copy_mask;
+    __m128i bytes = _mm_maskz_loadu_epi8(mask_16, arr + base_index);
+    seq_vals = _mm256_cvtepu8_epi32(bytes);
+    __m256i perm = _mm256_load_si256((__m256i*)RIGHT_SHIFT_TABLE[pos]);
+    seq_vals = _mm256_permutevar8x32_epi32(seq_vals, perm);
+    seq_vals = _mm256_maskz_mov_epi32(mask, seq_vals);
+}
+
 int BLOSUM62[] = {
   4,                                                                  // A
  -1, 5,                                                               // R
@@ -825,6 +885,423 @@ mat is matrix, return ALN_PAIR class
                    most left band = -(len1-1)
 
 */
+int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix& mat, int& best_score,
+                               int& iden_no, int& alnln, float& dist, int* alninfo, int band_left, int band_center,
+                               int band_right, WorkingBuffer& buffer) {
+
+    int i, j, k, j1;
+    int jj, kk;
+    int x, y;
+    int iden_no1;
+    int64_t best_score1;
+    iden_no = 0;
+
+    if ((band_right >= len2) || (band_left <= -len1) || (band_left > band_right)) return FAILED_FUNC;
+
+    int band_width = band_right - band_left + 1;
+    int band_width1 = 17;
+
+    MatrixInt64& score_mat = buffer.score_mat;
+    MatrixInt& back_mat = buffer.back_mat;
+
+    int L = band_left, R = band_right;
+    int kmin = (R < 0) ? -R : (L > 0) ? L : 0;
+    int kmax = (R < len2 - len1) ? (R + 2 * len1) : (L > len2 - len1) ? (2 * len2 - L) : (len1 + len2);
+
+    int lenY = kmax - kmin + 1;
+
+    if (score_mat.size() <= lenY) {
+        VectorInt row(band_width1, 0);
+        VectorInt64 row2(band_width1, 0);
+        while (score_mat.size() <= lenY) {
+            score_mat.Append(row2);
+            back_mat.Append(row);
+        }
+    }
+    for (int i = 0; i <= lenY; i++) {
+        if (score_mat[i].size < band_width1) score_mat[i].Resize(band_width1);
+        if (back_mat[i].size < band_width1) back_mat[i].Resize(band_width1);
+    }
+
+    best_score = 0;
+
+
+
+    // 初始化边界
+    if (L < 0) {
+        int T = (R < 0) ? R : 0;
+        for (int X = L; X <= T; ++X) {
+            int I = -X, J = 0;
+            if (I < 0 || I > len1) continue;
+            int n = (I + J) - kmin;
+            int m = (X - L + 1) >> 1;
+            score_mat[n][m] = (int64_t)mat.ext_gap * I;
+            back_mat[n][m] = DP_BACK_TOP;
+        }
+        back_mat[(-T) - kmin][(T - L + 1) / 2] = DP_BACK_NONE;
+    }
+
+    if (R >= 0) {
+        int T = (L > 0) ? L : 0;
+        for (int X = T; X <= R; ++X) {
+            int I = 0, J = X;
+            if (J < 0 || J > len2) continue;
+            int n = (I + J) - kmin;
+            int m = (X - L + 1) >> 1;
+            score_mat[n][m] = (int64_t)mat.ext_gap * J;
+            back_mat[n][m] = DP_BACK_LEFT;
+        }
+        back_mat[T - kmin][(T - L + 1) / 2] = DP_BACK_NONE;
+    }
+
+    int gap_open[2] = {mat.gap, mat.ext_gap};
+    int max_diag = band_center - band_left;
+    int extra_score[4] = {4, 3, 2, 1};
+
+
+    // ============ AVX-512 向量化变量定义 ============
+    const int SIMD_WIDTH = 8;
+
+    __m512i vec_0 = _mm512_setzero_si512();
+    __m512i vec_1 = _mm512_set1_epi64(1);
+    __m512i vec_3 = _mm512_set1_epi64(3);
+    __m512i vec_4 = _mm512_set1_epi64(4);
+    __m256i vec_DP_BACK_LEFT = _mm256_set1_epi32(DP_BACK_LEFT);
+    __m256i vec_DP_BACK_TOP = _mm256_set1_epi32(DP_BACK_TOP);
+    __m256i vec_DP_BACK_LEFT_TOP = _mm256_set1_epi32(DP_BACK_LEFT_TOP);
+    __m512i vec_offset = _mm512_setr_epi64(0, 2, 4, 6, 8, 10, 12, 14);
+
+    __m512i vec_len1 = _mm512_set1_epi64(len1);
+    __m512i vec_len2 = _mm512_set1_epi64(len2);
+    __m512i vec_lenY = _mm512_set1_epi64(lenY);
+    __m512i vec_R = _mm512_set1_epi64(R);
+
+    __m512i vec_band_center = _mm512_set1_epi64(band_center);
+
+    __m512i vec_ext_gap = _mm512_set1_epi64(mat.ext_gap);
+    __m512i vec_gap_open = _mm512_set1_epi64(mat.gap);
+
+    size_t mat_size = MAX_AA_2;
+    char* base = (char*)mat.flat_matrix;
+    for (size_t offset = 0; offset < mat_size; offset += 64) {
+        _mm_prefetch(base + offset, _MM_HINT_T0);
+    }
+
+    // ============ 主循环 ============
+    for (int y = kmin + 1; y <= kmax; y++) {
+        int offset = (abs(y + L)) % 2;
+        int x_start = L + offset;
+
+        __m512i vec_y = _mm512_set1_epi64(y);
+        __m512i vec_y_minus_kmin = _mm512_set1_epi64(y - kmin);
+
+        int num_elements = 16;
+        int vec_iterations = num_elements / SIMD_WIDTH;
+
+        int index_y = y - kmin;
+        int index_y1 = y - 1 - kmin;
+        int index_y2 = y - 2 - kmin;
+
+        // size_t mat_size = MAX_AA_2;
+        // char* base = (char*)mat.flat_matrix;
+        // for (size_t offset = 0; offset < mat_size; offset += 64) {
+        //     _mm_prefetch(base + offset, _MM_HINT_T0);
+        // }
+
+        if (y + 1 <= kmax) {
+            _mm_prefetch((const char*)&score_mat[y + 1 - kmin][0], _MM_HINT_T0);
+            _mm_prefetch((const char*)&back_mat[y + 1 - kmin][0], _MM_HINT_T0);
+        }
+
+        // ============ 向量化主循环 ============
+        for (int vec_idx = 0; vec_idx < vec_iterations; vec_idx++) {
+            int x_base = x_start + vec_idx * SIMD_WIDTH * 2;
+            int index_x = (x_base - L + 1) >> 1;
+            int index_x_L = (x_base - 1 - L + 1) >> 1;
+            int index_x_R = (x_base + 1 - L + 1) >> 1;
+            // cout<<"x_base:"<<x_base<<endl;
+
+            __m512i vec_x = _mm512_add_epi64(_mm512_set1_epi64(x_base), vec_offset);
+
+            __m512i vec_i = _mm512_sub_epi64(vec_y, vec_x);
+            vec_i = _mm512_srai_epi64(vec_i, 1);
+            __m512i vec_j = _mm512_add_epi64(vec_x, vec_y);
+            vec_j = _mm512_srai_epi64(vec_j, 1);
+
+            __mmask8 vec_i_gt_0 = _mm512_cmpgt_epi64_mask(vec_i, vec_0);
+            __mmask8 vec_i_le_len1 = _mm512_cmple_epi64_mask(vec_i, vec_len1);
+            __mmask8 vec_j_gt_0 = _mm512_cmpgt_epi64_mask(vec_j, vec_0);
+            __mmask8 vec_j_le_len2 = _mm512_cmple_epi64_mask(vec_j, vec_len2);
+            __mmask8 mask = vec_i_gt_0 & vec_i_le_len1 & vec_j_gt_0 & vec_j_le_len2;
+            int count = _mm_popcnt_u32((unsigned int)mask);
+            if (count == 0) continue;
+
+#ifdef GATHER
+            // printf(" (0x%02X)\n", (unsigned int)mask);
+            __m512i vec_i_minus_1 = _mm512_sub_epi64(vec_i, vec_1);
+
+            __m512i vec_j_minus_1 = _mm512_sub_epi64(vec_j, vec_1);
+
+            vec_i_minus_1 = _mm512_mask_blend_epi64(mask, vec_0, vec_i_minus_1);
+            vec_j_minus_1 = _mm512_mask_blend_epi64(mask, vec_0, vec_j_minus_1);
+
+            __m256i vec_i_index = _mm512_cvtepi64_epi32(vec_i_minus_1);
+            __m256i vec_j_index = _mm512_cvtepi64_epi32(vec_j_minus_1);
+
+            __m256i seq1_i32 =
+                _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_i_index, (const int*)iseq1, 1);
+
+            __m256i seq2_i32 =
+                _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_j_index, (const int*)iseq2, 1);
+            __m256i seq1_vals = _mm256_and_si256(seq1_i32, _mm256_set1_epi32(0xFF));
+            __m256i seq2_vals = _mm256_and_si256(seq2_i32, _mm256_set1_epi32(0xFF));
+#else
+
+            __m512i vec_i64_index = _mm512_sub_epi64(vec_i, vec_1);
+            __m512i vec_j64_index = _mm512_sub_epi64(vec_j, vec_1);
+            __m256i vec_i_index = _mm512_cvtepi64_epi32(vec_i64_index);
+            __m256i vec_j_index = _mm512_cvtepi64_epi32(vec_j64_index);
+
+            __m256i seq1_vals, seq2_vals;
+            _mm256_load_char_array_backward(vec_i_index, iseq1, seq1_vals, mask);
+            _mm256_load_char_array_forward(vec_j_index, iseq2, seq2_vals, mask);
+#endif
+
+            __m256i matrix_indices = _mm256_mullo_epi32(seq1_vals, _mm256_set1_epi32(MAX_AA));
+            matrix_indices = _mm256_add_epi32(matrix_indices, seq2_vals);
+
+            __m512i vec_sij =
+                _mm512_mask_i32gather_epi64(_mm512_setzero_si512(), mask, matrix_indices, mat.flat_matrix, 8);
+
+            // _mm512_store_epi64(i_arr, vec_i);
+            // _mm512_store_epi64(j_arr, vec_j);
+            // // double t1 =get_time();
+            // for(int index=0; index<SIMD_WIDTH; index++){
+            // 	int bit = (mask >> index) & 1;
+            // 	if(!bit) sij_arr[index] = 0;
+            // 	else sij_arr[index] = mat.matrix[iseq1[i_arr[index]-1]][iseq2[j_arr[index]-1]];
+            // }
+            // __m512i vec_sij = _mm512_load_si512(sij_arr);
+
+            // double t2 = get_time();
+            // t += t2 -t1;
+
+            // int extra = extra_score[abs(x-band_center)&3];
+            __m512i vec_extra = _mm512_sub_epi64(vec_x, vec_band_center);
+            vec_extra = _mm512_abs_epi64(vec_extra);
+            vec_extra = _mm512_and_si512(vec_extra, vec_3);
+            vec_extra = _mm512_sub_epi64(vec_4, vec_extra);
+
+            __mmask8 mask_sij = _mm512_cmpgt_epi64_mask(vec_sij, vec_0);
+            mask_sij = mask_sij & mask;
+            vec_extra = _mm512_mask_blend_epi64(mask_sij, vec_0, vec_extra);
+            vec_sij = _mm512_add_epi64(vec_sij, vec_extra);
+
+            __m512i vec_best_score1 = _mm512_loadu_si512(&score_mat[index_y][index_x]);
+            __m256i vec_back = _mm256_loadu_si256((__m256i*)&back_mat[index_y][index_x]);
+
+            // left-top
+            if (y - 2 >= kmin) {
+                __m512i vec_score_y2 = _mm512_loadu_si512(&score_mat[index_y2][index_x]);
+                vec_best_score1 = _mm512_add_epi64(vec_score_y2, vec_sij);
+                vec_back = _mm256_set1_epi32(DP_BACK_LEFT_TOP);
+            }
+
+            __mmask8 mask_gap = _mm512_cmpeq_epi64_mask(vec_i, vec_len1) | _mm512_cmpeq_epi64_mask(vec_j, vec_len2);
+            __m512i vec_gap0 = _mm512_mask_blend_epi64(mask_gap, vec_gap_open, vec_ext_gap);
+            __m512i vec_gap;
+            __m512i vec_score;
+
+            // left
+            if (y - 1 >= kmin) {
+                vec_gap = vec_gap0;
+                __m512i vec_score_y1;
+                __m256i vec_back_y1;
+
+                vec_score_y1 = _mm512_loadu_si512(&score_mat[index_y1][index_x_L]);
+                vec_back_y1 = _mm256_loadu_si256((__m256i*)&back_mat[index_y1][index_x_L]);
+
+                __mmask8 gap_flag = _mm256_cmpeq_epi32_mask(vec_back_y1, vec_DP_BACK_LEFT);
+
+                vec_gap = _mm512_mask_blend_epi64(gap_flag, vec_gap0, vec_ext_gap);
+
+                vec_score = _mm512_add_epi64(vec_score_y1, vec_gap);
+
+                __mmask8 modify_flag =
+                    _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) & (0xFE | ((offset) | (vec_idx)));
+                vec_best_score1 = _mm512_mask_blend_epi64(modify_flag, vec_best_score1, vec_score);
+                vec_back = _mm256_mask_blend_epi32(modify_flag, vec_back, vec_DP_BACK_LEFT);
+            }
+
+            // top
+            if (y - 1 >= kmin) {
+                vec_gap = vec_gap0;
+                __m512i vec_score_y1;
+                __m256i vec_back_y1;
+                vec_score_y1 = _mm512_loadu_si512(&score_mat[index_y1][index_x_R]);
+                vec_back_y1 = _mm256_loadu_si256((__m256i*)&back_mat[index_y1][index_x_R]);
+
+                __mmask8 gap_flag = _mm256_cmpeq_epi32_mask(vec_back_y1, vec_DP_BACK_TOP);
+                vec_gap = _mm512_mask_blend_epi64(gap_flag, vec_gap0, vec_ext_gap);
+
+                vec_score = _mm512_add_epi64(vec_score_y1, vec_gap);
+                __mmask8 modify_flag = _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) &
+                                       _mm512_cmple_epi64_mask(_mm512_add_epi64(vec_x, vec_1), vec_R);
+                vec_best_score1 = _mm512_mask_blend_epi64(modify_flag, vec_best_score1, vec_score);
+                vec_back = _mm256_mask_blend_epi32(modify_flag, vec_back, vec_DP_BACK_TOP);
+            }
+            _mm512_mask_storeu_epi64(&score_mat[index_y][index_x], mask, vec_best_score1);
+            _mm256_mask_storeu_epi32((__m256i*)&back_mat[index_y][index_x], mask, vec_back);
+        }
+        // if (y >= kmin + 3) exit(0);
+        // for(int x=L+(abs(y+L))%2;x<=R;x+=2){
+        // 	// avx<<score_mat[y-kmin][(x-L+1)>>1]<<" ";
+        // 	cout << score_mat[y-kmin][(x-L+1)>>1]<<" ";
+        // }
+        // // avx<<endl;
+        // cout << endl;
+        // if(y > kmin+20) exit(0);
+    }
+    // cout<<t<<endl;
+
+    // ============ 回溯部分（保持原样）============
+    x = (R < len2 - len1) ? R : (L > len2 - len1) ? L : len2 - len1;
+    y = kmax;
+    i = (-x + y) >> 1;
+    j = (x + y) >> 1;
+    // printf("\n(%d,%d)\n", i, j);
+    best_score = score_mat[y - kmin][(x - L + 1) >> 1];
+    best_score1 = score_mat[y - kmin][(x - L + 1) >> 1];
+
+    int back = back_mat[y - kmin][(x - L + 1) >> 1];
+    int last = back;
+
+    int count = 0, count2 = 0, count3 = 0;
+    int match, begin1, begin2, end1, end2;
+    int gbegin1 = 0, gbegin2 = 0, gend1 = 0, gend2 = 0;
+    int64_t score, smin = best_score1, smax = best_score1 - 1;
+    int posmin, posmax, pos = 0;
+    int bl, dlen = 0, dcount = 0;
+    posmin = posmax = 0;
+    begin1 = begin2 = end1 = end2 = 0;
+
+    int masked = 0;
+    int indels = 0;
+    int max_indels = 0;
+
+    while (back != DP_BACK_NONE) {
+        switch (back) {
+            case DP_BACK_TOP:
+                bl = (last != back) & (j != 1) & (j != len2);
+                dlen += bl;
+                dcount += bl;
+                score = score_mat[y - kmin][(x - L + 1) >> 1];
+                if (score < smin) {
+                    count2 = 0;
+                    smin = score;
+                    posmin = pos - 1;
+                    begin1 = i;
+                    begin2 = j;
+                }
+                i -= 1;
+                x = x + 1;
+                y = y - 1;
+                break;
+            case DP_BACK_LEFT:
+                bl = (last != back) & (i != 1) & (i != len1);
+                dlen += bl;
+                dcount += bl;
+                score = score_mat[y - kmin][(x - L + 1) >> 1];
+                if (score < smin) {
+                    count2 = 0;
+                    smin = score;
+                    posmin = pos - 1;
+                    begin1 = i;
+                    begin2 = j;
+                }
+                j -= 1;
+                x = x - 1;
+                y = y - 1;
+                break;
+            case DP_BACK_LEFT_TOP:
+                if (alninfo && true) {
+                    if (i == 1 || j == 1) {
+                        gbegin1 = i - 1;
+                        gbegin2 = j - 1;
+                    } else if (i == len1 || j == len2) {
+                        gend1 = i - 1;
+                        gend2 = j - 1;
+                    }
+                }
+                score = score_mat[y - kmin][(x - L + 1) >> 1];
+                i -= 1;
+                j -= 1;
+                y -= 2;
+                match = iseq1[i] == iseq2[j];
+                if (score > smax) {
+                    count = 0;
+                    smax = score;
+                    posmax = pos;
+                    end1 = i;
+                    end2 = j;
+                }
+                if (false && (iseq1[i] > 4 || iseq2[j] > 4)) {
+                    masked += 1;
+                } else {
+                    dlen += 1;
+                    dcount += !match;
+                    count += match;
+                    count2 += match;
+                    count3 += match;
+                }
+                if (score < smin) {
+                    int mm = match == 0;
+                    count2 = 0;
+                    smin = score;
+                    posmin = pos - mm;
+                    begin1 = i + mm;
+                    begin2 = j + mm;
+                }
+                break;
+            default:
+                printf("%i\n", back);
+                break;
+        }
+        pos += 1;
+        last = back;
+        back = back_mat[y - kmin][(x - L + 1) >> 1];
+    }
+
+    iden_no = true ? count3 : count - count2;
+    alnln = posmin - posmax + 1 - masked;
+    dist = dcount / (float)dlen;
+
+    int umtail1 = len1 - 1 - end1;
+    int umtail2 = len2 - 1 - end2;
+    int umhead = begin1 < begin2 ? begin1 : begin2;
+    int umtail = umtail1 < umtail2 ? umtail1 : umtail2;
+    int umlen = umhead + umtail;
+
+
+    if (umlen > 99999999) return FAILED_FUNC;
+    if (umlen > len1 * 1.0) return FAILED_FUNC;
+    if (umlen > len2 * 1.0) return FAILED_FUNC;
+
+    if (alninfo) {
+        alninfo[0] = begin1;
+        alninfo[1] = end1;
+        alninfo[2] = begin2;
+        alninfo[3] = end2;
+        alninfo[4] = masked;
+        if (true) {
+            alninfo[0] = gbegin1;
+            alninfo[1] = gend1;
+            alninfo[2] = gbegin2;
+            alninfo[3] = gend2;
+        }
+    }
+    return OK_FUNC;
+}
 
 int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, 
 		int &best_score, int &iden_no, int &alnln, float &dist, int *alninfo,
@@ -1242,9 +1719,13 @@ void setaa_to_na()
 
 
 /////////////////
-ScoreMatrix::ScoreMatrix()
-{
-	init();
+ScoreMatrix::ScoreMatrix() {
+    flat_matrix = (int64_t*)aligned_alloc(64, MAX_AA * MAX_AA * sizeof(int64_t));
+    if (!flat_matrix) {
+        fprintf(stderr, "Failed to allocate flat_matrix\n");
+        exit(1);
+    }
+    init();
 }
 
 void ScoreMatrix::init() 
@@ -1267,6 +1748,15 @@ void ScoreMatrix::set_matrix(int *mat1)
 	for ( i=0; i<MAX_AA; i++)
 		for ( j=0; j<=i; j++)
 			matrix[j][i] = matrix[i][j] = MAX_SEQ * mat1[ k++ ];
+    update_flat_matrix();
+}
+
+void ScoreMatrix::update_flat_matrix() {
+    for (int i = 0; i < MAX_AA; i++) {
+        for (int j = 0; j < MAX_AA; j++) {
+            flat_matrix[i * MAX_AA + j] = (int64_t)matrix[i][j];
+        }
+    }
 }
 
 void ScoreMatrix::set_to_na()
@@ -1472,7 +1962,7 @@ void PartialQuickSort( IndexCount *data, int first, int last, int partial )
 }
 int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no,
     NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, 
-	bool est, int min,int my_rank)
+	bool est, int min)
 {
 	int S = frag_count ? frag_count : sequences.size();
 	int  j, k, j0, j1, k1, m;
@@ -1524,57 +2014,7 @@ int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> &
 	//printf( "\n\n" );
 	return OK_FUNC;
 }
-int WordTable::CountWords_worker(int aan_no,
-    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, vector<int> &now_encodes,vector<INTs> &now_encodes_no,
-	bool est, int min)
-{
-	int S = frag_count ? frag_count : sequences.size();
-	int  j, k, j0, j1, k1, m;
-	int ix1, ix2, ix3, ix4;
-	IndexCount tmp;
-	// cerr<<"aan_no"
-	IndexCount *ic = lookCounts.items;
-	for(j=0; j<lookCounts.size; j++, ic++) indexMapping[ ic->index ] = 0;
-	lookCounts.size = 0;
 
-	int *we = & now_encodes[0];
-
-	j0 = 0;
-	if( est ) while( *we <0 ) j0++, we++; // if met short word has 'N'
-	
-	INTs *wen = & now_encodes_no[j0];
-
-	//printf( "\nquery : " );
-	for (; j0<aan_no; j0++, we++, wen++) {
-		j  = *we;
-		j1 = *wen;
-		//if( j1 >1 ) printf( " %3i", j1 );
-		if( j1==0 ) break;
-		NVector<IndexCount> & one = indexCounts[j];
-		k1 = one.Size();
-		IndexCount *ic = one.items;
-
-		int rest = aan_no - j0 + 1;
-		for (k=0; k<k1; k++, ic++){
-			int c = ic->count < j1 ? ic->count : j1;
-			uint32_t *idm = indexMapping.items + ic->index;
-			if( *idm ==0 ){
-				if( rest < min ) continue;
-				IndexCount *ic2 = lookCounts.items + lookCounts.size;
-				lookCounts.size += 1;
-				*idm = lookCounts.size;
-				ic2->index = ic->index;
-				ic2->count = c;
-			}else{
-				lookCounts[ *idm - 1 ].count += c;
-			}
-		}
-	}
-	//printf( "%6i %6i\n", S, lookCounts.size );
-	lookCounts[ lookCounts.size ].count = 0;
-	//printf( "\n\n" );
-	return OK_FUNC;
-}
 Sequence::Sequence()
 {
 	memset( this, 0, sizeof( Sequence ) );
@@ -4033,7 +4473,7 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & table,
 	int len = seq->size;
 	int len_bound = upper_bound_length_rep(len, options);
 	param.len_upper_bound = len_bound;
-	int flag = CheckOne( seq, table, param, buffer, options,my_rank );
+	int flag = CheckOne( seq, table, param, buffer, options);
 
 	if( flag == 0 ){
 		if ((seq->identity>0) && (options.cluster_best)) {
@@ -4077,7 +4517,7 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & local_table,Word
 	int len = seq->size;
 	int len_bound = upper_bound_length_rep(len, options);
 	param.len_upper_bound = len_bound;
-	int flag = CheckOne( seq, local_table, param, buffer, options,my_rank );
+	int flag = CheckOne( seq, local_table, param, buffer, options );
 
 	if( flag == 0 ){
 		if ((seq->identity>0) && (options.cluster_best)) {
@@ -4763,17 +5203,25 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
 				band_width1, band_left, band_center, band_right, required_aa1);
 		if ( best_sum < required_aa2 ) continue;
-		
+
 		int rc = FAILED_FUNC;
-		// auto t0 = std::chrono::high_resolution_clock::now();
-		if (options.print || aln_cover_flag) //return overlap region
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+		if (options.print || aln_cover_flag) // return overlap region
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
 		else
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		// if (options.print || aln_cover_flag) //return overlap region
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info,
+		// 			band_left, band_center, band_right, buf);
+		// else
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info, 
+		// 			band_left, band_center, band_right, buf);
 		// auto t1 = std::chrono::high_resolution_clock::now();
 		// param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 		// param.local_align_call_count++;
@@ -4887,17 +5335,25 @@ int SequenceDB::CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::v
 		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
 				band_width1, band_left, band_center, band_right, required_aa1);
 		if ( best_sum < required_aa2 ) continue;
-		
+
 		int rc = FAILED_FUNC;
 		// auto t0 = std::chrono::high_resolution_clock::now();
-		if (options.print || aln_cover_flag) //return overlap region
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+		// if (options.print || aln_cover_flag) // return overlap region
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 						  best_score, tiden_no, alnln, distance, talign_info,
+		// 						  band_left, band_center, band_right, buf);
+		// else
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 						  best_score, tiden_no, alnln, distance, talign_info,
+		// 						  band_left, band_center, band_right, buf);
+		if (options.print || aln_cover_flag) // return overlap region
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
 		else
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
 		// auto t1 = std::chrono::high_resolution_clock::now();
 		// param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 		// param.local_align_call_count++;
@@ -6146,7 +6602,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 							}
 
-							CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank, k);
+							CheckOne(seq, word_table, params[tid], buffers[tid], options, k);
 						}
 
 #pragma omp master
@@ -6356,7 +6812,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									seq->distance = m.distance;
 									for (int tttt = 0; tttt < 4; ++tttt)
 										seq->coverage[tttt] = m.coverage[tttt];
-									CheckOne(seq, word_table, params[tid], buffers[tid], options, my_rank);
+									CheckOne(seq, word_table, params[tid], buffers[tid], options);
 									
 									if ((seq->state & IS_REDUNDANT))
 									{
@@ -6776,212 +7232,25 @@ void SequenceDB::DoClustering( int T, const Options & options )
 	word_table.Clear();
 }
 
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank,int id )
+int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options ,my_rank,id);
+	return CheckOneAA( seq, table, param, buf, options ,id);
 }
 
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int my_rank)
-{
-	int len = seq->size;
-	// cerr<<seq->data<<endl;
-	param.len_upper_bound = upper_bound_length_rep(len, options);
-	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options ,my_rank);
-}
 int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options,1 );
+	return CheckOneAA( seq, table, param, buf, options);
 }
-int SequenceDB::CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
-{
-	int len = seq->size;
-	param.len_upper_bound = upper_bound_length_rep(len, options);
-	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA_worker( seq, table, param, buf, options,id);
-}
-int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
-{
-	// cerr<<"seq   "<<seq->index<<endl;
 
-	NVector<IndexCount> & lookCounts = buf.lookCounts;
-	NVector<uint32_t> & indexMapping = buf.indexMapping;
-	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
-	Vector<INTs> & aap_list = buf.aap_list;
-	Vector<INTs> & aap_begin = buf.aap_begin;
-	Vector<int>  & word_encodes = buf.word_encodes;
-	Vector<int>  & taap = buf.taap;
-	double aa1_cutoff = param.aa1_cutoff;
-	double aa2_cutoff = param.aas_cutoff;
-	double aan_cutoff = param.aan_cutoff;
-
-	char *seqi = seq->data;
-	int j, k, j1, len = seq->size;
-	int flag = 0;
-	int frag_size = options.frag_size;
-	int & aln_cover_flag = param.aln_cover_flag;
-	int & required_aa1 = param.required_aa1;
-	int & required_aa2 = param.required_aas;
-	int & required_aan = param.required_aan;
-	int & min_aln_lenS = param.min_aln_lenS;
-	int & min_aln_lenL = param.min_aln_lenL;
-
-	int NAA = options.NAA;
-	int S = table.sequences.size();
-	int len_eff = len;
-
-	if( S ){
-		int min = table.sequences[S-1]->size;
-		if( min < len ){
-			if( len * options.diff_cutoff2 > min ) min = (int)(len * options.diff_cutoff2);
-			if( (len - options.diff_cutoff_aa2) > min ) min = len - options.diff_cutoff_aa2;
-			len_eff = min;
-		}
-	}
-
-    //liwz 2016 01, seq is too short for the shortest (longer) seq in word_table to satisfy -aL option
-    //longer seqeunce * -aL -band_width
-    if ( S ) {
-		int min = table.sequences[S-1]->size;
-		int min_red = min * options.long_coverage - options.band_width;
-		if (len < min_red) return 0; // return flag=0
-	} 
-
-	param.ControlShortCoverage( len_eff, options );
-	param.ComputeRequiredBases( options.NAA, 2, options );
-
-	
-
-	// if minimal alignment length > len, return
-	// I can not return earlier, because I need to calc the word_encodes etc
-	if (options.min_control>len) return 0; // return flag=0
-
-	// lookup_aan
-	int aan_no = len - options.NAA + 1;
-	int M = frag_size ? table.frag_count : S;
-	table.CountWords_worker(aan_no, lookCounts, indexMapping,total_encodes[id], total_encodes_no[id],false, required_aan);
-	// cerr<<"daozhe"<<endl;
-	// contained_in_old_lib()
-	int len_upper_bound = param.len_upper_bound;
-	int len_lower_bound = param.len_lower_bound;
-	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
-	int tiden_no, band_center;
-	float tiden_pc, distance=0;
-	int talign_info[5];
-	int best1, sum;
-	INTs *lookptr;
-	char *seqj;
-	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
-	int lens;
-	int has_aa2 = 0;
-
-	IndexCount *ic = lookCounts.items;
-	ic = lookCounts.items;
-	for(; ic->count; ic++){
-		if( ! frag_size ){
-			indexMapping[ ic->index ] = 0;
-			if ( ic->count < required_aan ) continue;
-		}
-
-		Sequence *rep = table.sequences[ ic->index ];
-		len2 = rep->size;
-		if (len2 > len_upper_bound ) continue;
-		if (options.has2D && len2 < len_lower_bound ) continue;
-		if( frag_size ){
-			uint32_t *ims = & indexMapping[ ic->index ];
-			int count = ic->count;
-			k = (len2 - NAA) / frag_size + 1;
-			sum = 0;
-			for (j1=0; j1<frg2; j1++){
-				uint32_t im = ims[j1];
-				if( im ) sum += lookCounts[im-1].count;
-			}
-			count = sum;
-			for (j1=frg2; j1<k; j1++) {
-				uint32_t im1 = ims[j1];
-				uint32_t im2 = ims[j1-frg2];
-				if( im1 ) sum += lookCounts[im1-1].count;
-				if( im2 ) sum -= lookCounts[im2-1].count;
-				if (sum > count) count = sum;
-			}
-			if ( count < required_aan ) continue;
-		}
-
-		param.ControlLongCoverage( len2, options );
-
-		if ( has_aa2 == 0 )  { // calculate AAP array
-			buf.ComputeAAP( seqi, seq->size );
-			has_aa2 = 1;
-		}
-		seqj = rep->data; //NR_seq[NR90_idx[j]];
-
-		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
-		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
-				band_width1, band_left, band_center, band_right, required_aa1);
-		if ( best_sum < required_aa2 ) continue;
-
-		int rc = FAILED_FUNC;
-		if (options.print || aln_cover_flag) //return overlap region
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
-		else
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
-		if ( rc == FAILED_FUNC ) continue;
-		if ( tiden_no < required_aa1 ) continue;
-		lens = len;
-		if( options.has2D && len > len2 ) lens = len2;
-		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
-		tiden_pc = tiden_no / (float) len_eff1;
-		if( options.useDistance ){
-			if (distance > options.distance_thd ) continue;
-			if (distance >= seq->distance) continue; // existing distance
-		}else{
-			if (tiden_pc < options.cluster_thd) continue;
-			if (tiden_pc <= seq->identity) continue; // existing iden_no
-		}
-		if (aln_cover_flag) {
-			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
-			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
-		}
-		if( options.has2D ) seq->state |= IS_REDUNDANT ;
-		flag = 1; seq->identity = tiden_pc; seq->cluster_id = rep->cluster_id;
-		seq->distance = distance;
-		seq->coverage[0] = talign_info[0] +1;
-		seq->coverage[1] = talign_info[1] +1;
-		seq->coverage[2] = talign_info[2] +1;
-		seq->coverage[3] = talign_info[3] +1;
-		if (not options.cluster_best) break;
-		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
-				options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
-		param.ComputeRequiredBases( options.NAA, 2, options );
-	}
-	if( frag_size ) ic = lookCounts.items;
-	while( ic->count ){
-		indexMapping[ ic->index ] = 0;
-		ic += 1;
-	}
-	lookCounts.size = 0;
-	if (flag == 1) { // if similar to old one delete it
-		if (! options.cluster_best) {
-			seq->Clear();
-			seq->state |= IS_REDUNDANT ;
-		}
-	}
-	return flag;
-
-}
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank,int id)
+int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int id)
 {
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 	NVector<uint32_t> & indexMapping = buf.indexMapping;
@@ -7038,7 +7307,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	int M = frag_size ? table.frag_count : S;
-	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan, my_rank);
+	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan);
 
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
@@ -7104,14 +7373,22 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 
 		
 		int rc = FAILED_FUNC;
-		if (options.print || aln_cover_flag) //return overlap region
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+		if (options.print || aln_cover_flag) // return overlap region
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
 		else
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
+		// if (options.print || aln_cover_flag) //return overlap region
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info,
+		// 			band_left, band_center, band_right, buf);
+		// else
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info, 
+		// 			band_left, band_center, band_right, buf);
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
@@ -7164,7 +7441,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	return flag;
 
 }
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank)
+int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 	NVector<uint32_t> & indexMapping = buf.indexMapping;
@@ -7221,7 +7498,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	int M = frag_size ? table.frag_count : S;
-	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan, my_rank);
+	table.CountWords(aan_no, word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan);
 
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
@@ -7285,16 +7562,23 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 				band_width1, band_left, band_center, band_right, required_aa1);
 		if ( best_sum < required_aa2 ) continue;
 
-		
 		int rc = FAILED_FUNC;
-		if (options.print || aln_cover_flag) //return overlap region
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+		if (options.print || aln_cover_flag) // return overlap region
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
 		else
-			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
+		// if (options.print || aln_cover_flag) //return overlap region
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info,
+		// 			band_left, band_center, band_right, buf);
+		// else
+		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
+		// 			best_score, tiden_no, alnln, distance, talign_info, 
+		// 			band_left, band_center, band_right, buf);
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
