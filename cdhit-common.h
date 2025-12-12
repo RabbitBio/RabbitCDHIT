@@ -36,6 +36,8 @@
 #include<stdint.h>
 #include<time.h>
 #include <queue>
+#include <immintrin.h>
+#include <algorithm>
 #include <sys/stat.h> 
 #include <sys/types.h>
 #include <atomic>   
@@ -51,6 +53,7 @@
 #include <cassert>
 #include <utility>
 #include <cstring>
+#include "CLI11.hpp"
 #include"kseq.h"
 // #ifdef WITH_ZLIB
 #include<zlib.h>
@@ -60,6 +63,7 @@
 #include<vector>
 #include<map>
 #include"json.hpp"
+
 #define CDHIT_VERSION  "4.8.1"
 
 #ifndef MAX_SEQ
@@ -193,6 +197,7 @@ class ScoreMatrix { //Matrix
 
 	public:
 		int matrix[MAX_AA][MAX_AA];
+		alignas(64) int64_t* flat_matrix;
 		int gap, ext_gap;
 
 		ScoreMatrix();
@@ -202,6 +207,7 @@ class ScoreMatrix { //Matrix
 		void set_to_na();
 		void set_match( int score );
 		void set_mismatch( int score );
+		void update_flat_matrix();
 }; // END class ScoreMatrix
 
 
@@ -265,10 +271,7 @@ class WordTable
 				Vector<INTs> & word_encodes_no, int frag, int frag_size );
 		int CountWords(int aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
 				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
-				bool est=false, int min=0,int my_rank=1);
-		int CountWords_worker(int aan_no,
-    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, vector<int> &now_encodes,vector<INTs> &now_encodes_no,
-	bool est, int min);
+				bool est=false, int min=0);
 		void PrintAll();
 }; // END class INDEX_TBL
 struct Options
@@ -825,18 +828,15 @@ class SequenceDB
 		void DoClustering( int T, const Options & options );
 		void ClusterTo( SequenceDB & other, const Options & optioins );
 		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
-		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
-		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank,int id);
-		int CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
+	
+		int  CheckOne( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int id);
 		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
-		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank);
-		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int my_rank,int id);
-		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
+		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
+		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int id);
 		int  CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOne_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
-
 
 		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
 };
