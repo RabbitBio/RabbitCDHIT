@@ -91,6 +91,7 @@ alignas(32) static const int32_t RIGHT_SHIFT_TABLE[8][8] = {
 alignas(32) static const int32_t SHUFFLE_TABLE[8][8] = {
     {0, 1, 2, 3, 4, 5, 6, 7}, {1, 2, 3, 4, 5, 6, 7, 0}, {2, 3, 4, 5, 6, 7, 0, 1}, {3, 4, 5, 6, 7, 0, 1, 2},
     {4, 5, 6, 7, 0, 1, 2, 3}, {5, 6, 7, 0, 1, 2, 3, 4}, {6, 7, 0, 1, 2, 3, 4, 5}, {7, 0, 1, 2, 3, 4, 5, 6}};
+#ifndef NO_AVX512
 void _mm256_load_char_array_forward(__m256i& vec_index, const char* arr, __m256i& seq_vals, __mmask8 mask) {
     __mmask8 copy_mask = mask;
     uint32_t lowbit = copy_mask & (-copy_mask);
@@ -123,7 +124,7 @@ void _mm256_load_char_array_backward(__m256i& vec_index, const char* arr, __m256
     seq_vals = _mm256_permutevar8x32_epi32(seq_vals, perm);
     seq_vals = _mm256_maskz_mov_epi32(mask, seq_vals);
 }
-
+#endif
 int BLOSUM62[] = {
   4,                                                                  // A
  -1, 5,                                                               // R
@@ -885,6 +886,7 @@ mat is matrix, return ALN_PAIR class
                    most left band = -(len1-1)
 
 */
+#ifndef NO_AVX512
 int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix& mat, int& best_score,
                                int& iden_no, int& alnln, float& dist, int* alninfo, int band_left, int band_center,
                                int band_right, WorkingBuffer& buffer) {
@@ -1302,7 +1304,7 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
     }
     return OK_FUNC;
 }
-
+#endif
 int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, 
 		int &best_score, int &iden_no, int &alnln, float &dist, int *alninfo,
 		int band_left, int band_center, int band_right, WorkingBuffer & buffer)
@@ -5205,6 +5207,7 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
+#ifndef NO_AVX512
 		if (options.print || aln_cover_flag) // return overlap region
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
@@ -5213,15 +5216,17 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
 											band_left, band_center, band_right, buf);
+#else
 		// auto t0 = std::chrono::high_resolution_clock::now();
-		// if (options.print || aln_cover_flag) //return overlap region
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info,
-		// 			band_left, band_center, band_right, buf);
-		// else
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info, 
-		// 			band_left, band_center, band_right, buf);
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+#endif
 		// auto t1 = std::chrono::high_resolution_clock::now();
 		// param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 		// param.local_align_call_count++;
@@ -5248,14 +5253,14 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 	return flag;
 
 }
-int SequenceDB::CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOne_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	int len = seq->size;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	// if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
-	return CheckOneAA_Test( seq,qid, word_table, param, buf, options );
+	return CheckOneAA_master( seq,qid, word_table, param, buf, options );
 }
-int SequenceDB::CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {   //Todo  uint32_t
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 
@@ -5337,23 +5342,26 @@ int SequenceDB::CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::v
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
-		// auto t0 = std::chrono::high_resolution_clock::now();
-		// if (options.print || aln_cover_flag) // return overlap region
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 						  best_score, tiden_no, alnln, distance, talign_info,
-		// 						  band_left, band_center, band_right, buf);
-		// else
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 						  best_score, tiden_no, alnln, distance, talign_info,
-		// 						  band_left, band_center, band_right, buf);
+#ifndef NO_AVX512
 		if (options.print || aln_cover_flag) // return overlap region
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-								  best_score, tiden_no, alnln, distance, talign_info,
-								  band_left, band_center, band_right, buf);
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
 		else
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-								  best_score, tiden_no, alnln, distance, talign_info,
-								  band_left, band_center, band_right, buf);
+											best_score, tiden_no, alnln, distance, talign_info,
+											band_left, band_center, band_right, buf);
+#else
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+#endif
 		// auto t1 = std::chrono::high_resolution_clock::now();
 		// param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
 		// param.local_align_call_count++;
@@ -5690,7 +5698,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					continue;
 				// cerr<<j<<endl;
 				int tid = omp_get_thread_num();
-				CheckOne_Test(seq, j, all_wordtable, params[tid], buffers[tid], options);
+				CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
 			}
 			double tB = get_time();
 			std::vector<size_t> cnt(N, 0);
@@ -5816,7 +5824,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		std::cout << "chunk " <<i<<"  build word table  "<<elapsed.count() << " 秒\n";
 		cerr << "word table size" << centers << endl;
 		cerr<<"cluster num     "<<rep_seqs.size()<<endl;
-
+		printf("\n%9i  finished  %9i  clusters\n", start_global_id + sequences.size(), rep_seqs.size());
 		
 
 		// cerr << "word table size" << rep_sequences.size() << endl;
@@ -5860,12 +5868,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			MPI_Request request[5] = {MPI_REQUEST_NULL};
 			MPI_Ibcast(&ibcast_flag, 1, MPI_INT, source, MPI_COMM_WORLD, &request[0]);
 			MPI_Ibcast((void *)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD, &request[1]);
+			MPI_Waitall(2, request, MPI_STATUSES_IGNORE);
 			// cerr<<"send len  "<<info_buf[1]<<endl;
 			// cerr<<"info[2]  "<<info_buf[2]<<endl;
 			MPI_Ibcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[2]);
 			MPI_Ibcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[3]);
 			MPI_Ibcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD, &request[4]);
-			MPI_Waitall(5, request, MPI_STATUSES_IGNORE);
+			
 			std::vector<MPI_Request> reqs_block;
 			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
 			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
@@ -5983,6 +5992,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// rep_size.resize(sequences.size());
 				// rep_identifier.resize(sequences.size());
 				read_flag[i] = 1;
+				MPI_Waitall(3, request+2, MPI_STATUSES_IGNORE);
 				MPI_Waitall((int)reqs_block.size(), reqs_block.data(), MPI_STATUSES_IGNORE);
 		}
 		else
@@ -6007,6 +6017,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// cerr << "start_id    " << start_global_id << endl;
 			// cerr<<"send over "<<info_buf[0]<<endl;
 			// 汇总聚类结果
+
 			output_index = last_rep_index;
 			C = rep_seqs.size() - last_rep_index;
 
@@ -6602,7 +6613,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 							}
 
-							CheckOne(seq, word_table, params[tid], buffers[tid], options, k);
+							CheckOne_worker(seq, word_table, params[tid], buffers[tid], options, k);
 						}
 
 #pragma omp master
@@ -7232,13 +7243,13 @@ void SequenceDB::DoClustering( int T, const Options & options )
 	word_table.Clear();
 }
 
-int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
+int SequenceDB::CheckOne_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id )
 {
 	int len = seq->size;
 	// cerr<<seq->data<<endl;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	if( options.isEST ) return CheckOneEST( seq, table, param, buf, options );
-	return CheckOneAA( seq, table, param, buf, options ,id);
+	return CheckOneAA_worker( seq, table, param, buf, options ,id);
 }
 
 int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
@@ -7250,7 +7261,7 @@ int SequenceDB::CheckOne( Sequence *seq, WordTable & table, WorkingParam & param
 	return CheckOneAA( seq, table, param, buf, options);
 }
 
-int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int id)
+int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options ,int id)
 {
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 	NVector<uint32_t> & indexMapping = buf.indexMapping;
@@ -7373,6 +7384,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 
 		
 		int rc = FAILED_FUNC;
+#ifndef NO_AVX512
 		if (options.print || aln_cover_flag) // return overlap region
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
@@ -7381,14 +7393,17 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
 											band_left, band_center, band_right, buf);
-		// if (options.print || aln_cover_flag) //return overlap region
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info,
-		// 			band_left, band_center, band_right, buf);
-		// else
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info, 
-		// 			band_left, band_center, band_right, buf);
+#else
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+#endif
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
@@ -7563,6 +7578,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
+#ifndef NO_AVX512
 		if (options.print || aln_cover_flag) // return overlap region
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
@@ -7571,14 +7587,17 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
 											band_left, band_center, band_right, buf);
-		// if (options.print || aln_cover_flag) //return overlap region
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info,
-		// 			band_left, band_center, band_right, buf);
-		// else
-		// 	rc = local_band_align(seqi, seqj, len, len2, mat,
-		// 			best_score, tiden_no, alnln, distance, talign_info, 
-		// 			band_left, band_center, band_right, buf);
+#else
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+#endif
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
