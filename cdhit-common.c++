@@ -1371,7 +1371,7 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 			j1 = k-band_left;
 			// penalty for leading gap opening = penalty for gap extension
             // each of the left side query hunging residues give ext_gap (-1)
-			score_mat[i][j1] =  mat.ext_gap * i;
+			score_mat[i][j1] =  (int64_t)mat.ext_gap * (int64_t)i;
 			back_mat[i][j1] = DP_BACK_TOP;
 		}
 		back_mat[-tband][tband-band_left] = DP_BACK_NONE;
@@ -1381,7 +1381,7 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 		int tband = (band_left > 0) ? band_left : 0;
 		for (j=tband; j<=band_right; j++) {
 			j1 = j-band_left;
-			score_mat[0][j1] = mat.ext_gap * j;
+			score_mat[0][j1] = (int64_t)mat.ext_gap * (int64_t)j;
 			back_mat[0][j1] = DP_BACK_LEFT;
 		}
 		back_mat[0][tband-band_left] = DP_BACK_NONE;
@@ -1407,7 +1407,6 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 			/* extra score according to the distance to the best diagonal */
 			int extra = extra_score[ abs(j1 - max_diag) & 3 ]; // max distance 3
 			sij += extra * (sij>0);
-
 			back = DP_BACK_LEFT_TOP;
 			best_score1 = score_mat[i-1][j1] + sij;
 			int gap0 = gap_open[ (i == len1) | (j == len2) ];
@@ -1437,6 +1436,8 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 		}
 		//printf( "\n" );
 	}
+
+			
 	i = j = 0;
 	if( len2 - band_left < len1 ){
 		i = len2 - band_left;
@@ -1451,7 +1452,6 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 	j1 = j - i - band_left;
 	best_score = score_mat[i][j1];
 	best_score1 = score_mat[i][j1];
-
 #if 1
 	const char *letters = "acgtnx";
 	const char *letters2 = "ACGTNX";
@@ -1617,6 +1617,7 @@ int local_band_align( char iseq1[], char iseq2[], int len1, int len2, ScoreMatri
 	iden_no = options.global_identity ? count3 : count - count2;
 	alnln = posmin - posmax + 1 - masked;
 	dist = dcount/(float)dlen;
+			
 	//dist = - 0.75 * log( 1.0 - dist * 4.0 / 3.0 );
 	int umtail1 = len1 - 1 - end1;
 	int umtail2 = len2 - 1 - end2;
@@ -5208,6 +5209,7 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 
 		int rc = FAILED_FUNC;
 #ifndef NO_AVX512
+
 		if (options.print || aln_cover_flag) // return overlap region
 			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
 											best_score, tiden_no, alnln, distance, talign_info,
@@ -7384,16 +7386,6 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 
 		
 		int rc = FAILED_FUNC;
-#ifndef NO_AVX512
-		if (options.print || aln_cover_flag) // return overlap region
-			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-											best_score, tiden_no, alnln, distance, talign_info,
-											band_left, band_center, band_right, buf);
-		else
-			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-											best_score, tiden_no, alnln, distance, talign_info,
-											band_left, band_center, band_right, buf);
-#else
 		// auto t0 = std::chrono::high_resolution_clock::now();
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
@@ -7403,7 +7395,9 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info, 
 					band_left, band_center, band_right, buf);
-#endif
+
+	// if (strcmp(rep->identifier, ">XP_033971090.1") == 0)
+
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
@@ -7578,16 +7572,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
-#ifndef NO_AVX512
-		if (options.print || aln_cover_flag) // return overlap region
-			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-											best_score, tiden_no, alnln, distance, talign_info,
-											band_left, band_center, band_right, buf);
-		else
-			rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
-											best_score, tiden_no, alnln, distance, talign_info,
-											band_left, band_center, band_right, buf);
-#else
+
 		// auto t0 = std::chrono::high_resolution_clock::now();
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
@@ -7597,7 +7582,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info, 
 					band_left, band_center, band_right, buf);
-#endif
+
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;
