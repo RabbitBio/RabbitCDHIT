@@ -104,8 +104,8 @@ int main(int argc, char *argv[])
 	seq_db.ReadJsonInfo("info.json", temp_dir, options, master);
 	if (size != seq_db.total_mpi_num)
 		bomb_error("Number of processes does not match");
-	if (options.threads != seq_db.Production_threads)
-		bomb_error("Number of threads does not match");
+	// if (options.threads != seq_db.Production_threads)
+	// 	bomb_error("Number of threads does not match");
 	if (!master)
 	{
 		seq_db.read_sorted_files(temp_dir,rank, size, false,worker_comm,options);
