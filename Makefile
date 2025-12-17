@@ -12,7 +12,8 @@ else
   CCFLAGS = -fopenmp
 endif
 ifeq ($(AVX512),yes)
-  CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq
+#   CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq -fno-vectorize 
+CCFLAGS += -march=native
 else
    CCFLAGS += -DNO_AVX512
 endif

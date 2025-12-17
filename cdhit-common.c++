@@ -7386,7 +7386,6 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 
 		
 		int rc = FAILED_FUNC;
-		// auto t0 = std::chrono::high_resolution_clock::now();
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info,
@@ -7396,7 +7395,6 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 					best_score, tiden_no, alnln, distance, talign_info, 
 					band_left, band_center, band_right, buf);
 
-	// if (strcmp(rep->identifier, ">XP_033971090.1") == 0)
 
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
@@ -7572,8 +7570,6 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
-
-		// auto t0 = std::chrono::high_resolution_clock::now();
 		if (options.print || aln_cover_flag) //return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info,
@@ -7582,6 +7578,7 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info, 
 					band_left, band_center, band_right, buf);
+
 
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
