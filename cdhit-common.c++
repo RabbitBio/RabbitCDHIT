@@ -5615,7 +5615,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		int N = sequences.size();
 		neigh.clear();
 		neigh.assign(N, {});
-		double t1 = get_time();
+		// double t1 = get_time();
 		int centers = 0;
 		if (T == 1)
 		{
@@ -5650,8 +5650,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				ClusterOne_Test(seq, j, word_table, params[tid], buffers[tid], options);
 			}
-			double t3 = get_time();
-			cerr << "Encode  time: " << t3 - t1 << " seconds" << endl;
+			// double t3 = get_time();
+			// cerr << "Encode  time: " << t3 - t1 << " seconds" << endl;
 
 #pragma omp parallel for schedule(static)
 			for (long long b = 0; b < (long long)NAAN; ++b)
@@ -5687,10 +5687,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							  return a.first < b.first; // seq_id 升序
 						  });
 			}
-			double t2 = get_time();
-			cerr << "Encode and insert word table time: " << t2 - t1 << " seconds" << endl;
-			double tA = get_time();
-			cerr << N << endl;
+			// double t2 = get_time();
+			// cerr << "Encode and insert word table time: " << t2 - t1 << " seconds" << endl;
+			// double tA = get_time();
+			// cerr << N << endl;
 
 #pragma omp parallel for schedule(dynamic, 1)
 			for (int j = 0; j < N; j++)
@@ -5702,7 +5702,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
 			}
-			double tB = get_time();
+			// double tB = get_time();
 			std::vector<size_t> cnt(N, 0);
 			for (int t = 0; t < T; t++)
 			{
@@ -5725,9 +5725,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			// std::vector<char> redundant(N, 0);
 			// std::vector<int> parent(N, -1);
-			double tC = get_time();
-			std::cerr << "checkone time   : " << (tB - tA) << " s\n";
-			std::cerr << "checkone and merge time : " << (tC - tA) << " s\n";
+			// double tC = get_time();
+			// std::cerr << "checkone time   : " << (tB - tA) << " s\n";
+			// std::cerr << "checkone and merge time : " << (tC - tA) << " s\n";
 			
 			for (int j = 0; j < N; ++j)
 			{
@@ -5768,7 +5768,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		}
 
 		// std::cerr << "cluster num    " << centers << endl;
-		double t7 = get_time();
+		// double t7 = get_time();
 		omp_set_num_threads(T);
 #pragma omp parallel for schedule(dynamic, 1)
 		for (int j = 0; j < N; j++)
@@ -5819,13 +5819,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		// 				  return a.first < b.first; // seq_id 升序
 		// 			  });
 		// }
-		double t8 = get_time();
-		cerr << "real word table  time: " << t8 - t7 << " seconds" << endl;
-		auto end = std::chrono::high_resolution_clock::now();
-		std::chrono::duration<double> elapsed = end - start;
-		std::cout << "chunk " <<i<<"  build word table  "<<elapsed.count() << " 秒\n";
-		cerr << "word table size" << centers << endl;
-		cerr<<"cluster num     "<<rep_seqs.size()<<endl;
+		// double t8 = get_time();
+		// cerr << "real word table  time: " << t8 - t7 << " seconds" << endl;
+		// auto end = std::chrono::high_resolution_clock::now();
+		// std::chrono::duration<double> elapsed = end - start;
+		// std::cout << "chunk " <<i<<"  build word table  "<<elapsed.count() << " 秒\n";
+		// cerr << "word table size" << centers << endl;
+		// cerr<<"cluster num     "<<rep_seqs.size()<<endl;
 		printf("\n%9i  finished  %9i  clusters\n", start_global_id + sequences.size(), rep_seqs.size());
 		
 
@@ -6534,7 +6534,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// cerr<<"pass  "<<endl;
 		
 			
-			double t14 = get_time();
+			// double t14 = get_time();
 #pragma omp parallel num_threads(T)
 			{
 				int tid = omp_get_thread_num();
@@ -6864,8 +6864,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			progress_running = false;  // 设置为 false
 			progress.join();
-			double t15 = get_time();
-			cerr << "-----checkone time  " << t15 - t14 << "  by rank  " << my_rank << endl;
+			// double t15 = get_time();
+			// cerr << "-----checkone time  " << t15 - t14 << "  by rank  " << my_rank << endl;
 
 			word_table.Clear();
 			slots[cur].release();
@@ -6876,8 +6876,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 				post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
 			}
-			double t17 = get_time();
-			cerr << "-----wait time  " << t17 - t16 << "  by rank  " << my_rank << endl;
+			// double t17 = get_time();
+			// cerr << "-----wait time  " << t17 - t16 << "  by rank  " << my_rank << endl;
 			// else{
 			wait_all(slots[next]);
 			std::swap(cur, next);
@@ -6936,7 +6936,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 		}
 	}
-			double t11 = get_time();
+			// double t11 = get_time();
 			int C = record - record_last;
 			// cerr<<"my rank"<<my_rank<<"send   size    "<< C<<endl;
 
@@ -6972,8 +6972,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int IDLEN=max_idf+1;
 				send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
 				int CHAR_TOTAL = N * (max_idf+1);
-				double t12 = get_time();
-				cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
+				// double t12 = get_time();
+				// cerr<<"-----clustering time  "<<t12-t11<<"  by rank  "<<my_rank<<endl;
 				MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
 				MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
 				MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
