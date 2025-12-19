@@ -323,6 +323,7 @@ struct Options
 	bool    useIdentity;
 	bool    useDistance;
 	bool    backupFile;
+	bool    stealing;
 
 	string  input;
 	string  input_pe;
@@ -343,6 +344,7 @@ struct Options
 		has2D = false;
 		isEST = false;
 		is454 = false;
+		stealing = false;
 		tmp_dir = "tmp";
 		NAA = 5;
 		NodeNum = 0;
