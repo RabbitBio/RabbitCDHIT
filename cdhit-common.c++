@@ -5619,7 +5619,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		neigh.assign(N, {});
 		// double t1 = get_time();
 		int centers = 0;
-		if (T == 1||i==0)
+		if (T == 1)
 		{
 			
 			for (j = 0; j < N; j++)
@@ -5691,7 +5691,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			// double t2 = get_time();
 			// cerr << "Encode and insert word table time: " << t2 - t1 << " seconds" << endl;
-			// double tA = get_time();
+			double tA = get_time();
 			// cerr << N << endl;
 
 #pragma omp parallel for schedule(dynamic, 1)
@@ -5704,7 +5704,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
 			}
-			// double tB = get_time();
+			double tB = get_time();
 			std::vector<size_t> cnt(N, 0);
 			for (int t = 0; t < T; t++)
 			{
@@ -5728,7 +5728,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// std::vector<char> redundant(N, 0);
 			// std::vector<int> parent(N, -1);
 			// double tC = get_time();
-			// std::cerr << "checkone time   : " << (tB - tA) << " s\n";
+			std::cerr << "checkone time   : " << (tB - tA) << " s\n";
 			// std::cerr << "checkone and merge time : " << (tC - tA) << " s\n";
 			
 			for (int j = 0; j < N; ++j)
