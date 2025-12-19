@@ -53,7 +53,6 @@
 #include <cassert>
 #include <utility>
 #include <cstring>
-#include "CLI11.hpp"
 #include"kseq.h"
 // #ifdef WITH_ZLIB
 #include<zlib.h>
