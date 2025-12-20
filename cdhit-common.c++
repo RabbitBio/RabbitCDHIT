@@ -6622,14 +6622,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								CheckOne_worker(seq, word_table, params[tid], buffers[tid], options, k);
 							}
 
-#pragma omp master
-							{
-								const int cnt = r_shared - l_shared + 1;
-								MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
-								MPI_Win_flush(worker_rank, win_meta_);
-							}
-// 确保所有线程都结束了本轮 for 再去取下一个小块
-#pragma omp barrier
+// #pragma omp master
+// 							{
+// 								const int cnt = r_shared - l_shared + 1;
+// 								MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+// 								MPI_Win_flush(worker_rank, win_meta_);
+// 							}
+// // 确保所有线程都结束了本轮 for 再去取下一个小块
+// #pragma omp barrier
 						}
 
 #pragma omp master
@@ -6707,10 +6707,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 #pragma omp barrier
 					}
 				}
+						double t155 = get_time();
+			cerr << "-----checkone1 time  " << t155 - t14 << "  by rank  " << my_rank << endl;
 				progress_running = true;
 				std::thread progress(mpi_progress_thread);
 				int worker_size = rank_size - 1;
-				for (int offset = -3; offset <= 3; ++offset)
+				for (int offset = -2; offset <= 2; ++offset)
 				{
 
 					int tt = (worker_rank + offset + worker_size) % worker_size;
@@ -7016,7 +7018,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 				
 
-				
+								if (soure_chunk == chunks_num - 1)
+					break;
 
 
 
@@ -7029,19 +7032,32 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				{
 					top = start * SUB;
 					bottom = sub_chunks.size() - 1;
+					int l = sub_chunks[top].first;
+					int r =sub_chunks[bottom].second;
+					int cnt;
+					if(bottom>top)
+					 cnt = r-l+1;
+					else{
+						l=0;
+						 cnt = 0;
+					}
+					cerr<<"cnt "<<cnt<<endl;
 					ctrl_[0] = top;													   // 更新 top
 					ctrl_[1] = bottom;												   // 更新 bottom
 					ctrl_[2] = top;													   // 更新任务数量
 					MPI_Put(ctrl_, 3, MPI_INT, worker_rank, 0, 3, MPI_INT, win_ctrl_); // 更新第一个进程的窗口中的 ctrl 数据
 					tasks_flag.assign(sub_chunks.size(), 0);
 					MPI_Put(tasks_flag.data(), sub_chunks.size() * sizeof(int), MPI_INT, worker_rank, 0, sub_chunks.size() * sizeof(int), MPI_INT, win_tasks_flag_);
+					MPI_Put((void*)&meta_[l], cnt * (int)sizeof(SeqMeta), MPI_BYTE, worker_rank, l, cnt * (int)sizeof(SeqMeta), MPI_BYTE, win_meta_);
+
 					MPI_Win_flush(worker_rank, win_ctrl_);
 					MPI_Win_flush(worker_rank, win_tasks_flag_);
+				
+				MPI_Win_flush(worker_rank, win_meta_);
 					MPI_Barrier(worker_comm);
 				}
 
-				if (soure_chunk == chunks_num - 1)
-					break;
+
 				
 		}
 		for (int i = 0; i < rank_size - 1; i++) {
