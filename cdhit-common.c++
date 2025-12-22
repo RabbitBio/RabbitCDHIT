@@ -5291,6 +5291,12 @@ int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std:
 			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
 			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
 		}
+		flag=1;
+		if(rep->state& IS_REP)
+		{
+			seq->state|=IS_REDUNDANT;
+			break;
+		}
 		buf.thread_edges.emplace_back(qid, pr.first);
 	}
 	return flag;
@@ -5595,12 +5601,15 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 #pragma omp parallel for schedule(dynamic, 1)
 			for (int j = 0; j < N; j++)
 			{
+				int tid = omp_get_thread_num();
 				Sequence *seq = sequences[j];
 				if (seq->state & IS_REDUNDANT)
 					continue;
 				// cerr<<j<<endl;
-				int tid = omp_get_thread_num();
-				CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
+				
+				int flag = CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
+				if(flag == 0)
+				seq->state |= IS_REP;
 			}
 			double tB = get_time();
 			std::vector<size_t> cnt(N, 0);
