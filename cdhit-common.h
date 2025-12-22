@@ -780,7 +780,7 @@ class SequenceDB
 		void send_cluster(
 			const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size, const std::vector<std::vector<float>> &clusters_identity,
 			const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq,int *&flat_size,float *&flat_identity,int *&flat_coverage,char *&flat_identifier,int &C,int &N,int &IDLEN);
-		void encode_WordTable( std::vector<std::vector<std::pair<int,int>>>& table, long *&info_buf, int chunk_id, int start, int end,
+		void encode_WordTable(  long *&info_buf, int chunk_id, int start, int end,
 							  long *&cluster_id_buf, long *&suffix_buf,
 							  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,int send_file_index ,int start_global_id);
 		void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
