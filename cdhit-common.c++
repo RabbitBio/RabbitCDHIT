@@ -2448,8 +2448,8 @@ void SequenceDB::ReadJsonInfo(const std::string& file,const std::string& output_
     // this->output_prefix = j["files"]["out_prefix"].get<std::string>();
 
 	options.max_entries = max_len * MAX_TABLE_SEQ;
-	if(output_dir != temp_dir)
-	bomb_error("no this temp_dir");
+	// if(output_dir != temp_dir)
+	// bomb_error("no this temp_dir");
 
 }
 
@@ -2773,15 +2773,16 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 		ctrl_[0] = 0;						 // top 从前端 0 开始（本地 front）
 		ctrl_[1] = (int)tasks_local_.size()-1; // bottom = n（尾后一位，远端 back）
 		ctrl_[2] = 0;
+		ctrl_[3] = 0;
 		MPI_Win_create(tasks_local_.empty() ? MPI_BOTTOM : (void *)tasks_local_.data(),
 					   (MPI_Aint)tasks_local_.size() * sizeof(Task),
-					   sizeof(Task), MPI_INFO_NULL, worker_comm, &win_tasks_);
+					   sizeof(Task), MPI_INFO_NULL, MPI_COMM_WORLD, &win_tasks_);
 		MPI_Win_create(tasks_flag.empty() ? MPI_BOTTOM : (void *)tasks_flag.data(),
 					   tasks_flag.size() * sizeof(int),
-					   sizeof(int), MPI_INFO_NULL, worker_comm, &win_tasks_flag_);
+					   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_tasks_flag_);
 
-		MPI_Win_create((void *)ctrl_, 3 * (MPI_Aint)sizeof(int),
-					   sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
+		MPI_Win_create((void *)ctrl_, 4 * (MPI_Aint)sizeof(int),
+					   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_ctrl_);
 		
 		MPI_Win_lock_all(0, win_tasks_);
 		MPI_Win_lock_all(0, win_ctrl_);
@@ -2824,12 +2825,13 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 		}
 		MPI_Win_create(pool_data_.empty() ? MPI_BOTTOM : (void *)pool_data_.data(),
 					   (MPI_Aint)pool_data_.size(),
-					   1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
+					   1, MPI_INFO_NULL, MPI_COMM_WORLD, &win_pool_d_);
 		MPI_Win_create(meta_.empty() ? MPI_BOTTOM : (void *)meta_.data(),
 					   (MPI_Aint)meta_.size() * sizeof(SeqMeta),
-					   sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
+					   sizeof(SeqMeta), MPI_INFO_NULL, MPI_COMM_WORLD, &win_meta_);
 		MPI_Win_lock_all(0, win_meta_);
 		MPI_Win_lock_all(0, win_pool_d_);
+		cerr<<"okkkkkkkkkkkkkkk"<<endl;
 		}
 void SequenceDB::Encodeseqs( Sequence *seq, int NAA, int id,bool est ){
 char *seqi = seq->data;
@@ -4923,6 +4925,186 @@ int SequenceDB::CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::v
 	return flag;
 
 }
+int SequenceDB::CheckOne_stealing( Sequence *seq,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+{
+	int len = seq->size;
+	param.len_upper_bound = upper_bound_length_rep(len, options);
+	// if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
+	return CheckOneAA_stealing( seq, word_table, param, buf, options );
+}
+int SequenceDB::CheckOneAA_stealing( Sequence *seq,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+{   //Todo  uint32_t
+	NVector<IndexCount> & lookCounts = buf.lookCounts;
+
+
+	NVector<uint32_t> & indexMapping = buf.indexMapping;
+	Vector<INTs> & word_encodes_no = buf.word_encodes_no;
+	Vector<INTs> & aap_list = buf.aap_list;
+	Vector<INTs> & aap_begin = buf.aap_begin;
+	Vector<int>  & word_encodes = buf.word_encodes;
+	Vector<int>  & taap = buf.taap;
+	double aa1_cutoff = param.aa1_cutoff;
+	double aa2_cutoff = param.aas_cutoff;
+	double aan_cutoff = param.aan_cutoff;
+
+	char *seqi = seq->data;
+	int j, k, j1, len = seq->size;
+	int flag = 0;
+	int frag_size = options.frag_size;
+	int & aln_cover_flag = param.aln_cover_flag;
+	int & required_aa1 = param.required_aa1;
+	int & required_aa2 = param.required_aas;
+	int & required_aan = param.required_aan;
+	int & min_aln_lenS = param.min_aln_lenS;
+	int & min_aln_lenL = param.min_aln_lenL;
+
+	int NAA = options.NAA;
+	int len_eff = len;
+	param.ControlShortCoverage( len_eff, options );
+	param.ComputeRequiredBases( options.NAA, 2, options );
+
+	buf.EncodeWords( seq, options.NAA, false );
+
+	// if minimal alignment length > len, return
+	// I can not return earlier, because I need to calc the word_encodes etc
+	if (options.min_control>len) return 0; // return flag=0
+
+	// lookup_aan
+	int aan_no = len - options.NAA + 1;
+	// int M = frag_size ? table.frag_count : S;
+	buf.CountWords_stealing(aan_no,word_table,false, required_aan);
+
+	// contained_in_old_lib()
+	int len_upper_bound = param.len_upper_bound;
+	int len_lower_bound = param.len_lower_bound;
+	int band_left, band_right, best_score, band_width1, best_sum, len2, alnln, len_eff1;
+	int tiden_no, band_center;
+	float tiden_pc, distance=0;
+	int talign_info[5];
+	int best1, sum;
+	INTs *lookptr;
+	char *seqj;
+	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
+	int lens;
+	int has_aa2 = 0;
+
+	for (auto &pr : buf.out_pairs){
+		if( ! frag_size ){
+			// indexMapping[ ic->index ] = 0;
+			if ( pr.second < required_aan ) continue;
+		}
+
+		// Sequence *rep = table.sequences[ ic->index ]
+		Sequence *rep = last_sequences[ pr.first ];
+	
+		len2 = rep->size;
+		if (len2 > len_upper_bound ) continue;
+		if (options.has2D && len2 < len_lower_bound ) continue;
+
+		param.ControlLongCoverage( len2, options );
+
+		if ( has_aa2 == 0 )  { // calculate AAP array
+			buf.ComputeAAP( seqi, seq->size );
+			has_aa2 = 1;
+		}
+		seqj = rep->data; //NR_seq[NR90_idx[j]];
+
+		band_width1 = (options.band_width < len+len2-2 ) ? options.band_width : len+len2-2;
+		diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum,
+				band_width1, band_left, band_center, band_right, required_aa1);
+		if ( best_sum < required_aa2 ) continue;
+		
+		int rc = FAILED_FUNC;
+		if (options.print || aln_cover_flag) //return overlap region
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info,
+					band_left, band_center, band_right, buf);
+		else
+			rc = local_band_align(seqi, seqj, len, len2, mat,
+					best_score, tiden_no, alnln, distance, talign_info, 
+					band_left, band_center, band_right, buf);
+										if (strcmp(rep->identifier, ">XP_033971090.1") == 0)
+		{
+			// cerr << seq->identifier << endl;
+			cerr << rep->identifier << endl;
+			cerr<< "len_eff1   "<<len_eff1<<endl;
+			cerr<< "tiden_no   "<<tiden_no<<endl;
+			cerr<< "tiden_pc   "<<tiden_pc<<endl;
+		}
+		if ( rc == FAILED_FUNC ) continue;
+		if ( tiden_no < required_aa1 ) continue;
+		lens = len;
+		if( options.has2D && len > len2 ) lens = len2;
+		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
+		tiden_pc = tiden_no / (float) len_eff1;
+		if( options.useDistance ){
+			if (distance > options.distance_thd ) continue;
+			if (distance >= seq->distance) continue; // existing distance
+		}else{
+			if (tiden_pc < options.cluster_thd) continue;
+			if (tiden_pc <= seq->identity) continue; // existing iden_no
+		}
+		if (aln_cover_flag) {
+			if ( talign_info[3]-talign_info[2]+1 < min_aln_lenL) continue;
+			if ( talign_info[1]-talign_info[0]+1 < min_aln_lenS) continue;
+		}
+		if( options.has2D ) seq->state |= IS_REDUNDANT ;
+		flag = 1; seq->identity = tiden_pc; seq->cluster_id = rep->cluster_id;
+		seq->distance = distance;
+		seq->coverage[0] = talign_info[0] +1;
+		seq->coverage[1] = talign_info[1] +1;
+		seq->coverage[2] = talign_info[2] +1;
+		seq->coverage[3] = talign_info[3] +1;
+		if (not options.cluster_best) break;
+		update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff,
+				options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+		param.ComputeRequiredBases( options.NAA, 2, options );
+	}
+	lookCounts.size = 0;
+	if (flag == 1) { // if similar to old one delete it
+		
+		if (! options.cluster_best) {
+			seq->Clear();
+			seq->state |= IS_REDUNDANT ;
+		}
+	}
+	return flag;
+
+}
+int WorkingBuffer::CountWords_stealing(int aan_no,const std::vector<std::vector<std::pair<int,int>>>& word_table ,bool est, int min)
+{
+	out_pairs.clear();
+	visited.clear();
+	auto add_count = [&](int tid, int add){
+		if (counts[tid] == 0) visited.push_back(tid);
+		counts[tid] += add;
+	};
+	for (int j0 = 0; j0 < aan_no; ++j0) {
+		int bucket = word_encodes[j0];
+		int qcnt   = word_encodes_no[j0];
+		if (qcnt == 0) continue;
+
+		const auto& hits = word_table[bucket];  // 已按 seq_id 降序
+		int rest = aan_no - j0 + 1;
+
+		// 只扫 id>qid 的前缀
+		for (size_t k = 0; k < hits.size(); ++k) {
+			int tid  = hits[k].first;
+			int tcnt = hits[k].second;
+
+			if (min > 0 && rest < min && counts[tid] == 0) continue;
+			int add = (qcnt < tcnt) ? qcnt : tcnt;
+			add_count(tid, add);
+		}
+	}
+	out_pairs.reserve(visited.size());
+	for (int tid : visited) {
+		out_pairs.emplace_back(tid, counts[tid]);
+		counts[tid] = 0;
+	}
+	return OK_FUNC;
+}
+
 int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table ,bool est, int min)
 {
 	out_pairs.clear();
@@ -5040,7 +5222,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		// Vector<Sequence*> rep_sequences;
 		std::vector<std::vector<int>> neigh ;
 		vector<vector<pair<int, int>>> all_wordtable(NAAN);
-
+		vector<vector<pair<int, int>>> last_wordtable(NAAN);
 		ofstream fout(output);
 		string clstr_output = options.output +".clstr";
 		ofstream clstr_fout(clstr_output);
@@ -5136,18 +5318,17 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	vector<int> rep_size_cur;
 	vector<string> rep_identifier_next;
 	vector<int> rep_size_next;
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(Task), MPI_INFO_NULL, worker_comm, &win_tasks_);
+	MPI_Win_create(MPI_BOTTOM, 0, sizeof(Task), MPI_INFO_NULL, MPI_COMM_WORLD, &win_tasks_);
+	MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_tasks_flag_);
+	MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &win_ctrl_);
+	MPI_Win_lock_all(0, win_tasks_);
+	MPI_Win_lock_all(0, win_ctrl_);
+	MPI_Win_lock_all(0, win_tasks_flag_);
+	MPI_Win_create(MPI_BOTTOM, 0, 1, MPI_INFO_NULL, MPI_COMM_WORLD, &win_pool_d_);
+	MPI_Win_create(MPI_BOTTOM, 0, sizeof(SeqMeta), MPI_INFO_NULL, MPI_COMM_WORLD, &win_meta_);
 
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_tasks_flag_);
-
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
-	// MPI_Win_create(MPI_BOTTOM, 0, 1, MPI_INFO_NULL, worker_comm, &win_pool_d_);
-	// MPI_Win_create(MPI_BOTTOM, 0, sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
-	// MPI_Win_lock_all(0, win_tasks_);
-	// MPI_Win_lock_all(0, win_ctrl_);
-	// MPI_Win_lock_all(0, win_tasks_flag_);
-	// MPI_Win_lock_all(0, win_meta_);
-	// MPI_Win_lock_all(0, win_pool_d_);
+	MPI_Win_lock_all(0, win_meta_);
+	MPI_Win_lock_all(0, win_pool_d_);
 	omp_set_num_threads(T);
 	// std::vector<MPI_Request> requests(rank_size - 1, MPI_REQUEST_NULL);
 	// std::vector<int> done_flags(rank_size - 1, 0);
@@ -5327,7 +5508,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			
 
 			ClusterOne_Test(seq,seq->table_idx , word_table, params[tid], buffers[tid], options);
-			seq->Clear();
+			// seq->Clear();
 		}
 
 #pragma omp parallel for schedule(static)
@@ -5391,19 +5572,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		encode_WordTable(all_wordtable, info_buf, i,
 						 start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
 						 indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index, start_global_id);
-			if(T == 1){
-				#pragma omp parallel for schedule(static)
-		for (long long b = 0; b < (long long)NAAN; ++b)
-		{
-			// all_wordtable[b].clear();
-			// 预估容量，减少 realloc
-			
-			;
-			auto &dst = all_wordtable[b];
-			dst.clear();
 
-		}
-			}
 		// if (i == total_chunk)
 		// {
 		// 	info_buf[1] = 0;
@@ -5414,28 +5583,152 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		if (i > 0)
 		{
 			// MPI_Request request1, request2, request3, request4, request5 = MPI_REQUEST_NULL;
-			MPI_Request request[5] = {MPI_REQUEST_NULL};
-			MPI_Ibcast(&ibcast_flag, 1, MPI_INT, source, MPI_COMM_WORLD, &request[0]);
-			MPI_Ibcast((void *)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD, &request[1]);
-			// cerr<<"send len  "<<info_buf[1]<<endl;
-			// cerr<<"info[2]  "<<info_buf[2]<<endl;
-			MPI_Ibcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[2]);
-			MPI_Ibcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[3]);
-			MPI_Ibcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD, &request[4]);
-			MPI_Waitall(5, request, MPI_STATUSES_IGNORE);
-			std::vector<MPI_Request> reqs_block;
-			const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
+			std::thread th_bcast;
+
+			th_bcast = std::thread([&]()
+								   {
+        MPI_Request request[5] = {MPI_REQUEST_NULL};
+        MPI_Ibcast(&ibcast_flag, 1, MPI_INT, source, MPI_COMM_WORLD, &request[0]);
+        MPI_Ibcast((void *)info_buf, 7, MPI_LONG, source, MPI_COMM_WORLD, &request[1]);
+        MPI_Ibcast((void *)cluster_id_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[2]);
+        MPI_Ibcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[3]);
+        MPI_Ibcast((void *)prefix_buf, (int)info_buf[2], MPI_LONG_LONG, source, MPI_COMM_WORLD, &request[4]);
+        MPI_Waitall(5, request, MPI_STATUSES_IGNORE);
+
+		std::vector<MPI_Request> reqs_block;
+		const size_t bcast_block_size = 512 * 1024 * 1024 / sizeof(long);
 			// const size_t total_count_size= indexCount_buf_size*sizeof(long);
 			// size_t nb = (indexCount_buf_size + bcast_block_size - 1) / bcast_block_size;
 			// reqs_block.reserve(nb);
-			for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size)
+		for (size_t offset = 0; offset < indexCount_buf_size; offset += bcast_block_size)
 			{
 				size_t size = min(bcast_block_size, indexCount_buf_size - offset);
 				reqs_block.emplace_back(MPI_REQUEST_NULL);
 				MPI_Ibcast((long *)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD, &reqs_block.back());
 			}
-			MPI_Waitall((int)reqs_block.size(), reqs_block.data(), MPI_STATUSES_IGNORE);
-			cerr << "send over " << info_buf[0] << endl;
+		MPI_Waitall((int)reqs_block.size(), reqs_block.data(), MPI_STATUSES_IGNORE);
+		cerr << "send over " << info_buf[0] << endl; });
+
+			int base = 1;
+			int next_victim = base;
+
+			while (true)
+			{
+				bool stole = false;
+				int tried = 0;
+				while (tried < rank_size - 1)
+				{
+					int tt = next_victim;
+					next_victim = 1 + (next_victim % (rank_size - 1));
+
+					// 2. 分别读取各个变量
+					int stealing_top, stealing_bottom, origin_top, worker_chunk;
+					MPI_Get(&stealing_top, 1, MPI_INT, tt, 0, 1, MPI_INT, win_ctrl_);
+					MPI_Get(&stealing_bottom, 1, MPI_INT, tt, 1, 1, MPI_INT, win_ctrl_);
+					MPI_Get(&origin_top, 1, MPI_INT, tt, 2, 1, MPI_INT, win_ctrl_);
+					MPI_Get(&worker_chunk, 1, MPI_INT, tt, 3, 1, MPI_INT, win_ctrl_);
+					// 3. 确保所有Get完成
+					MPI_Win_flush_local(tt, win_ctrl_);
+
+					// MPI_Win_unlock(tt, win_ctrl_);
+					// if (stealing_bottom - stealing_top > 1&&stealing_bottom-origin_top > SUB)
+					if (stealing_bottom - stealing_top > 1 && worker_chunk == i - 1)
+					{
+
+						int dec = -1;
+						MPI_Fetch_and_op(&dec, &stealing_bottom, MPI_INT, tt, 1, MPI_SUM, win_ctrl_);
+
+						// 刷新，确保同步
+						MPI_Win_flush(tt, win_ctrl_);
+						cerr << "I am master" << endl;
+						cerr << "tt   " << tt << "  by   " << my_rank << endl;
+						cerr << "  !!!!stealing_top   " << stealing_top << endl;
+						cerr << "  !!!!stealing_bottom   " << stealing_bottom << endl;
+						Task t;
+						MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE, win_tasks_);
+						MPI_Win_flush_local(tt, win_tasks_);
+
+						const int cnt = t.r - t.l + 1;
+						std::vector<SeqMeta> metas(cnt);
+
+						MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+
+						MPI_Win_flush_local(tt, win_meta_);
+
+						size_t total_bytes = 0;
+						for (const auto &m : metas)
+							total_bytes += (size_t)m.data_len;
+						std::vector<uint8_t> slab(total_bytes);
+						size_t cursor = metas[0].data_off;
+						MPI_Get(slab.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint)cursor, total_bytes, MPI_BYTE, win_pool_d_);
+						MPI_Win_flush_local(tt, win_pool_d_);
+#pragma omp parallel for schedule(dynamic, 1)
+						for (int ttt = 0; ttt < cnt; ttt++)
+						{
+							int tid = omp_get_thread_num();
+							// cerr<<"tid  "<<tid<<endl;
+							auto &m = metas[ttt];
+							if ((m.state & IS_REDUNDANT) || (m.state & IS_REP))
+								continue;
+							Sequence *seq = new Sequence();
+
+							char *buf = (char *)malloc((size_t)m.data_len + 1);
+							memcpy(buf, slab.data() + m.data_off - cursor, (size_t)m.data_len);
+							buf[m.data_len] = '\0';
+							seq->data = buf;
+							seq->size = m.size;
+							seq->state = m.state;
+							seq->cluster_id = m.cluster_id;
+							seq->identity = m.identity;
+							seq->distance = m.distance;
+							for (int tttt = 0; tttt < 4; ++tttt)
+								seq->coverage[tttt] = m.coverage[tttt];
+							// cerr<<"daozhe"<<endl;
+							CheckOne_stealing(seq, last_wordtable, params[tid], buffers[tid], options);
+
+							if ((seq->state & IS_REDUNDANT))
+							{
+								auto &m = metas[ttt];
+								m.state = seq->state;
+								m.cluster_id = seq->cluster_id;
+								m.identity = seq->identity;
+								m.distance = seq->distance;
+								for (int tttt = 0; tttt < 4; ++tttt)
+									m.coverage[tttt] = seq->coverage[tttt];
+							}
+
+							// 要么不再释放：
+							delete seq; // 不要再 free(seq->data)
+						}
+
+						int task_flag = 0;
+						// MPI_Get(&stealing_top, 1, MPI_INT, tt, 0, 1, MPI_INT, win_ctrl_);
+						MPI_Get(&task_flag, 1, MPI_INT, tt, stealing_bottom, 1, MPI_INT, win_tasks_flag_);
+						MPI_Win_flush_local(tt, win_tasks_flag_);
+						if (task_flag == 0)
+						{
+							MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+							MPI_Win_flush(tt, win_meta_);
+							int dec = 1;
+							MPI_Fetch_and_op(&dec, &task_flag, MPI_INT, tt, stealing_bottom, MPI_SUM, win_tasks_flag_);
+							MPI_Win_flush(tt, win_tasks_flag_);
+						}
+
+						cerr << "over!!!!!!!!!!!!!by   " << my_rank << endl;
+						stole = true;
+						break;
+					}
+					++tried;
+				}
+				if (!stole)
+				{
+					break;
+				}
+			}
+			if (th_bcast.joinable())
+			{
+				th_bcast.join();
+			}
 		}
 		else
 		{
@@ -5453,7 +5746,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				MPI_Bcast((long *)indexCount_buf + offset, size, MPI_LONG, source, MPI_COMM_WORLD);
 			}
 		}
-			//----------------------------------------
+		
+
+		//----------------------------------------
 		if (i > 0)
 		{
 			clusters_identifier.resize(C);
@@ -5561,7 +5856,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				// rep_identifier.resize(sequences.size());
 				read_flag[i] = 1;
 			}
-
 			//------------------------------------------
 			// MPI_Bcast((void*)indexCount_buf, indexCount_buf_size, MPI_LONG, source, MPI_COMM_WORLD);
 			// cerr << "start_id    " << start_global_id << endl;
@@ -5740,11 +6034,25 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// clusters_coverage.resize(chunk_size);
 			last_rep_index = rep_seqs.size();
 			start_global_id += sequences.size();
-			for (int i = 0; i < sequences.size(); i++)
-				delete sequences[i];
-			// for (int i = 0; i < rep_sequences.size(); i++)
-			// 	delete rep_sequences[i];
+			for (int i = 0; i < last_sequences.size(); i++)
+				delete last_sequences[i];
+			
+			last_sequences.clear();
+			last_sequences.reserve(sequences.size());
+			for (auto *s : sequences){
+
+					if (s->state & IS_REDUNDANT) {
+						delete s;
+						continue;
+					}
+				last_sequences.Append(new Sequence(*s));
+				delete s;
+			}
+				
+			
 			sequences.clear();
+			last_wordtable = all_wordtable;
+		
 			// rep_sequences.clear();
 			Sequence one;
 			std::string file = temp_dir + "_proc" + std::to_string(file_index) + ".fa";
@@ -5837,9 +6145,25 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// cerr<<"size  "<<size<<endl;
 			int *rep_chunk = (int *)malloc(size * 2 * sizeof(int));
 			// float *identity_array = (float *)malloc(size * sizeof(float));
+
 			if (rank_size == 2)
 				target_worker = 0;
+			if (T == 1)
+			{
+#pragma omp parallel for schedule(static)
+				for (long long b = 0; b < (long long)NAAN; ++b)
+				{
+					// all_wordtable[b].clear();
+					// 预估容量，减少 realloc
+
+					;
+					auto &dst = all_wordtable[b];
+					dst.clear();
+				}
+			}
+
 			cerr << "receive size " << size << endl;
+			
 			MPI_Recv(rep_chunk, size * 2, MPI_INT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			// MPI_Recv(identity_array, size, MPI_FLOAT, target_worker + 1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 			// cerr<<"receive size "<<size<<endl;
@@ -6078,7 +6402,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			int remain_chunks = my_chunks.size() - start;
 
 		
-			// cerr<<"pass  "<<endl;
 		
 			
 			double t14 = get_time();
@@ -6100,19 +6423,19 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 // 只有一个线程安全地从队列取任务
 #pragma omp master
 						{
-							MPI_Get(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
-							MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
-							MPI_Win_flush_local(worker_rank, win_ctrl_);
+							MPI_Get(&top, 1, MPI_INT, my_rank, 0, 1, MPI_INT, win_ctrl_);	  // 控制窗口
+							MPI_Get(&bottom, 1, MPI_INT, my_rank, 1, 1, MPI_INT, win_ctrl_); // 获取 ctrl_[1] (bottom)
+							MPI_Win_flush_local(my_rank, win_ctrl_);
 							// MPI_Win_fence(0, win_ctrl_);
 							if (top <= bottom)
 							{
 								int dec = 1;
 								Task t;
-								MPI_Fetch_and_op(&dec, &top, MPI_INT, worker_rank, 0, MPI_SUM, win_ctrl_);
-								MPI_Win_flush(worker_rank,win_ctrl_);
+								MPI_Fetch_and_op(&dec, &top, MPI_INT, my_rank, 0, MPI_SUM, win_ctrl_);
+								MPI_Win_flush(my_rank,win_ctrl_);
 								// cerr<<"top  "<<top<<endl;
-								MPI_Get(&t, sizeof(Task), MPI_BYTE, worker_rank, top, sizeof(Task), MPI_BYTE, win_tasks_);
-								MPI_Win_flush_local(worker_rank, win_tasks_);
+								MPI_Get(&t, sizeof(Task), MPI_BYTE, my_rank, top, sizeof(Task), MPI_BYTE, win_tasks_);
+								MPI_Win_flush_local(my_rank, win_tasks_);
 								// top++;
 								// MPI_Put(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);
 								
@@ -6168,8 +6491,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 #pragma omp master
 {
 	const int cnt = r_shared - l_shared + 1;
-	MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
-	MPI_Win_flush(worker_rank,win_meta_);
+	MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, my_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+	MPI_Win_flush(my_rank,win_meta_);
 }
 // 确保所有线程都结束了本轮 for 再去取下一个小块
 #pragma omp barrier
@@ -6182,8 +6505,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 						if (chunks_id[idx] == soure_chunk + 1)
 						{ // 注意：soure_chunk 变量名是否写错？
 							int now_bottom;
-							MPI_Get(&now_bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
-							MPI_Win_flush_local(worker_rank, win_ctrl_);
+							MPI_Get(&now_bottom, 1, MPI_INT, my_rank, 1, 1, MPI_INT, win_ctrl_);
+							MPI_Win_flush_local(my_rank, win_ctrl_);
 							// cerr<<"1111111111111111111111111           "<<now_bottom<<endl;
 							// cerr<<"2222222222222222222222222           "<<idx<<endl;
 							if (now_bottom < idx * SUB + SUB - 1)
@@ -6192,12 +6515,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								for (int tt = now_bottom + 1; tt <= idx * SUB + SUB - 1; tt++)
 								{
 									int task_flag;
-									MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
-									MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+									MPI_Get(&task_flag, 1, MPI_INT, my_rank, tt, 1, MPI_INT, win_tasks_flag_);
+									MPI_Win_flush_local(my_rank, win_tasks_flag_);
 									while (task_flag != 1)
 									{
-										MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
-										MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+										MPI_Get(&task_flag, 1, MPI_INT, my_rank, tt, 1, MPI_INT, win_tasks_flag_);
+										MPI_Win_flush_local(my_rank, win_tasks_flag_);
 										cerr << "等等等等等等等等等等等等等等等等等等等等等" << endl;
 										// 短暂休眠，避免 100% CPU
 										usleep(1000); // 休眠 1 毫秒
@@ -6205,8 +6528,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 									cerr << "task_flags     " << task_flag << endl;
 									const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
 									std::vector<SeqMeta> metas(cnt);
-									MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/ sub_chunks[tt].first, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
-									MPI_Win_flush_local(worker_rank, win_meta_);
+									MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, my_rank, /*disp = 元素下标*/ sub_chunks[tt].first, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+									MPI_Win_flush_local(my_rank, win_meta_);
 									for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
 									{
 										const auto &m = metas[ttt - sub_chunks[tt].first];
@@ -6255,9 +6578,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			}
 			progress_running = true; 
 			std::thread progress(mpi_progress_thread);
-			for (int tt = 0; tt < rank_size - 1; tt++)
+			for (int tt = 1; tt < rank_size; tt++)
 			{
-				if (tt == worker_rank)
+				if (tt == my_rank)
 					continue;
 				
 					while (true)
@@ -6284,7 +6607,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							
 							// 刷新，确保同步
 							MPI_Win_flush(tt, win_ctrl_);
-							cerr<<"tt   "<<tt<<"  by   "<<worker_rank<<endl;
+							cerr<<"tt   "<<tt<<"  by   "<<my_rank<<endl;
 							cerr<<"  !!!!stealing_top   "   <<stealing_top<<endl;
 							cerr<<"  !!!!stealing_bottom   "<<stealing_bottom<<endl;
 							Task t;
@@ -6399,7 +6722,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								}
 								
 								
-								cerr<<"over!!!!!!!!!!!!!by   "<<worker_rank<<endl;
+								cerr<<"over!!!!!!!!!!!!!by   "<<my_rank<<endl;
 							}
 						else
 						break;
@@ -6440,20 +6763,20 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			// cerr<<"pass  "<<endl;
 		
 		MPI_Barrier(worker_comm);
-		MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
-		MPI_Win_flush_local(worker_rank, win_ctrl_);
+		MPI_Get(&bottom, 1, MPI_INT, my_rank, 1, 1, MPI_INT, win_ctrl_);
+		MPI_Win_flush_local(my_rank, win_ctrl_);
 	
 	if(bottom<sub_chunks.size()-1){
 		
 		for(int tt = bottom+1;tt<=sub_chunks.size()-1;tt++)
 		{
 			int task_flag = 0;
-			MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
-			MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+			MPI_Get(&task_flag, 1, MPI_INT, my_rank, tt, 1, MPI_INT, win_tasks_flag_);
+			MPI_Win_flush_local(my_rank, win_tasks_flag_);
 			while (task_flag != 1)
 			{
-				MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
-				MPI_Win_flush_local(worker_rank, win_tasks_flag_);
+				MPI_Get(&task_flag, 1, MPI_INT, my_rank, tt, 1, MPI_INT, win_tasks_flag_);
+				MPI_Win_flush_local(my_rank, win_tasks_flag_);
 				cerr<<"等等等等等等等等等等等等等等等等等等等等等"<<endl;
 				// 短暂休眠，避免 100% CPU
 				usleep(1000); // 休眠 1 毫秒
@@ -6461,8 +6784,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			cerr<<"task_flags     "<<task_flag<<endl;
 			const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
 			std::vector<SeqMeta> metas(cnt);
-			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
-			MPI_Win_flush_local(worker_rank, win_meta_);
+			MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, my_rank, /*disp = 元素下标*/sub_chunks[tt].first , (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+			MPI_Win_flush_local(my_rank, win_meta_);
 
 			#pragma omp parallel for schedule(static)
 			for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++)
@@ -6561,11 +6884,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				ctrl_[0] = top; // 更新 top
 				ctrl_[1] = bottom;			  // 更新 bottom
 				ctrl_[2] = top; // 更新任务数量
-				MPI_Put(ctrl_, 3, MPI_INT, worker_rank, 0, 3, MPI_INT, win_ctrl_); // 更新第一个进程的窗口中的 ctrl 数据
+				ctrl_[3] = slots[cur].info[0];
+				MPI_Put(ctrl_, 4, MPI_INT, my_rank, 0, 4, MPI_INT, win_ctrl_); // 更新第一个进程的窗口中的 ctrl 数据
 				tasks_flag.assign(sub_chunks.size(), 0);
-				MPI_Put(tasks_flag.data(), sub_chunks.size()*sizeof(int), MPI_INT, worker_rank, 0,sub_chunks.size()*sizeof(int) , MPI_INT, win_tasks_flag_);
-				MPI_Win_flush(worker_rank,win_ctrl_);
-				MPI_Win_flush(worker_rank,win_tasks_flag_);
+				MPI_Put(tasks_flag.data(), sub_chunks.size()*sizeof(int), MPI_INT, my_rank, 0,sub_chunks.size()*sizeof(int) , MPI_INT, win_tasks_flag_);
+				MPI_Win_flush(my_rank,win_ctrl_);
+				MPI_Win_flush(my_rank,win_tasks_flag_);
 				MPI_Barrier(worker_comm);
 				if (soure_chunk == chunks_num - 1)
 					break;
@@ -7127,6 +7451,14 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 					band_left, band_center, band_right, buf);
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
+				if (strcmp(seq->identifier, ">ABC47139.1") == 0)
+		{
+			cerr << seq->identifier << endl;
+			cerr << rep->identifier << endl;
+			cerr<< "len_eff1   "<<len_eff1<<endl;
+			cerr<< "tiden_no   "<<tiden_no<<endl;
+			cerr<< "tiden_pc   "<<tiden_pc<<endl;
+		}
 		lens = len;
 		if( options.has2D && len > len2 ) lens = len2;
 		len_eff1 = (options.global_identity == 0) ? alnln : (lens - talign_info[4]);
@@ -7308,6 +7640,14 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 			rc = local_band_align(seqi, seqj, len, len2, mat,
 					best_score, tiden_no, alnln, distance, talign_info, 
 					band_left, band_center, band_right, buf);
+							if (strcmp(rep->identifier, ">XP_033971090.1") == 0)
+		{
+			// cerr << seq->identifier << endl;
+			cerr << rep->identifier << endl;
+			cerr<< "len_eff1   "<<len_eff1<<endl;
+			cerr<< "tiden_no   "<<tiden_no<<endl;
+			cerr<< "tiden_pc   "<<tiden_pc<<endl;
+		}
 		if ( rc == FAILED_FUNC ) continue;
 		if ( tiden_no < required_aa1 ) continue;
 		lens = len;

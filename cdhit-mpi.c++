@@ -109,6 +109,7 @@ int main(int argc, char *argv[])
 	{
 		seq_db.read_sorted_files(temp_dir,rank, size, false,worker_comm,options);
 		MPI_Barrier(worker_comm);
+		
 		// exit(0);
 	}
 

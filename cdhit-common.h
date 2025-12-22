@@ -665,6 +665,7 @@ struct WorkingBuffer
 
 	int EncodeWords( Sequence *seq, int NA, bool est = false );
 	int CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, bool est, int min);
+	int CountWords_stealing(int aan_no,const std::vector<std::vector<std::pair<int,int>>>& word_table, bool est, int min);
 	void ComputeAAP( const char *seqi, int size );
 	void ComputeAAP2( const char *seqi, int size );
 };
@@ -678,6 +679,7 @@ class SequenceDB
 
 		int NAAN;
 		Vector<Sequence*>  sequences;
+		Vector<Sequence*>  last_sequences;
 		Vector<Sequence*>  rep_sequences;
 		Vector<int>        rep_seqs;
 		Vector<int>        local_rep_seqs;
@@ -704,7 +706,7 @@ class SequenceDB
 		int chunks_num;
 		std::vector<Task> tasks_local_; // 小块数组（只读）
 		std::vector<int> tasks_flag;
-		int ctrl_[3] = {0, 0, 0};		// 0=top, 1=bottom, 2=n
+		int ctrl_[4] = {0, 0, 0 ,0};		// 0=top, 1=bottom, 2=n
 		int SUB = 20;
 		std::vector<std::vector<int>> total_encodes;
 		std::vector<std::vector<INTs>> total_encodes_no;
@@ -834,6 +836,8 @@ class SequenceDB
 		int CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options,int id );
 		int  CheckOne_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_Test( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOne_stealing( Sequence *seq,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOneAA_stealing( Sequence *seq,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOne_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		int  CheckOneAA_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 

@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	bool worker = false;
 	int worker_rank = -1;
 	
-
+	sleep(0);
 	
 	int total_seqs = 0;
 	// ***********************************    parse command line and open file
