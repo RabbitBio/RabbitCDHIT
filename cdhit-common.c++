@@ -3189,6 +3189,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 				int R = my_chunks[ci].second;
 
 				const int n = R - L + 1;
+				// cerr<<"n  "<<n<<endl;
 				// 尽量均匀地切成 SUB 份：前 rem 份多 1
 				int base = n / SUB;
 				int rem = n % SUB;
@@ -3197,10 +3198,11 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 				for (int s = 0; s < SUB; ++s)
 				{
 					int len = base + (s < rem ? 1 : 0);
+					if (len == 0) continue;
 					int l = cur;
 					int r = cur + len - 1;
 					cur = r + 1;
-
+// cerr<<"l  "<<l<<"r "<<r<<endl;
 					sub_chunks.emplace_back(l, r);
 					// 可选：为小块记录一个“派生”的 chunk id（便于调度或日志）
 					// 这里用 parent_id * SUB + s 作为唯一标识
@@ -6543,10 +6545,11 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 								MPI_Win_flush_local(worker_rank, win_ctrl_);
 								// cerr<<"1111111111111111111111111           "<<now_bottom<<endl;
 								// cerr<<"2222222222222222222222222           "<<idx<<endl;
-								if (now_bottom < idx * SUB + SUB - 1)
+								int final_bottom = min(idx * SUB + SUB - 1,sub_chunks.size() - 1);
+								if (now_bottom < final_bottom)
 								{
 
-									for (int tt = now_bottom + 1; tt <= idx * SUB + SUB - 1; tt++)
+									for (int tt = now_bottom + 1; tt <=final_bottom; tt++)
 									{
 										int task_flag;
 										MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
@@ -6649,6 +6652,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							MPI_Win_flush_local(tt, win_tasks_);
 
 							const int cnt = t.r - t.l + 1;
+							// cerr<<"cnt  "<<cnt<<endl;
 							std::vector<SeqMeta> metas(cnt);
 
 							MPI_Get(metas.data(), (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l, (int)(cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
@@ -6658,6 +6662,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 							size_t total_bytes = 0;
 							for (const auto &m : metas)
 								total_bytes += (size_t)m.data_len;
+								// cerr<<"total_bytes  "<<total_bytes<<endl;
 							std::vector<uint8_t> slab(total_bytes);
 							size_t cursor = metas[0].data_off;
 							MPI_Get(slab.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint)cursor, total_bytes, MPI_BYTE, win_pool_d_);
