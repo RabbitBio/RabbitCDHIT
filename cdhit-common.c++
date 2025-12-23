@@ -3182,7 +3182,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 		if (options.stealing)
 		{
 
-			SUB = chunk_size/5000;
+			// SUB = chunk_size/5000;
 			for (size_t ci = 0; ci < my_chunks.size(); ++ci)
 			{
 				int L = my_chunks[ci].first;
