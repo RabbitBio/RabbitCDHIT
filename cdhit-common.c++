@@ -4820,7 +4820,7 @@ void SequenceDB::send_cluster(
 	seq_cnt=nullptr;
 }
 void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,omp_lock_t* locks, int num_locks)
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks)
 {
 	int len = seq->size;
 	int NAA = options.NAA;
@@ -4831,16 +4831,16 @@ void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
                 int count  = buffer.word_encodes_no[j];
                 if (count > 0) {
 					NVector<IndexCount> &row = table.indexCounts[bucket];
-					int lock_idx = bucket % num_locks;
-					omp_set_lock(&locks[lock_idx]);
+					int lock_idx = bucket & 0xFFFF;
+					omp_set_lock( &locks[lock_idx].lock );
 					row.Append(IndexCount(id, count));
-					omp_unset_lock(&locks[lock_idx]);
+					omp_unset_lock( &locks[lock_idx].lock );
                 }
             }
 
 }
 void SequenceDB::ClusterOne_master( Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,omp_lock_t* locks, int num_locks)
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks)
 {
 	int len = seq->size;
 	int NAA = options.NAA;
@@ -4850,10 +4850,10 @@ void SequenceDB::ClusterOne_master( Sequence *seq, int id, std::vector<std::vect
                 int bucket = buffer.word_encodes[j];
                 int count  = buffer.word_encodes_no[j];
                 if (count > 0) {
-					int lock_idx = bucket % num_locks;
-					omp_set_lock(&locks[lock_idx]);
+					int lock_idx = bucket & 0xFFFF;
+					omp_set_lock( &locks[lock_idx].lock );
                     word_table[bucket].emplace_back(id, count); 
-					omp_unset_lock(&locks[lock_idx]);
+					omp_unset_lock( &locks[lock_idx].lock );
                 }
             }
 
@@ -5235,12 +5235,13 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	int record_last=0;
 	int record=0;
 	const int NUM_LOCKS = 65536;
-	omp_lock_t *locks = new omp_lock_t[NUM_LOCKS];
+	PaddedLock *locks = new PaddedLock[NUM_LOCKS];
+
 	omp_set_num_threads(T);
 #pragma omp parallel for schedule(static)
 	for (int i = 0; i < NUM_LOCKS; ++i)
 	{
-		omp_init_lock(&locks[i]);
+		omp_init_lock(&locks[i].lock); 
 	}
 
 	if (master) {   
@@ -6452,7 +6453,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 #pragma omp parallel for schedule(static)
 	for (int i = 0; i < NUM_LOCKS; ++i)
 	{
-		omp_destroy_lock(&locks[i]);
+		omp_destroy_lock( &locks[i].lock );
 	}
 	delete[] locks;
 	MPI_Barrier(MPI_COMM_WORLD);
