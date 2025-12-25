@@ -28,6 +28,7 @@
 #include<iostream>
 #include<fstream>
 #include <mpi.h>
+#include <omp.h>
 #include<iomanip>
 #include<cstdlib>
 #include<stdio.h>
@@ -269,6 +270,9 @@ class WordTable
 		int AddWordCountsFrag( int aan_no, Vector<int> & word_encodes, 
 				Vector<INTs> & word_encodes_no, int frag, int frag_size );
 		int CountWords(int aan_no, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
+				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
+				bool est=false, int min=0);
+		int CountWords(int aan_no,int qid, Vector<int> & aan_list, Vector<INTs> & aan_list_no, 
 				NVector<IndexCount> & lookCounts, NVector<uint32_t> & indexMapping,
 				bool est=false, int min=0);
 		void PrintAll();
@@ -546,10 +550,10 @@ struct WorkingBuffer
 {
 	Vector<int>  taap;
 	vector<std::pair<int,int>> thread_edges;
-	vector<int> visited;
-	vector<std::pair<int,int>>out_pairs;
-	vector<int> counts;
-	vector<vector<pair<int,int>>> local_tables;
+	// vector<int> visited;
+	// vector<std::pair<int,int>>out_pairs;
+	// vector<int> counts;
+	// vector<vector<pair<int,int>>> local_tables;
 	Vector<int>  word_encodes;
 	Vector<int>  word_encodes_backup;
 	Vector<INTs> word_encodes_no;
@@ -632,15 +636,15 @@ struct WorkingBuffer
 		taap.resize(m);
 		aap_list.resize(max_len);
 		aap_begin.resize(m);
-		local_tables.resize(NAAN);
+		// local_tables.resize(NAAN);
 		// cerr<<"NAAN"<<NAAN<<endl;
 		// indexCounts.resize( max_len );
 		word_encodes.resize(max_len);
 		word_encodes_no.resize(max_len);
 		word_encodes_backup.resize(max_len);
 		thread_edges.reserve(1 << 20);
-		visited.reserve(1 << 14);
-		counts.assign(frag + 2, 0);
+		// visited.reserve(1 << 14);
+		// counts.assign(frag + 2, 0);
 
 		/* each table can not contain more than MAX_TABLE_SEQ representatives or fragments! */
 		if (frag > MAX_TABLE_SEQ)
@@ -817,9 +821,11 @@ class SequenceDB
 				WorkingParam & param, WorkingBuffer & buf, const Options & options ,int my_rank);
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
-		void ClusterOne_Test(Sequence *seq, int id, WordTable &table,
-							 WorkingParam &param, WorkingBuffer &buffer, const Options &options);
-		void ClusterOne_single(Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
+		void ClusterOne_worker(Sequence *seq, int id, WordTable &table,
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options, omp_lock_t *locks, int num_locks);
+		void ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options, omp_lock_t *locks, int num_locks);
+		void ClusterOne_single(Sequence *seq, int id, WordTable &word_table,
 							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,int &centers);
 		//void SelfComparing( int start, int end, WordTable & table, 
 		//    WorkingParam & param, WorkingBuffer & buf, const Options & options );
@@ -834,10 +840,10 @@ class SequenceDB
 		int  CheckOneEST( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt);
 		int  CheckOneAA( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt );
 		int  CheckOneAA_worker( Sequence *seq, WordTable & tab, WorkingParam & par, WorkingBuffer & buf, const Options & opt ,int id);
-		int  CheckOne_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
-		int  CheckOneAA_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
-		int  CheckOne_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
-		int  CheckOneAA_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOne_master( Sequence *seq, int qid,WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOneAA_master( Sequence *seq, int qid,WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOne_single( Sequence *seq, int qid, WordTable& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
+		int  CheckOneAA_single( Sequence *seq, int qid,WordTable& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options );
 
 		void Encodeseqs( Sequence *seq, int NAA, int id,bool est );
 };
