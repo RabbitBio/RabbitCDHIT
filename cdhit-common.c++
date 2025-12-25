@@ -1723,13 +1723,18 @@ void setaa_to_na()
 
 
 /////////////////
-ScoreMatrix::ScoreMatrix() {
-    flat_matrix = (int64_t*)aligned_alloc(64, MAX_AA * MAX_AA * sizeof(int64_t));
-    if (!flat_matrix) {
-        fprintf(stderr, "Failed to allocate flat_matrix\n");
-        exit(1);
-    }
-    init();
+ScoreMatrix::ScoreMatrix()
+{
+	size_t req_size = MAX_AA * MAX_AA * sizeof(int64_t);
+	size_t real_size = (req_size + 63) / 64 * 64;
+
+	flat_matrix = (int64_t *)aligned_alloc(64, real_size);
+	if (!flat_matrix)
+	{
+		fprintf(stderr, "Failed to allocate flat_matrix\n");
+		exit(1);
+	}
+	init();
 }
 
 void ScoreMatrix::init() 
@@ -2018,7 +2023,62 @@ int WordTable::CountWords(int aan_no, Vector<int> & word_encodes, Vector<INTs> &
 	//printf( "\n\n" );
 	return OK_FUNC;
 }
+int WordTable::CountWords(int aan_no,int qid, Vector<int> & word_encodes, Vector<INTs> & word_encodes_no,
+    NVector<IndexCount> &lookCounts, NVector<uint32_t> & indexMapping, 
+	bool est, int min)
+{
+	int S = frag_count ? frag_count : sequences.size();
+	int  j, k, j0, j1, k1, m;
+	int ix1, ix2, ix3, ix4;
+	IndexCount tmp;
 
+	IndexCount *ic = lookCounts.items;
+	for(j=0; j<lookCounts.size; j++, ic++) indexMapping[ ic->index ] = 0;
+	lookCounts.size = 0;
+
+	int *we = & word_encodes[0];
+	j0 = 0;
+	if( est ) while( *we <0 ) j0++, we++; // if met short word has 'N'
+	INTs *wen = & word_encodes_no[j0];
+	//printf( "\nquery : " );
+	for (; j0<aan_no; j0++, we++, wen++) {
+		j  = *we;
+		j1 = *wen;
+		//if( j1 >1 ) printf( " %3i", j1 );
+		if( j1==0 ) continue;
+		NVector<IndexCount> & one = indexCounts[j];
+		k1 = one.Size();
+		IndexCount *ic = one.items;
+		// cerr<<"lookcounts size  "<<lookCounts.size<<endl;
+		int rest = aan_no - j0 + 1;
+		for (k=0; k<k1; k++, ic++){
+			if(ic->index>=qid)break;
+			int c = ic->count < j1 ? ic->count : j1;
+			uint32_t *idm = indexMapping.items + ic->index;
+			
+			// if(my_rank==1){
+				// cerr<<"lookCounts.size     "<<lookCounts.size<<endl;
+				// cerr<<"ic->index     "<<ic->index<<endl;
+				// cerr<<"*idm     "<<*idm<<endl;
+			// }
+			
+			if( *idm ==0 ){
+				if( rest < min ) continue;
+				IndexCount *ic2 = lookCounts.items + lookCounts.size;
+				lookCounts.size += 1;
+				*idm = lookCounts.size;
+				ic2->index = ic->index;
+				ic2->count = c;
+			}else{
+				lookCounts[ *idm - 1 ].count += c;
+			}
+		}
+	}
+	//printf( "%6i %6i\n", S, lookCounts.size );
+	lookCounts[ lookCounts.size ].count = 0;
+	//printf( "\n\n" );
+	return OK_FUNC;
+}
 Sequence::Sequence()
 {
 	memset( this, 0, sizeof( Sequence ) );
@@ -4451,7 +4511,7 @@ void SequenceDB::ClusterOne( Sequence *seq, int id, WordTable & local_table,Word
 		if ( (id+1) % 10000 == 0 ) printf( "\r..........%9i  finished  %9i  clusters\n", id+1, size );
 	}
 }
-void SequenceDB::ClusterOne_single(Sequence *seq, int id, std::vector<std::vector<std::pair<int, int>>> &word_table,
+void SequenceDB::ClusterOne_single(Sequence *seq, int id, WordTable &word_table,
 								   WorkingParam &param, WorkingBuffer &buffer, const Options &options,int &centers)
 {
 	int len = seq->size;
@@ -4478,9 +4538,11 @@ void SequenceDB::ClusterOne_single(Sequence *seq, int id, std::vector<std::vecto
 		{
 			int bucket = buffer.word_encodes[j];
 			int count = buffer.word_encodes_no[j];
+
 			if (count > 0)
 			{
-				word_table[bucket].emplace_back(id, count);
+				NVector<IndexCount> &row =word_table.indexCounts[bucket];
+					row.Append(IndexCount(id, count));
 			}
 
 		}
@@ -4757,8 +4819,8 @@ void SequenceDB::send_cluster(
     free(seq_cnt);
 	seq_cnt=nullptr;
 }
-void SequenceDB::ClusterOne_Test( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options )
+void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,omp_lock_t* locks, int num_locks)
 {
 	int len = seq->size;
 	int NAA = options.NAA;
@@ -4768,19 +4830,42 @@ void SequenceDB::ClusterOne_Test( Sequence *seq, int id, WordTable & table,
                 int bucket = buffer.word_encodes[j];
                 int count  = buffer.word_encodes_no[j];
                 if (count > 0) {
-                    buffer.local_tables[bucket].emplace_back(id, count); 
+					NVector<IndexCount> &row = table.indexCounts[bucket];
+					int lock_idx = bucket % num_locks;
+					omp_set_lock(&locks[lock_idx]);
+					row.Append(IndexCount(id, count));
+					omp_unset_lock(&locks[lock_idx]);
                 }
             }
 
 }
-int SequenceDB::CheckOne_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+void SequenceDB::ClusterOne_master( Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,omp_lock_t* locks, int num_locks)
+{
+	int len = seq->size;
+	int NAA = options.NAA;
+	buffer.EncodeWords( seq, options.NAA, false );
+			int aan_no = len - NAA + 1;
+	  for (int j = 0; j < aan_no; ++j) {
+                int bucket = buffer.word_encodes[j];
+                int count  = buffer.word_encodes_no[j];
+                if (count > 0) {
+					int lock_idx = bucket % num_locks;
+					omp_set_lock(&locks[lock_idx]);
+                    word_table[bucket].emplace_back(id, count); 
+					omp_unset_lock(&locks[lock_idx]);
+                }
+            }
+
+}
+int SequenceDB::CheckOne_single( Sequence *seq, int qid,WordTable& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	int len = seq->size;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	// if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
 	return CheckOneAA_single( seq,qid, word_table, param, buf, options );
 }
-int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,WordTable& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {   //Todo  uint32_t
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 
@@ -4820,7 +4905,7 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	// int M = frag_size ? table.frag_count : S;
-	buf.CountWords(aan_no,  qid,word_table,false, required_aan);
+	word_table.CountWords(aan_no, qid,word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan);
 
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
@@ -4835,17 +4920,18 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
 	int lens;
 	int has_aa2 = 0;
-
-
-	for (auto &pr : buf.out_pairs){
+	IndexCount *ic = lookCounts.items;
+	ic = lookCounts.items;
+	for (; ic->count; ic++)
+	{
 
 		if( ! frag_size ){
 			// indexMapping[ ic->index ] = 0;
-			if ( pr.second < required_aan ) continue;
+			if ( ic->count < required_aan ) continue;
 		}
 
 		// Sequence *rep = table.sequences[ ic->index ];
-		Sequence *rep = sequences[ pr.first ];
+		Sequence *rep = sequences[ ic->index ];
 	
 		len2 = rep->size;
 		if (len2 > len_upper_bound ) continue;
@@ -4912,14 +4998,14 @@ int SequenceDB::CheckOneAA_single( Sequence *seq, int qid,const std::vector<std:
 	return flag;
 
 }
-int SequenceDB::CheckOne_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOne_master( Sequence *seq, int qid,WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {
 	int len = seq->size;
 	param.len_upper_bound = upper_bound_length_rep(len, options);
 	// if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
-	return CheckOneAA_master( seq,qid, word_table, param, buf, options );
+	return CheckOneAA_master( seq,qid, table, param, buf, options );
 }
-int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
+int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,WordTable & table, WorkingParam & param, WorkingBuffer & buf, const Options & options )
 {   //Todo  uint32_t
 	NVector<IndexCount> & lookCounts = buf.lookCounts;
 
@@ -4959,8 +5045,8 @@ int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std:
 	// lookup_aan
 	int aan_no = len - options.NAA + 1;
 	// int M = frag_size ? table.frag_count : S;
-	buf.CountWords(aan_no,  qid,word_table,false, required_aan);
-
+	// buf.CountWords(aan_no,  qid,word_table,false, required_aan);
+	table.CountWords(aan_no, qid,word_encodes, word_encodes_no, lookCounts, indexMapping, false, required_aan);
 	// contained_in_old_lib()
 	int len_upper_bound = param.len_upper_bound;
 	int len_lower_bound = param.len_lower_bound;
@@ -4974,15 +5060,16 @@ int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std:
 	int frg2 = frag_size ? (len - NAA + options.band_width ) / frag_size + 1 + 1 : 0;
 	int lens;
 	int has_aa2 = 0;
-
-	for (auto &pr : buf.out_pairs){
+	IndexCount *ic = lookCounts.items;
+	ic = lookCounts.items;
+	for(; ic->count; ic++){
 		if( ! frag_size ){
-			// indexMapping[ ic->index ] = 0;
-			if ( pr.second < required_aan ) continue;
+			indexMapping[ ic->index ] = 0;
+			if ( ic->count < required_aan ) continue;
 		}
-
+		// cerr<<"ic->index "<<ic->index<<endl;
 		// Sequence *rep = table.sequences[ ic->index ];
-		Sequence *rep = sequences[ pr.first ];
+		Sequence *rep = sequences[ ic->index ];
 		len2 = rep->size;
 		if (len2 > len_upper_bound ) continue;
 		if (options.has2D && len2 < len_lower_bound ) continue;
@@ -5047,45 +5134,45 @@ int SequenceDB::CheckOneAA_master( Sequence *seq, int qid,const std::vector<std:
 			seq->state|=IS_REDUNDANT;
 			break;
 		}
-		buf.thread_edges.emplace_back(qid, pr.first);
+		buf.thread_edges.emplace_back(qid, ic->index);
 	}
 	return flag;
 
 }
-int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table ,bool est, int min)
-{
-	out_pairs.clear();
-	visited.clear();
-	auto add_count = [&](int tid, int add){
-		if (counts[tid] == 0) visited.push_back(tid);
-		counts[tid] += add;
-	};
-	for (int j0 = 0; j0 < aan_no; ++j0) {
-		int bucket = word_encodes[j0];
-		int qcnt   = word_encodes_no[j0];
-		if (qcnt == 0) continue;
+// int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table ,bool est, int min)
+// {
+// 	out_pairs.clear();
+// 	visited.clear();
+// 	auto add_count = [&](int tid, int add){
+// 		if (counts[tid] == 0) visited.push_back(tid);
+// 		counts[tid] += add;
+// 	};
+// 	for (int j0 = 0; j0 < aan_no; ++j0) {
+// 		int bucket = word_encodes[j0];
+// 		int qcnt   = word_encodes_no[j0];
+// 		if (qcnt == 0) continue;
 
-		const auto& hits = word_table[bucket];  // 已按 seq_id 降序
-		int rest = aan_no - j0 + 1;
+// 		const auto& hits = word_table[bucket];  // 已按 seq_id 降序
+// 		int rest = aan_no - j0 + 1;
 
-		// 只扫 id>qid 的前缀
-		for (size_t k = 0; k < hits.size(); ++k) {
-			int tid  = hits[k].first;
-			if (tid >= qid) break;  // 及早终止
-			int tcnt = hits[k].second;
+// 		// 只扫 id>qid 的前缀
+// 		for (size_t k = 0; k < hits.size(); ++k) {
+// 			int tid  = hits[k].first;
+// 			if (tid >= qid) break;  // 及早终止
+// 			int tcnt = hits[k].second;
 
-			if (min > 0 && rest < min && counts[tid] == 0) continue;
-			int add = (qcnt < tcnt) ? qcnt : tcnt;
-			add_count(tid, add);
-		}
-	}
-	out_pairs.reserve(visited.size());
-	for (int tid : visited) {
-		out_pairs.emplace_back(tid, counts[tid]);
-		counts[tid] = 0;
-	}
-	return OK_FUNC;
-}
+// 			if (min > 0 && rest < min && counts[tid] == 0) continue;
+// 			int add = (qcnt < tcnt) ? qcnt : tcnt;
+// 			add_count(tid, add);
+// 		}
+// 	}
+// 	out_pairs.reserve(visited.size());
+// 	for (int tid : visited) {
+// 		out_pairs.emplace_back(tid, counts[tid]);
+// 		counts[tid] = 0;
+// 	}
+// 	return OK_FUNC;
+// }
 
 
 void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool master, bool worker, int worker_rank,const char* output,MPI_Comm worker_comm) {
@@ -5147,8 +5234,15 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long prefix_size;
 	int record_last=0;
 	int record=0;
+	const int NUM_LOCKS = 65536;
+	omp_lock_t *locks = new omp_lock_t[NUM_LOCKS];
+	omp_set_num_threads(T);
+#pragma omp parallel for schedule(static)
+	for (int i = 0; i < NUM_LOCKS; ++i)
+	{
+		omp_init_lock(&locks[i]);
+	}
 
-	
 	if (master) {   
 
 		cerr<<"chunks_num  "<<chunks_num<<endl;
@@ -5159,7 +5253,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 
 
 		std::vector<std::vector<int>> neigh ;
-		vector<vector<pair<int, int>>> all_wordtable(NAAN);
+		// vector<vector<pair<int, int>>> all_wordtable(NAAN);
 
 		ofstream fout(output);
 		string clstr_output = options.output +".clstr";
@@ -5269,7 +5363,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				if (seq->state & IS_REDUNDANT)
 					continue;
 				
-				ClusterOne_single(seq, j, all_wordtable, params[0], buffers[0], options, centers);
+				ClusterOne_single(seq, j, word_table, params[0], buffers[0], options, centers);
 				if (seq->state & IS_REP)
 				{
 					fout << ">" << seq->identifier << "\n";
@@ -5290,42 +5384,59 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				if (seq->state & IS_REDUNDANT)
 					continue;
 				int tid = omp_get_thread_num();
-				ClusterOne_Test(seq, j, word_table, params[tid], buffers[tid], options);
+				ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS);
 			}
-#pragma omp parallel for schedule(static)
-			for (long long b = 0; b < (long long)NAAN; ++b)
-			{
-				size_t add = 0;
-				for (int t = 0; t < T; ++t)
-					add += buffers[t].local_tables[b].size();
-				auto &dst = all_wordtable[b];
-				dst.clear();
-				if (add > dst.capacity())
-					dst.reserve(add);
+// #pragma omp parallel for schedule(static)
+// 			for (long long b = 0; b < (long long)NAAN; ++b)
+// 			{
+// 				size_t add = 0;
+// 				for (int t = 0; t < T; ++t)
+// 					add += buffers[t].local_tables[b].size();
+// 				auto &dst = all_wordtable[b];
+// 				dst.clear();
+// 				if (add > dst.capacity())
+// 					dst.reserve(add);
 
-				for (int t = 0; t < T; ++t)
-				{
-					auto &src = buffers[t].local_tables[b];
-					if (!src.empty())
-					{
-						dst.insert(dst.end(),
-								   make_move_iterator(src.begin()),
-								   make_move_iterator(src.end()));
-						src.clear();
-					}
-				}
-			}
+// 				for (int t = 0; t < T; ++t)
+// 				{
+// 					auto &src = buffers[t].local_tables[b];
+// 					if (!src.empty())
+// 					{
+// 						dst.insert(dst.end(),
+// 								   make_move_iterator(src.begin()),
+// 								   make_move_iterator(src.end()));
+// 						src.clear();
+// 					}
+// 				}
+// 			}
+
+// #pragma omp parallel for schedule(dynamic)
+// 			for (size_t j = 0; j < all_wordtable.size(); ++j)
+// 			{
+// 				auto &row = all_wordtable[j];
+// 				std::sort(row.begin(), row.end(),
+// 						  [](const std::pair<int, int> &a, const std::pair<int, int> &b)
+// 						  {
+// 							  return a.first < b.first; 
+// 						  });
+// 			}
 
 #pragma omp parallel for schedule(dynamic)
-			for (size_t j = 0; j < all_wordtable.size(); ++j)
-			{
-				auto &row = all_wordtable[j];
-				std::sort(row.begin(), row.end(),
-						  [](const std::pair<int, int> &a, const std::pair<int, int> &b)
-						  {
-							  return a.first < b.first; 
-						  });
-			}
+    for (long long j = 0; j < (long long)word_table.NAAN; ++j) 
+    {
+        NVector<IndexCount> &row = word_table.indexCounts[j];
+
+        if (row.size < 2 || row.items == NULL) continue;
+        std::sort(
+            row.items,             
+            row.items + row.size,   
+            [](const IndexCount &a, const IndexCount &b)
+            {
+                return a.index < b.index; 
+            }
+        );
+    }
+	
 			double tA = get_time();
 
 #pragma omp parallel for schedule(dynamic, 1)
@@ -5335,7 +5446,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				Sequence *seq = sequences[j];
 				if (seq->state & IS_REDUNDANT)
 					continue;
-				int flag = CheckOne_master(seq, j, all_wordtable, params[tid], buffers[tid], options);
+				int flag = CheckOne_master(seq, j, word_table, params[tid], buffers[tid], options);
 				if(flag == 0)
 				seq->state |= IS_REP;
 			}
@@ -5398,15 +5509,16 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		encode_WordTable(info_buf, i,
 						 start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
 						 indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index, start_global_id);
-			if(T == 1){
-				#pragma omp parallel for schedule(static)
-		for (long long b = 0; b < (long long)NAAN; ++b)
-		{
-			auto &dst = all_wordtable[b];
-			dst.clear();
+			// if(T == 1){
+		// 		#pragma omp parallel for schedule(static)
+		// for (long long b = 0; b < (long long)NAAN; ++b)
+		// {
+		// 	auto &dst = all_wordtable[b];
+		// 	dst.clear();
 
-		}
-			}
+		// }
+			// }
+		word_table.Clear();
 		if (i > 0)
 		{
 			MPI_Request request[4] = {MPI_REQUEST_NULL};
@@ -5769,6 +5881,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		Slot slots[2];
 		int cur = 0, next = 1;
 		int first_flag = 1;
+
 		post_ibcasts_for_this_block(slots[cur], source, MPI_COMM_WORLD);
 		while(1){
 			int ibcast_flag = 0;
@@ -5782,7 +5895,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 			int soure_chunk = slots[cur].info[0];
 			int file_index=slots[cur].info[5];
 			start_id =  slots[cur].info[6];
-	
+
 			if (soure_chunk < chunks_num - 1)
 			{
 				MPI_Ibcast(&ibcast_flag, 1, MPI_INT, source, MPI_COMM_WORLD, &request);
@@ -5854,28 +5967,28 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				Sequence *seq = rep_sequences[j];
 				if (seq->state & IS_REP)
-				ClusterOne_Test(seq, seq->table_idx, word_table, params[tid], buffers[tid], options);
+				ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS);
 			}
-#pragma omp parallel for schedule(static)
-			for (long long b = 0; b < (long long)NAAN; ++b)
-			{
-				NVector<IndexCount> &row = word_table.indexCounts[b];
-				row.Clear();
-				for (int t = 0; t < T; ++t)
-				{
-					auto &src = buffers[t].local_tables[b];
-					if (!src.empty())
-					{
-						size_t n = src.size();
+// #pragma omp parallel for schedule(static)
+// 			for (long long b = 0; b < (long long)NAAN; ++b)
+// 			{
+// 				NVector<IndexCount> &row = word_table.indexCounts[b];
+// 				// row.Clear();
+// 				for (int t = 0; t < T; ++t)
+// 				{
+// 					auto &src = buffers[t].local_tables[b];
+// 					if (!src.empty())
+// 					{
+// 						size_t n = src.size();
 
-						for (size_t i = 0; i < n; ++i)
-						{
-							row.Append(IndexCount(src[i].first, src[i].second));
-						}
-						src.clear();
-					}
-				}
-			}
+// 						for (size_t i = 0; i < n; ++i)
+// 						{
+// 							row.Append(IndexCount(src[i].first, src[i].second));
+// 						}
+// 						src.clear();
+// 					}
+// 				}
+// 			}
 			double t142 = get_time();
 			cerr<<"build word table time   "<<t142-t141<<endl;
 
@@ -6336,7 +6449,12 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 }
 	
 	}
-
+#pragma omp parallel for schedule(static)
+	for (int i = 0; i < NUM_LOCKS; ++i)
+	{
+		omp_destroy_lock(&locks[i]);
+	}
+	delete[] locks;
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
 		printf("\n%9lli  finished  %9i  clusters\n", total_num, rep_seqs.size());
