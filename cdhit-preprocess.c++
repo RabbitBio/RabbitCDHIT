@@ -73,12 +73,12 @@ int main(int argc, char *argv[])
 	InitNAA( MAX_UAA );
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
-	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
+
     if (options.input.size()  == 0) bomb_error("no input file");
     if (options.NodeNum  == 0) bomb_error("no NodeNum");
     if (options.threads_per_node  == 0) bomb_error("no threads_per_node");
 	    std::regex cpu_dir("^cpu([0-9]+)$");
-    std::map<int, std::set<int>> socket_coreids;  // socket -> {core_id set}
+    std::map<int, std::set<int>> socket_coreids;  
 
     DIR* d = opendir("/sys/devices/system/cpu");
     if (!d) { perror("opendir"); return 1; }
@@ -93,13 +93,11 @@ int main(int argc, char *argv[])
     }
     closedir(d);
 
-    // for (auto& [socket, cores] : socket_coreids) {
-    //     printf("Socket %d: physical cores = %zu\n", socket, cores.size());
-    // }
+
     int core_size = socket_coreids[0].size();
-			// 外部排序
+
 			size_t min_file_size = 512ull * 1024 * 1024;
-			// seq_db.GenerateSorted_Parallel(db_in.c_str(), min_file_size , run_files,options);
+
 			auto start = std::chrono::high_resolution_clock::now();
 			seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options,core_size);
 			mkdir(options.tmp_dir.c_str(), 0755);

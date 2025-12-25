@@ -36,7 +36,6 @@ SequenceDB seq_db;
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char *argv[])
 {
-	// sleep(20);
 	string db_in;
 	string db_out;
 	vector<SequenceMeta> meta_table;
@@ -50,7 +49,7 @@ int main(int argc, char *argv[])
 	bool master = true;
 	bool worker = false;
 	
-	//初始化MPI
+
 	int provided;
     MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 	 if (provided < MPI_THREAD_MULTIPLE)
@@ -63,9 +62,9 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 	MPI_Comm worker_comm;
     if (rank != 0) {
-        MPI_Comm_split(MPI_COMM_WORLD, 1, rank, &worker_comm);  // 工作进程（非主进程）创建一个新的group
+        MPI_Comm_split(MPI_COMM_WORLD, 1, rank, &worker_comm);  
     } else {
-        MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &worker_comm);  // 主进程不属于工作进程组
+        MPI_Comm_split(MPI_COMM_WORLD, 0, rank, &worker_comm);  
     }
 	int worker_rank, worker_size;
     MPI_Comm_rank(worker_comm, &worker_rank);
@@ -87,15 +86,6 @@ int main(int argc, char *argv[])
 	InitNAA( MAX_UAA );
 	options.NAAN = NAAN_array[options.NAA];
 	seq_db.NAAN = NAAN_array[options.NAA];
-	// for(int i = 0;i<size;i++){
-	// 	seq_db.stealing_rank.emplace_back(0);
-	// }
-	// MPI_Win_create(seq_db.stealing_rank.empty() ? MPI_BOTTOM : (void *)seq_db.stealing_rank.data(),
-	// 				   (MPI_Aint)seq_db.stealing_rank.size() * sizeof(int),
-	// 				   sizeof(int), MPI_INFO_NULL, MPI_COMM_WORLD, &seq_db.stealing_rank_);
-	// MPI_Win_lock_all(0, seq_db.stealing_rank_);	   
-	//printf( "%i  %i  %i\n", sizeof(NVector<IndexCount>), seq_db.NAAN, sizeof(NVector<IndexCount>) * seq_db.NAAN );
-	// MPI_Barrier(MPI_COMM_WORLD);
 	string temp_dir = options.tmp_dir;
 	if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\')
 	{
@@ -104,16 +94,14 @@ int main(int argc, char *argv[])
 	seq_db.ReadJsonInfo("info.json", temp_dir, options, master);
 	if (size != seq_db.total_mpi_num)
 		bomb_error("Number of processes does not match");
-	// if (options.threads != seq_db.Production_threads)
-	// 	bomb_error("Number of threads does not match");
+
 	if (!master)
 	{
 		seq_db.read_sorted_files(temp_dir,rank, size, false,worker_comm,options);
 		MPI_Barrier(worker_comm);
-		// exit(0);
+
 	}
 
-	// if (rank == 0) {
 		
 
 
@@ -122,10 +110,7 @@ int main(int argc, char *argv[])
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
 		cout << "Cluster is Finished" << endl;
-		// seq_db.checkRepSeqs();
 		printf("writing new database\n");
-		// seq_db.WriteClustersSort(db_in.c_str(), db_out.c_str(), options);
-		// seq_db.WriteClusterDetail(options);
 		cout << "program completed !" << endl << endl;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
