@@ -190,7 +190,10 @@ typedef Vector<VectorInt> MatrixInt;
 
 typedef NVector<int64_t>   VectorInt64;
 typedef Vector<VectorInt64> MatrixInt64;
-
+struct alignas(64) PaddedLock {
+    omp_lock_t lock;
+    
+};
 ////////// Class definition //////////
 class ScoreMatrix { //Matrix
 	private:
@@ -822,9 +825,9 @@ class SequenceDB
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		void ClusterOne_worker(Sequence *seq, int id, WordTable &table,
-							 WorkingParam &param, WorkingBuffer &buffer, const Options &options, omp_lock_t *locks, int num_locks);
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks);
 		void ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
-							 WorkingParam &param, WorkingBuffer &buffer, const Options &options, omp_lock_t *locks, int num_locks);
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks);
 		void ClusterOne_single(Sequence *seq, int id, WordTable &word_table,
 							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,int &centers);
 		//void SelfComparing( int start, int end, WordTable & table, 
