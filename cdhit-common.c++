@@ -4820,7 +4820,7 @@ void SequenceDB::send_cluster(
 	seq_cnt=nullptr;
 }
 void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks)
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks, int lock_mask)
 {
 	int len = seq->size;
 	int NAA = options.NAA;
@@ -4831,7 +4831,7 @@ void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
                 int count  = buffer.word_encodes_no[j];
                 if (count > 0) {
 					NVector<IndexCount> &row = table.indexCounts[bucket];
-					int lock_idx = bucket & 0xFFFF;
+					int lock_idx = bucket & lock_mask;
 					omp_set_lock( &locks[lock_idx].lock );
 					row.Append(IndexCount(id, count));
 					omp_unset_lock( &locks[lock_idx].lock );
@@ -4840,7 +4840,7 @@ void SequenceDB::ClusterOne_worker( Sequence *seq, int id, WordTable & table,
 
 }
 void SequenceDB::ClusterOne_master( Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
-		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks)
+		WorkingParam & param, WorkingBuffer & buffer, const Options & options,PaddedLock* locks, int num_locks, int lock_mask)
 {
 	int len = seq->size;
 	int NAA = options.NAA;
@@ -4850,7 +4850,7 @@ void SequenceDB::ClusterOne_master( Sequence *seq, int id, std::vector<std::vect
                 int bucket = buffer.word_encodes[j];
                 int count  = buffer.word_encodes_no[j];
                 if (count > 0) {
-					int lock_idx = bucket & 0xFFFF;
+					int lock_idx = bucket & lock_mask;
 					omp_set_lock( &locks[lock_idx].lock );
                     word_table[bucket].emplace_back(id, count); 
 					omp_unset_lock( &locks[lock_idx].lock );
@@ -5234,7 +5234,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long prefix_size;
 	int record_last=0;
 	int record=0;
-	const int NUM_LOCKS = 65536;
+	const int NUM_LOCKS = 131072;
+	const int LOCK_MASK = 0x1FFFF;
 	PaddedLock *locks = new PaddedLock[NUM_LOCKS];
 
 	omp_set_num_threads(T);
@@ -5385,7 +5386,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				if (seq->state & IS_REDUNDANT)
 					continue;
 				int tid = omp_get_thread_num();
-				ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS);
+				ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS,LOCK_MASK);
 			}
 // #pragma omp parallel for schedule(static)
 // 			for (long long b = 0; b < (long long)NAAN; ++b)
@@ -5968,7 +5969,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				Sequence *seq = rep_sequences[j];
 				if (seq->state & IS_REP)
-				ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS);
+				ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS,LOCK_MASK);
 			}
 // #pragma omp parallel for schedule(static)
 // 			for (long long b = 0; b < (long long)NAAN; ++b)

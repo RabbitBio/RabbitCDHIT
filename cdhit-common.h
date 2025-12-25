@@ -825,9 +825,9 @@ class SequenceDB
 		void ClusterOne( Sequence *seq, int id, WordTable & table,
 				WorkingParam & param, WorkingBuffer & buf, const Options & options );
 		void ClusterOne_worker(Sequence *seq, int id, WordTable &table,
-							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks);
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks, int lock_mask);
 		void ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int,int>>>& word_table,
-							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks);
+							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,PaddedLock* locks, int num_locks, int lock_mask);
 		void ClusterOne_single(Sequence *seq, int id, WordTable &word_table,
 							 WorkingParam &param, WorkingBuffer &buffer, const Options &options,int &centers);
 		//void SelfComparing( int start, int end, WordTable & table, 
