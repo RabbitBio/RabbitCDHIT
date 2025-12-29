@@ -5234,8 +5234,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	long prefix_size;
 	int record_last=0;
 	int record=0;
-	const int NUM_LOCKS = 131072;
-	const int LOCK_MASK = 0x1FFFF;
+	const int NUM_LOCKS = 262144;
+	const int LOCK_MASK = 0x3FFFF;
 	PaddedLock *locks = new PaddedLock[NUM_LOCKS];
 
 	omp_set_num_threads(T);
@@ -5388,41 +5388,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				int tid = omp_get_thread_num();
 				ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS,LOCK_MASK);
 			}
-// #pragma omp parallel for schedule(static)
-// 			for (long long b = 0; b < (long long)NAAN; ++b)
-// 			{
-// 				size_t add = 0;
-// 				for (int t = 0; t < T; ++t)
-// 					add += buffers[t].local_tables[b].size();
-// 				auto &dst = all_wordtable[b];
-// 				dst.clear();
-// 				if (add > dst.capacity())
-// 					dst.reserve(add);
-
-// 				for (int t = 0; t < T; ++t)
-// 				{
-// 					auto &src = buffers[t].local_tables[b];
-// 					if (!src.empty())
-// 					{
-// 						dst.insert(dst.end(),
-// 								   make_move_iterator(src.begin()),
-// 								   make_move_iterator(src.end()));
-// 						src.clear();
-// 					}
-// 				}
-// 			}
-
-// #pragma omp parallel for schedule(dynamic)
-// 			for (size_t j = 0; j < all_wordtable.size(); ++j)
-// 			{
-// 				auto &row = all_wordtable[j];
-// 				std::sort(row.begin(), row.end(),
-// 						  [](const std::pair<int, int> &a, const std::pair<int, int> &b)
-// 						  {
-// 							  return a.first < b.first; 
-// 						  });
-// 			}
-
 #pragma omp parallel for schedule(dynamic)
     for (long long j = 0; j < (long long)word_table.NAAN; ++j) 
     {
@@ -5511,15 +5476,6 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		encode_WordTable(info_buf, i,
 						 start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
 						 indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index, start_global_id);
-			// if(T == 1){
-		// 		#pragma omp parallel for schedule(static)
-		// for (long long b = 0; b < (long long)NAAN; ++b)
-		// {
-		// 	auto &dst = all_wordtable[b];
-		// 	dst.clear();
-
-		// }
-			// }
 		word_table.Clear();
 		if (i > 0)
 		{
@@ -5883,7 +5839,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		Slot slots[2];
 		int cur = 0, next = 1;
 		int first_flag = 1;
-
+		double total_time;
 		post_ibcasts_for_this_block(slots[cur], source, MPI_COMM_WORLD);
 		while(1){
 			int ibcast_flag = 0;
@@ -5971,29 +5927,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				if (seq->state & IS_REP)
 				ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options,locks, NUM_LOCKS,LOCK_MASK);
 			}
-// #pragma omp parallel for schedule(static)
-// 			for (long long b = 0; b < (long long)NAAN; ++b)
-// 			{
-// 				NVector<IndexCount> &row = word_table.indexCounts[b];
-// 				// row.Clear();
-// 				for (int t = 0; t < T; ++t)
-// 				{
-// 					auto &src = buffers[t].local_tables[b];
-// 					if (!src.empty())
-// 					{
-// 						size_t n = src.size();
-
-// 						for (size_t i = 0; i < n; ++i)
-// 						{
-// 							row.Append(IndexCount(src[i].first, src[i].second));
-// 						}
-// 						src.clear();
-// 					}
-// 				}
-// 			}
 			double t142 = get_time();
 			cerr<<"build word table time   "<<t142-t141<<endl;
-
+			total_time += t142-t141;
 			int remain_chunks = my_chunks.size() - start;
 
 		
@@ -6418,8 +6354,10 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 				flat_coverage = nullptr;
 				flat_identifier = nullptr;
 				record_last = record;
-				if (soure_chunk == chunks_num - 1)
+	if (soure_chunk == chunks_num - 1){
+					cerr<<"total build time "<<total_time<<endl;
 					break;
+				}
 				if (chunks_id[start] == soure_chunk)
 				{
 					start++;
