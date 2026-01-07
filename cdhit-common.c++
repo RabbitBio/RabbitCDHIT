@@ -5492,7 +5492,7 @@ double tA1 = get_time();
 			MPI_Ibcast((void *)seqs_suffix_buf, (int)info_buf[1], MPI_LONG, source, MPI_COMM_WORLD, &request[3]);
 			MPI_Waitall(4, request, MPI_STATUSES_IGNORE);
 			cerr << "send over " << info_buf[0] << endl;
-						double tB = get_time();
+			double tB = get_time();
 			std::cerr << "master time   : " << (tB - tA) << " s\n";
 //--------------------------------------------------
 			clusters_identifier.resize(C);
@@ -5500,7 +5500,6 @@ double tA1 = get_time();
 			clusters_identity.resize(C);
 			clusters_coverage.resize(C);
 			std::vector<omp_lock_t> locks(C);
-
 			for (int c = 0; c < C; ++c)
 				omp_init_lock(&locks[c]);
 
@@ -5851,17 +5850,12 @@ double tA1 = get_time();
 		int cur = 0, next = 1;
 		int first_flag = 1;
 		double total_time = 0;
-		double wait_time = 0;
 		post_ibcasts_for_this_block(slots[cur], source, MPI_COMM_WORLD);
 		while(1){
 			int ibcast_flag = 0;
 			int done_flag=0;
 			int now_rank=0;
 			MPI_Request request = MPI_REQUEST_NULL;
-			int flag_local = 0;
-			int flag1 =0;
-			int flag2 =0;
-			int test_count = 0;
 			int send_flag = 0;
 			int *prefix_seq, *flat_size, *flat_coverage;
 			float *flat_identity;
@@ -6003,18 +5997,21 @@ double tA1 = get_time();
 								Sequence *seq = sequences[k];
 								if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
 									continue;
-								if (tid == 0 && !done_flag&& (++test_count % 16 == 0))
+								if (tid == 0 && !done_flag)
 								{
-									// int flag_local = 0;
+									int flag_local = 0;
 									MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
-								
 									if (ibcast_flag)
 									{
 										post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
 										ibcast_flag = 0;
 										done_flag = 1;
+										
+										int flag1 = 0;
+										int flag2 = 0;
 										MPI_Test(&slots[next].reqs[0], &flag1, MPI_STATUS_IGNORE);
 										MPI_Test(&slots[next].reqs[1], &flag2, MPI_STATUS_IGNORE);
+
 									}
 								}
 
@@ -6209,25 +6206,26 @@ double tA1 = get_time();
 					{
 						int idx = i + start;
 
-#pragma omp for schedule(guided)
+#pragma omp for schedule(dynamic,1)
 						for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
 						{
 							Sequence *seq = sequences[j];
 							if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
 								continue;
 
-							if (tid == 0 && !done_flag&& (++test_count % 16 == 0))
+							if (tid == 0 && !done_flag)
 							{
-								// int flag_local = 0;
-							
+								int flag_local = 0;
 								MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
 								if (ibcast_flag)
 								{
 									post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
 									ibcast_flag = 0;
 									done_flag = 1;
+									int flag1 = 0;
+									int flag2 = 0;
 									MPI_Test(&slots[next].reqs[0], &flag1, MPI_STATUS_IGNORE);
-										MPI_Test(&slots[next].reqs[1], &flag2, MPI_STATUS_IGNORE);
+									MPI_Test(&slots[next].reqs[1], &flag2, MPI_STATUS_IGNORE);
 								}
 							}
 
@@ -6275,10 +6273,10 @@ double tA1 = get_time();
 
 				post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
 			}
+
 			wait_all(slots[next]);
-			double t17 = get_time();
+						double t17 = get_time();
 			cerr << "-----wait time  " << t17 - t16 << "  by rank  " << my_rank << endl;
-			wait_time+=t17 - t16;
 			std::swap(cur, next);
 			if (options.stealing)
 			{
@@ -6377,7 +6375,6 @@ double tA1 = get_time();
 				record_last = record;
 	if (soure_chunk == chunks_num - 1){
 					cerr<<"total build time "<<total_time<<endl;
-					cerr<<"total wait time "<<wait_time<<endl;
 					break;
 				}
 				if (chunks_id[start] == soure_chunk)
