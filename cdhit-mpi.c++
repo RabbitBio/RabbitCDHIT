@@ -36,6 +36,7 @@ SequenceDB seq_db;
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char *argv[])
 {
+	sleep(0);
 	string db_in;
 	string db_out;
 	vector<SequenceMeta> meta_table;
@@ -79,7 +80,10 @@ int main(int argc, char *argv[])
 	if (options.SetOptions( argc, argv ) == 0) print_usage_mpi(argv[0]);
 	options.Validate();
 	if (options.output.size()  == 0) bomb_error("no output file");
-	
+	if (master)
+	{
+		mkdir(options.output.c_str(), 0755);
+	}
 	db_in = options.input;
 	db_out = options.output;
 	
@@ -102,10 +106,7 @@ int main(int argc, char *argv[])
 
 	}
 
-		
 
-
-	
 	seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank,db_out.c_str(),worker_comm);
 	MPI_Barrier(MPI_COMM_WORLD);
 	if (master) {
