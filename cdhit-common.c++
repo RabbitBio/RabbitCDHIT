@@ -4653,6 +4653,10 @@ void post_ibcasts_for_next_block(Slot& s, int source, MPI_Comm comm) {
     MPI_Ibcast((void*)s.cluster_id,  (int)s.cluster_n,  MPI_LONG,      source, comm, &s.reqs.back());
     s.reqs.emplace_back(MPI_REQUEST_NULL);
     MPI_Ibcast((void*)s.seqs_suffix, (int)s.suffix_n,   MPI_LONG,      source, comm, &s.reqs.back());
+	double t1 =get_time();
+	MPI_Waitall(s.reqs.size(), s.reqs.data(), MPI_STATUSES_IGNORE);
+	double t2 = get_time();
+	cerr<<"..................wait  time "<<t2-t1<<endl;
 }
 
 void wait_all(Slot& s) {
@@ -5246,7 +5250,9 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	{
 		omp_init_lock(&locks[i].lock); 
 	}
-
+	string clstr_output = options.output+'/'+std::to_string(my_rank)+".clstr";
+	ofstream clstr_fout(clstr_output);
+	
 	if (master) {   
 
 		cerr<<"chunks_num  "<<chunks_num<<endl;
@@ -5260,8 +5266,7 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 		// vector<vector<pair<int, int>>> all_wordtable(NAAN);
 
 		ofstream fout(output);
-		string clstr_output = options.output +".clstr";
-		ofstream clstr_fout(clstr_output);
+
 
 		vector<int>read_flag(chunks_num,0);
 		int output_index=0;
@@ -5339,14 +5344,14 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 	delete[] data_ptr;
 	delete[] true_ptr;
 	file_index=(file_index+1)%(rank_size-1);
-	vector<vector<string>> clusters_identifier;
-	vector<vector<float>> clusters_identity;
-	vector<vector<int>> clusters_size;
-	vector<vector<int>> clusters_coverage;
-	vector<string> rep_identifier_cur;
-	vector<int> rep_size_cur;
-	vector<string> rep_identifier_next;
-	vector<int> rep_size_next;
+	// vector<vector<string>> clusters_identifier;
+	// vector<vector<float>> clusters_identity;
+	// vector<vector<int>> clusters_size;
+	// vector<vector<int>> clusters_coverage;
+	// vector<string> rep_identifier_cur;
+	// vector<int> rep_size_cur;
+	// vector<string> rep_identifier_next;
+	// vector<int> rep_size_next;
 	omp_set_num_threads(T);
 
 	for (i = 0; i < chunks_num; i++)
@@ -5375,8 +5380,8 @@ void SequenceDB::DoClustering_MPI(const Options& options, int my_rank, bool mast
 					fout << ">" << seq->identifier << "\n";
 					fout << seq->true_data << "\n";
 
-					rep_identifier_next.emplace_back(seq->identifier);
-					rep_size_next.emplace_back(seq->size);
+					clstr_fout << ">Cluster " << seq->cluster_id << "\n";
+					clstr_fout << 0 << '\t' << seq->size << "aa, >" << seq->identifier << "..." << " *" << "\n";
 				}
 			}
 		}
@@ -5471,9 +5476,9 @@ double tA1 = get_time();
 				++centers;
 				fout << ">" << seq->identifier << "\n";
 				fout << seq->true_data << "\n";
+				clstr_fout << ">Cluster " << seq->cluster_id << "\n";
+				clstr_fout << 0 << '\t' << seq->size << "aa, >" <<seq->identifier << "..." << " *" <<"\n";
 
-				rep_identifier_next.emplace_back(seq->identifier);
-				rep_size_next.emplace_back(seq->size);
 			}
 		}
 
@@ -5495,99 +5500,99 @@ double tA1 = get_time();
 			double tB = get_time();
 			std::cerr << "master time   : " << (tB - tA) << " s\n";
 //--------------------------------------------------
-			clusters_identifier.resize(C);
-			clusters_size.resize(C);
-			clusters_identity.resize(C);
-			clusters_coverage.resize(C);
-			std::vector<omp_lock_t> locks(C);
-			for (int c = 0; c < C; ++c)
-				omp_init_lock(&locks[c]);
+// 			clusters_identifier.resize(C);
+// 			clusters_size.resize(C);
+// 			clusters_identity.resize(C);
+// 			clusters_coverage.resize(C);
+// 			std::vector<omp_lock_t> locks(C);
+// 			for (int c = 0; c < C; ++c)
+// 				omp_init_lock(&locks[c]);
 
-#pragma omp parallel
-#pragma omp single 
-			for (int src = 1; src < rank_size; ++src)
-			{
-				int N;
-				MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
-				int *flat_size = (int *)malloc(N * sizeof(int));
-				float *flat_identity = (float *)malloc(N * sizeof(float));
-				int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
-				char *flat_identifier = (char *)malloc((size_t)N * (max_idf + 1));
+// #pragma omp parallel
+// #pragma omp single 
+// 			for (int src = 1; src < rank_size; ++src)
+// 			{
+// 				int N;
+// 				MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
+// 				int *flat_size = (int *)malloc(N * sizeof(int));
+// 				float *flat_identity = (float *)malloc(N * sizeof(float));
+// 				int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
+// 				char *flat_identifier = (char *)malloc((size_t)N * (max_idf + 1));
 
-				MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-#pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
-					{
-						for (int c = 0; c < C; ++c)
-						{
-							int begin = prefix_seq[c], end = prefix_seq[c + 1];
-							std::vector<std::string> ids;
-							std::vector<int> sizes, covs;
-							std::vector<float> idts;
-							ids.reserve(end - begin);
-							sizes.reserve(end - begin);
-							idts.reserve(end - begin);
-							covs.reserve((end - begin) * 4);
+// #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
+// 					{
+// 						for (int c = 0; c < C; ++c)
+// 						{
+// 							int begin = prefix_seq[c], end = prefix_seq[c + 1];
+// 							std::vector<std::string> ids;
+// 							std::vector<int> sizes, covs;
+// 							std::vector<float> idts;
+// 							ids.reserve(end - begin);
+// 							sizes.reserve(end - begin);
+// 							idts.reserve(end - begin);
+// 							covs.reserve((end - begin) * 4);
 
-							for (int i = begin; i < end; ++i)
-							{
-								const char *idptr = flat_identifier + (size_t)i * (max_idf + 1);
-								ids.emplace_back(idptr);
-								sizes.emplace_back(flat_size[i]);
-								idts.emplace_back(flat_identity[i]);
-								for (int k = 0; k < 4; ++k)
-									covs.emplace_back(flat_coverage[i * 4 + k]);
-							}
+// 							for (int i = begin; i < end; ++i)
+// 							{
+// 								const char *idptr = flat_identifier + (size_t)i * (max_idf + 1);
+// 								ids.emplace_back(idptr);
+// 								sizes.emplace_back(flat_size[i]);
+// 								idts.emplace_back(flat_identity[i]);
+// 								for (int k = 0; k < 4; ++k)
+// 									covs.emplace_back(flat_coverage[i * 4 + k]);
+// 							}
 
-							omp_set_lock(&locks[c]);
-							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
-							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
-							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
-							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
-							omp_unset_lock(&locks[c]);
-						}
-						free(prefix_seq);
-						free(flat_size);
-						free(flat_identity);
-						free(flat_coverage);
-						free(flat_identifier);
-					}
-				}
-#pragma omp taskwait
+// 							omp_set_lock(&locks[c]);
+// 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
+// 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
+// 							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
+// 							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
+// 							omp_unset_lock(&locks[c]);
+// 						}
+// 						free(prefix_seq);
+// 						free(flat_size);
+// 						free(flat_identity);
+// 						free(flat_coverage);
+// 						free(flat_identifier);
+// 					}
+// 				}
+// #pragma omp taskwait
 
-				for (int c = 0; c < C; ++c)
-					omp_destroy_lock(&locks[c]);
+// 				for (int c = 0; c < C; ++c)
+// 					omp_destroy_lock(&locks[c]);
 
-				for (int kk = 0; kk < C; kk++)
-				{
-					clstr_fout << ">Cluster " << (output_index + kk) << "\n";
-					clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
-					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
-					{
-						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-						int *c = &clusters_coverage[kk][kkk * 4];
-						clstr_fout << " at ";
-						if (options.print)
-							clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
-						clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
+				// for (int kk = 0; kk < C; kk++)
+				// {
+				// 	clstr_fout << ">Cluster " << (output_index + kk) << "\n";
+				// 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
+					// for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
+					// {
+					// 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
+					// 	int *c = &clusters_coverage[kk][kkk * 4];
+					// 	clstr_fout << " at ";
+					// 	if (options.print)
+					// 		clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
+					// 	clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
-						clstr_fout << "\n";
-					}
-				}
+					// 	clstr_fout << "\n";
+					// }
+				// }
 
-				clusters_identifier.clear();
+// 				clusters_identifier.clear();
 
-				clusters_size.clear();
-				clusters_identity.clear();
-				clusters_coverage.clear();
-				rep_size_cur.clear();
-				rep_identifier_cur.clear();
-				read_flag[i] = 1;
+// 				clusters_size.clear();
+// 				clusters_identity.clear();
+// 				clusters_coverage.clear();
+// 				rep_size_cur.clear();
+// 				rep_identifier_cur.clear();
+// 				read_flag[i] = 1;
 		}
 		else
 		{
@@ -5597,102 +5602,102 @@ double tA1 = get_time();
 		}
 			output_index = last_rep_index;
 			C = rep_seqs.size() - last_rep_index;
-			rep_identifier_cur.swap(rep_identifier_next);
-			rep_size_cur.swap(rep_size_next);
-			rep_identifier_next.clear();
-			rep_size_next.clear();
-			if (i == chunks_num - 1)
-			{
-				clusters_identifier.resize(C);
-				clusters_size.resize(C);
-				clusters_identity.resize(C);
-				clusters_coverage.resize(C);
-				std::vector<omp_lock_t> locks(C);
-				for (int c = 0; c < C; ++c)
-					omp_init_lock(&locks[c]);
+			// rep_identifier_cur.swap(rep_identifier_next);
+			// rep_size_cur.swap(rep_size_next);
+			// rep_identifier_next.clear();
+			// rep_size_next.clear();
+			// if (i == chunks_num - 1)
+			// {
+// 				clusters_identifier.resize(C);
+// 				clusters_size.resize(C);
+// 				clusters_identity.resize(C);
+// 				clusters_coverage.resize(C);
+// 				std::vector<omp_lock_t> locks(C);
+// 				for (int c = 0; c < C; ++c)
+// 					omp_init_lock(&locks[c]);
 
-#pragma omp parallel
-#pragma omp single 
-			for (int src = 1; src < rank_size; ++src)
-			{
-				int N;
-				MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
-				int *flat_size = (int *)malloc(N * sizeof(int));
-				float *flat_identity = (float *)malloc(N * sizeof(float));
-				int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
-				char *flat_identifier = (char *)malloc((size_t)N * (max_idf + 1));
+// #pragma omp parallel
+// #pragma omp single 
+// 			for (int src = 1; src < rank_size; ++src)
+// 			{
+// 				int N;
+// 				MPI_Recv(&N, 1, MPI_INT, src, 101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				int *prefix_seq = (int *)malloc((C + 1) * sizeof(int));
+// 				int *flat_size = (int *)malloc(N * sizeof(int));
+// 				float *flat_identity = (float *)malloc(N * sizeof(float));
+// 				int *flat_coverage = (int *)malloc(N * 4 * sizeof(int));
+// 				char *flat_identifier = (char *)malloc((size_t)N * (max_idf + 1));
 
-				MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-#pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
-					{
-						for (int c = 0; c < C; ++c)
-						{
-							int begin = prefix_seq[c], end = prefix_seq[c + 1];
-							std::vector<std::string> ids;
-							std::vector<int> sizes, covs;
-							std::vector<float> idts;
-							ids.reserve(end - begin);
-							sizes.reserve(end - begin);
-							idts.reserve(end - begin);
-							covs.reserve((end - begin) * 4);
+// 				MPI_Recv(prefix_seq, C + 1, MPI_INT, src, 110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+// #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
+// 					{
+// 						for (int c = 0; c < C; ++c)
+// 						{
+// 							int begin = prefix_seq[c], end = prefix_seq[c + 1];
+// 							std::vector<std::string> ids;
+// 							std::vector<int> sizes, covs;
+// 							std::vector<float> idts;
+// 							ids.reserve(end - begin);
+// 							sizes.reserve(end - begin);
+// 							idts.reserve(end - begin);
+// 							covs.reserve((end - begin) * 4);
 
-							for (int i = begin; i < end; ++i)
-							{
-								const char *idptr = flat_identifier + (size_t)i * (max_idf + 1);
-								ids.emplace_back(idptr);
-								sizes.emplace_back(flat_size[i]);
-								idts.emplace_back(flat_identity[i]);
-								for (int k = 0; k < 4; ++k)
-									covs.emplace_back(flat_coverage[i * 4 + k]);
-							}
+// 							for (int i = begin; i < end; ++i)
+// 							{
+// 								const char *idptr = flat_identifier + (size_t)i * (max_idf + 1);
+// 								ids.emplace_back(idptr);
+// 								sizes.emplace_back(flat_size[i]);
+// 								idts.emplace_back(flat_identity[i]);
+// 								for (int k = 0; k < 4; ++k)
+// 									covs.emplace_back(flat_coverage[i * 4 + k]);
+// 							}
 
-							omp_set_lock(&locks[c]);
-							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
-							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
-							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
-							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
-							omp_unset_lock(&locks[c]);
-						}
-						free(prefix_seq);
-						free(flat_size);
-						free(flat_identity);
-						free(flat_coverage);
-						free(flat_identifier);
-					}
-				}
-#pragma omp taskwait
+// 							omp_set_lock(&locks[c]);
+// 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
+// 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
+// 							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
+// 							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
+// 							omp_unset_lock(&locks[c]);
+// 						}
+// 						free(prefix_seq);
+// 						free(flat_size);
+// 						free(flat_identity);
+// 						free(flat_coverage);
+// 						free(flat_identifier);
+// 					}
+// 				}
+// #pragma omp taskwait
 
-				for (int c = 0; c < C; ++c)
-					omp_destroy_lock(&locks[c]);
-				for (int kk = 0; kk < C; kk++)
-				{
-					clstr_fout << ">Cluster " << (last_rep_index + kk) << "\n";
-					clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
-					for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
-					{
-						clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-						int *c = &clusters_coverage[kk][kkk * 4];
-						clstr_fout << " at ";
-						if (options.print)
-							clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
-						clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
+// 				for (int c = 0; c < C; ++c)
+// 					omp_destroy_lock(&locks[c]);
+				// for (int kk = 0; kk < C; kk++)
+				// {
+				// 	clstr_fout << ">Cluster " << (last_rep_index + kk) << "\n";
+				// 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
+				// 	// for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
+				// 	// {
+				// 	// 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
+				// 	// 	int *c = &clusters_coverage[kk][kkk * 4];
+				// 	// 	clstr_fout << " at ";
+				// 	// 	if (options.print)
+				// 	// 		clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
+				// 	// 	clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
-						clstr_fout << "\n";
-					}
-				}
-				clusters_identifier.clear();
+				// 	// 	clstr_fout << "\n";
+				// 	// }
+				// }
+// 				clusters_identifier.clear();
 
-				clusters_size.clear();
-				clusters_identity.clear();
-				clusters_coverage.clear();
-				rep_size_cur.clear();
-				rep_identifier_cur.clear();
-			}
+// 				clusters_size.clear();
+// 				clusters_identity.clear();
+// 				clusters_coverage.clear();
+// 				rep_size_cur.clear();
+// 				rep_identifier_cur.clear();
+			// }
 			if (i == chunks_num - 1)
 			{
 				break;
@@ -5850,10 +5855,12 @@ double tA1 = get_time();
 		int cur = 0, next = 1;
 		int first_flag = 1;
 		double total_time = 0;
+		double total_wait_time = 0;
 		post_ibcasts_for_this_block(slots[cur], source, MPI_COMM_WORLD);
 		while(1){
 			int ibcast_flag = 0;
 			int done_flag=0;
+			int over_flag=0;
 			int now_rank=0;
 			MPI_Request request = MPI_REQUEST_NULL;
 			int send_flag = 0;
@@ -6213,27 +6220,36 @@ double tA1 = get_time();
 							if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
 								continue;
 
-							if (tid == 0 && !done_flag)
+							if (tid == 0&&!over_flag)
 							{
-								int flag_local = 0;
-								MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
-								if (ibcast_flag)
+								
+								if (!done_flag)
 								{
-									post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
-									ibcast_flag = 0;
-									done_flag = 1;
+									int flag_local = 0;
+									MPI_Test(&request, &flag_local, MPI_STATUS_IGNORE);
+									if (ibcast_flag)
+									{
+										post_ibcasts_for_next_block(slots[next], source, MPI_COMM_WORLD);
+										ibcast_flag = 0;
+										done_flag = 1;
+									}
+								}
+								if (done_flag)
+								{
 									int flag1 = 0;
 									int flag2 = 0;
 									MPI_Test(&slots[next].reqs[0], &flag1, MPI_STATUS_IGNORE);
 									MPI_Test(&slots[next].reqs[1], &flag2, MPI_STATUS_IGNORE);
+									if(flag1&&flag2)
+									over_flag = 1;
 								}
 							}
-
 							CheckOne(seq, word_table, params[tid], buffers[tid], options);
 						}
 
 #pragma omp master
 						{
+
 							if (chunks_id[idx] == soure_chunk + 1)
 							{
 								int size = my_chunks[idx].second - my_chunks[idx].first + 1;
@@ -6277,6 +6293,7 @@ double tA1 = get_time();
 			wait_all(slots[next]);
 						double t17 = get_time();
 			cerr << "-----wait time  " << t17 - t16 << "  by rank  " << my_rank << endl;
+			total_wait_time +=t17 - t16;
 			std::swap(cur, next);
 			if (options.stealing)
 			{
@@ -6322,59 +6339,124 @@ double tA1 = get_time();
 					}
 				}
 			}
-			double tb1 = get_time();
-			int C = record - record_last;
-				vector<vector<string>> clusters_identifier(C);
-				vector<vector<float>> clusters_identity(C);
-				vector<vector<int>> clusters_size(C);
-				vector<vector<int>> clusters_coverage(C);
-				for (i = 0; i < remain_chunks; i++)
+			// double tb1 = get_time();
+			// int C = record - record_last;
+			// 	vector<vector<string>> clusters_identifier(C);
+			// 	vector<vector<float>> clusters_identity(C);
+			// 	vector<vector<int>> clusters_size(C);
+			// 	vector<vector<int>> clusters_coverage(C);
+			// 	for (i = 0; i < remain_chunks; i++)
 				
-				{	
-					int idx ;
-					 idx = i + start;
-					for (j = my_chunks[idx].first; j <= my_chunks[idx].second; j++)
+			// 	{	
+			// 		int idx ;
+			// 		 idx = i + start;
+			// 		for (j = my_chunks[idx].first; j <= my_chunks[idx].second; j++)
+			// 		{
+			// 			Sequence *seq = sequences[j];
+			// 			if (seq->state & IS_REDUNDANT && seq->cluster_id != -1)
+			// 			{
+
+			// 				clusters_identifier[seq->cluster_id - record_last].emplace_back(std::string(seq->identifier));
+			// 				clusters_size[seq->cluster_id - record_last].emplace_back(seq->size);
+			// 				clusters_identity[seq->cluster_id - record_last].emplace_back(seq->identity);
+			// 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[0]);
+			// 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[1]);
+			// 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[2]);
+			// 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[3]);
+			// 				seq->cluster_id = -1;
+			// 			}
+			// 		}
+			// 	}
+			// 	for (int kk = 0; kk < C; ++kk)
+			// 	{
+			// 		for (size_t m = 0; m < clusters_identifier[kk].size(); ++m)
+			// 		{
+			// 			clstr_fout  << (record_last + kk) << "\n";
+			// 			clstr_fout << (m + 1) << '\t'
+			// 					   << clusters_size[kk][m] << "aa, >"
+			// 					   << clusters_identifier[kk][m] << "...";
+
+			// 			int *cov = &clusters_coverage[kk][m * 4];
+
+			// 			clstr_fout << " at ";
+			// 			if (options.print)
+			// 				clstr_fout << cov[0] << ":" << cov[1] << ":" << cov[2] << ":" << cov[3] << "/";
+
+			// 			clstr_fout << std::fixed << std::setprecision(2)
+			// 					   << (clusters_identity[kk][m] * 100) << "%\n";
+			// 		}
+			// 	}
+
+			// 	int  N;
+			// 	int IDLEN=max_idf+1;
+			// 	send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
+			// 	int CHAR_TOTAL = N * (max_idf+1);
+			// 	MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
+			// 	MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
+			// 	MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
+			// 	MPI_Send(flat_identity, N, MPI_FLOAT, 0, 112, MPI_COMM_WORLD);
+			// 	MPI_Send(flat_coverage, N * 4, MPI_INT, 0, 113, MPI_COMM_WORLD);
+			// 	MPI_Send(flat_identifier, CHAR_TOTAL, MPI_CHAR, 0, 114, MPI_COMM_WORLD);
+			// 	double tb2 = get_time();
+			// 	cerr << "-----send time  " << tb2 - tb1 << "  by rank  " << my_rank << endl;
+			// 	cerr<<"send cluster   "<<soure_chunk<<endl;
+			// 	free(prefix_seq);
+			// 	free(flat_size);
+			// 	free(flat_identity);
+			// 	free(flat_coverage);
+			// 	free(flat_identifier);
+			// 	prefix_seq = nullptr;
+			// 	flat_size = nullptr;
+			// 	flat_identity = nullptr;
+			// 	flat_coverage = nullptr;
+			// 	flat_identifier = nullptr;
+				record_last = record;
+				if (soure_chunk == chunks_num - 1)
+				{
+					cerr << "total build time " << total_time << endl;
+					cerr << "total wait time " << total_wait_time << endl;
+					double tb1 = get_time();
+					int C = record;
+					vector<vector<string>> clusters_identifier(C);
+					vector<vector<float>> clusters_identity(C);
+					vector<vector<int>> clusters_size(C);
+					vector<vector<int>> clusters_coverage(C);
+					for (int ii = 0; ii < my_chunks.size(); ii++)
+
 					{
-						Sequence *seq = sequences[j];
-						if (seq->state & IS_REDUNDANT && seq->cluster_id != -1)
+						for (j = my_chunks[ii].first; j <= my_chunks[ii].second; j++)
 						{
-							clusters_identifier[seq->cluster_id - record_last].emplace_back(std::string(seq->identifier));
-							clusters_size[seq->cluster_id - record_last].emplace_back(seq->size);
-							clusters_identity[seq->cluster_id - record_last].emplace_back(seq->identity);
-							clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[0]);
-							clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[1]);
-							clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[2]);
-							clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[3]);
-							seq->cluster_id = -1;
+							Sequence *seq = sequences[j];
+							if (seq->state & IS_REDUNDANT)
+							{
+								clusters_identifier[seq->cluster_id].emplace_back(std::string(seq->identifier));
+								clusters_size[seq->cluster_id].emplace_back(seq->size);
+								clusters_identity[seq->cluster_id].emplace_back(seq->identity);
+								clusters_coverage[seq->cluster_id].emplace_back(seq->coverage[0]);
+								clusters_coverage[seq->cluster_id].emplace_back(seq->coverage[1]);
+								clusters_coverage[seq->cluster_id].emplace_back(seq->coverage[2]);
+								clusters_coverage[seq->cluster_id].emplace_back(seq->coverage[3]);
+							}
 						}
 					}
-				}
-				int  N;
-				int IDLEN=max_idf+1;
-				send_cluster(clusters_identifier,clusters_size,clusters_identity,clusters_coverage,prefix_seq,flat_size,flat_identity,flat_coverage,flat_identifier,C,N,IDLEN);
-				int CHAR_TOTAL = N * (max_idf+1);
-				MPI_Send(&N, 1, MPI_INT, 0, 101, MPI_COMM_WORLD);
-				MPI_Send(prefix_seq, C + 1, MPI_INT, 0, 110, MPI_COMM_WORLD);
-				MPI_Send(flat_size, N, MPI_INT, 0, 111, MPI_COMM_WORLD);
-				MPI_Send(flat_identity, N, MPI_FLOAT, 0, 112, MPI_COMM_WORLD);
-				MPI_Send(flat_coverage, N * 4, MPI_INT, 0, 113, MPI_COMM_WORLD);
-				MPI_Send(flat_identifier, CHAR_TOTAL, MPI_CHAR, 0, 114, MPI_COMM_WORLD);
-				double tb2 = get_time();
-				cerr << "-----send time  " << tb2 - tb1 << "  by rank  " << my_rank << endl;
-				cerr<<"send cluster   "<<soure_chunk<<endl;
-				free(prefix_seq);
-				free(flat_size);
-				free(flat_identity);
-				free(flat_coverage);
-				free(flat_identifier);
-				prefix_seq = nullptr;
-				flat_size = nullptr;
-				flat_identity = nullptr;
-				flat_coverage = nullptr;
-				flat_identifier = nullptr;
-				record_last = record;
-	if (soure_chunk == chunks_num - 1){
-					cerr<<"total build time "<<total_time<<endl;
+					for (int kk = 0; kk < C; ++kk)
+					{
+						for (size_t m = 0; m < clusters_identifier[kk].size(); ++m)
+						{
+							clstr_fout << kk << "\t";
+							clstr_fout << clusters_size[kk][m] << "\t";
+							clstr_fout << clusters_identity[kk][m] << "\t";
+							clstr_fout << ">" << clusters_identifier[kk][m] << "\t";
+
+							int *cov = &clusters_coverage[kk][m * 4];
+							if (options.print)
+								clstr_fout << cov[0] << "\t" << cov[1] << "\t" << cov[2] << "\t" << cov[3];
+							clstr_fout << "\n";
+						}
+					}
+					double tb2 = get_time();
+					cerr<<"write time "<<tb2-tb1<<endl;
+					clstr_fout.close();
 					break;
 				}
 				if (chunks_id[start] == soure_chunk)
@@ -6760,14 +6842,27 @@ int SequenceDB::CheckOneAA_worker( Sequence *seq, WordTable & table, WorkingPara
 
 		
 		int rc = FAILED_FUNC;
-		if (options.print || aln_cover_flag) //return overlap region
+#ifndef NO_AVX512
+			if (options.print || aln_cover_flag) // return overlap region
+				rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+												best_score, tiden_no, alnln, distance, talign_info,
+												band_left, band_center, band_right, buf);
+			else
+				rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+												best_score, tiden_no, alnln, distance, talign_info,
+												band_left, band_center, band_right, buf);
+#else
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		if (options.print || aln_cover_flag) // return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
 		else
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
+#endif
+
 
 
 		if ( rc == FAILED_FUNC ) continue;
@@ -6944,14 +7039,27 @@ int SequenceDB::CheckOneAA( Sequence *seq, WordTable & table, WorkingParam & par
 		if ( best_sum < required_aa2 ) continue;
 
 		int rc = FAILED_FUNC;
-		if (options.print || aln_cover_flag) //return overlap region
+#ifndef NO_AVX512
+			if (options.print || aln_cover_flag) // return overlap region
+				rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+												best_score, tiden_no, alnln, distance, talign_info,
+												band_left, band_center, band_right, buf);
+			else
+				rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat,
+												best_score, tiden_no, alnln, distance, talign_info,
+												band_left, band_center, band_right, buf);
+#else
+		// auto t0 = std::chrono::high_resolution_clock::now();
+		if (options.print || aln_cover_flag) // return overlap region
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info,
-					band_left, band_center, band_right, buf);
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
 		else
 			rc = local_band_align(seqi, seqj, len, len2, mat,
-					best_score, tiden_no, alnln, distance, talign_info, 
-					band_left, band_center, band_right, buf);
+								  best_score, tiden_no, alnln, distance, talign_info,
+								  band_left, band_center, band_right, buf);
+#endif
+
 
 
 		if ( rc == FAILED_FUNC ) continue;
