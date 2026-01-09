@@ -1,0 +1,7 @@
+*.o
+cdhit.o
+*.clstr
+cd-hit
+output/
+tmp_runs/
+tempfiles/
