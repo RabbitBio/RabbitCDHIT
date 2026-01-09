@@ -5,3 +5,6 @@ cd-hit
 output/
 tmp_runs/
 tempfiles/
+build/
+cdhit-mpi
+cdhit-preprocess

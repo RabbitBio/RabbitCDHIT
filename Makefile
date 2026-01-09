@@ -46,6 +46,13 @@ ifdef MAX_SEQ
 CCFLAGS += -DMAX_SEQ=$(MAX_SEQ)
 endif
 
+SRC_DIR = src
+INC_DIR = include
+BUILD_DIR = build
+
+# 创建build目录
+$(shell mkdir -p $(BUILD_DIR))
+
 PROGS = cdhit-mpi cdhit-preprocess
 
 # Propagate hardening flags
@@ -57,27 +64,27 @@ CCFLAGS := $(CPPFLAGS) $(CCFLAGS) $(CXXFLAGS)
 all: $(PROGS)
 
 clean:
-	rm -f *.o $(PROGS)
+	rm -f $(BUILD_DIR)/*.o $(PROGS)
 
 # programs
-cdhit-mpi: cdhit-common.o cdhit-utility.o cdhit-mpi.o
-	$(CC) $(CCFLAGS) cdhit-mpi.o cdhit-common.o cdhit-utility.o $(LDFLAGS) cdhit-mpi
+cdhit-mpi: $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(BUILD_DIR)/cdhit-mpi.o
+	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-mpi.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(LDFLAGS) cdhit-mpi
 
-cdhit-preprocess: cdhit-common.o cdhit-utility.o cdhit-preprocess.o
-	$(CC) $(CCFLAGS) cdhit-preprocess.o cdhit-common.o cdhit-utility.o $(LDFLAGS) cdhit-preprocess
+cdhit-preprocess: $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(BUILD_DIR)/cdhit-preprocess.o
+	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-preprocess.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(LDFLAGS) cdhit-preprocess
 
 # objects
-cdhit-common.o: cdhit-common.c++ cdhit-common.h
-	$(CC) $(CCFLAGS) cdhit-common.c++ -c
+$(BUILD_DIR)/cdhit-common.o: $(SRC_DIR)/cdhit-common.c++ $(INC_DIR)/cdhit-common.h
+	$(CC) $(CCFLAGS) -I$(INC_DIR) $(SRC_DIR)/cdhit-common.c++ -c -o $@
 
-cdhit-utility.o: cdhit-utility.c++ cdhit-utility.h
-	$(CC) $(CCFLAGS) cdhit-utility.c++ -c
+$(BUILD_DIR)/cdhit-utility.o: $(SRC_DIR)/cdhit-utility.c++ $(INC_DIR)/cdhit-utility.h
+	$(CC) $(CCFLAGS) -I$(INC_DIR) $(SRC_DIR)/cdhit-utility.c++ -c -o $@
 
-cdhit-mpi.o: cdhit-mpi.c++ cdhit-utility.h
-	$(CC) $(CCFLAGS) cdhit-mpi.c++ -c
+$(BUILD_DIR)/cdhit-mpi.o: $(SRC_DIR)/cdhit-mpi.c++ $(INC_DIR)/cdhit-utility.h
+	$(CC) $(CCFLAGS) -I$(INC_DIR) $(SRC_DIR)/cdhit-mpi.c++ -c -o $@
 
-cdhit-preprocess.o: cdhit-preprocess.c++ cdhit-utility.h
-	$(CC) $(CCFLAGS) cdhit-preprocess.c++ -c
+$(BUILD_DIR)/cdhit-preprocess.o: $(SRC_DIR)/cdhit-preprocess.c++ $(INC_DIR)/cdhit-utility.h
+	$(CC) $(CCFLAGS) -I$(INC_DIR) $(SRC_DIR)/cdhit-preprocess.c++ -c -o $@
 
 PREFIX ?= /usr/local/bin
 
