@@ -4514,10 +4514,10 @@ void post_ibcasts_for_next_block(Slot &s, int source, MPI_Comm comm) {
     MPI_Ibcast((void *) s.cluster_id, (int) s.cluster_n, MPI_LONG, source, comm, &s.reqs.back());
     s.reqs.emplace_back(MPI_REQUEST_NULL);
     MPI_Ibcast((void *) s.seqs_suffix, (int) s.suffix_n, MPI_LONG, source, comm, &s.reqs.back());
-    double t1 = get_time();
-    MPI_Waitall(s.reqs.size(), s.reqs.data(), MPI_STATUSES_IGNORE);
-    double t2 = get_time();
-    cerr << "..................wait  time " << t2 - t1 << endl;
+    // double t1 = get_time();
+    // MPI_Waitall(s.reqs.size(), s.reqs.data(), MPI_STATUSES_IGNORE);
+    // double t2 = get_time();
+    // cerr << "..................wait  time " << t2 - t1 << endl;
 }
 
 void wait_all(Slot &s) {
