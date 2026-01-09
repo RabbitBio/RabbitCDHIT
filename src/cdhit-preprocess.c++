@@ -21,17 +21,20 @@
 //                    Email: l2fu@ucsd.edu, fu@daovm.net
 // =============================================================================
 
-#include "cdhit-common.h"
-#include <numeric>
-#include <fstream>
 #include <dirent.h>
 #include <sys/types.h>
+
+#include <cstdio>
 #include <fstream>
+#include <map>
+#include <numeric>
 #include <set>
 #include <string>
-#include <map>
-#include <cstdio>
+
+#include "cdhit-common.h"
 #undef min
+#include <sys/stat.h>
+
 #include <regex>
 
 Options options;
@@ -44,44 +47,50 @@ static bool read_int_file(const std::string& path, int& val) {
     return true;
 }
 ////////////////////////////////////  MAIN /////////////////////////////////////
-int main(int argc, char *argv[])
-{
-	string db_in;
-	string db_out;
-	std::vector<std::string> run_files;
-	vector<pair<int, int>>& all_chunks = seq_db.all_chunks;
-	vector<pair<int, int>>& my_chunks = seq_db.my_chunks;
-	vector<int>& chunks_id = seq_db.chunks_id;
-	int total_chunk=seq_db.total_chunk;
-	float begin_time = current_time();
-	float end_time;
-	bool master = true;
-	bool worker = false;
-	int worker_rank = -1;
-	
+int main(int argc, char* argv[]) {
+    string db_in;
+    string db_out;
+    std::vector<std::string> run_files;
+    vector<pair<int, int>>& all_chunks = seq_db.all_chunks;
+    vector<pair<int, int>>& my_chunks = seq_db.my_chunks;
+    vector<int>& chunks_id = seq_db.chunks_id;
+    int total_chunk = seq_db.total_chunk;
+    float begin_time = current_time();
+    float end_time;
+    bool master = true;
+    bool worker = false;
+    int worker_rank = -1;
 
-	
-	int total_seqs = 0;
-	// ***********************************    parse command line and open file
-	if (argc < 5) print_usage_preprocess(argv[0]);
-	if (options.SetOptions( argc, argv ) == 0) print_usage_preprocess(argv[0]);
-	options.Validate();
+    int total_seqs = 0;
+    // ***********************************    parse command line and open file
+    if (argc < 5) print_usage_preprocess(argv[0]);
+    if (options.SetOptions(argc, argv) == 0) print_usage_preprocess(argv[0]);
+    options.Validate();
 
-	db_in = options.input;
-	db_out = options.output;
-	
-	InitNAA( MAX_UAA );
-	options.NAAN = NAAN_array[options.NAA];
-	seq_db.NAAN = NAAN_array[options.NAA];
+    db_in = options.input;
+    db_out = options.output;
 
-    if (options.input.size()  == 0) bomb_error("no input file");
-    if (options.NodeNum  == 0) bomb_error("no NodeNum");
-    if (options.threads_per_node  == 0) bomb_error("no threads_per_node");
-	    std::regex cpu_dir("^cpu([0-9]+)$");
-    std::map<int, std::set<int>> socket_coreids;  
+    InitNAA(MAX_UAA);
+    options.NAAN = NAAN_array[options.NAA];
+    seq_db.NAAN = NAAN_array[options.NAA];
+
+    if (options.input.size() == 0) bomb_error("no input file");
+    if (options.NodeNum == 0) bomb_error("no NodeNum");
+    if (options.threads_per_node == 0) bomb_error("no threads_per_node");
+    std::regex cpu_dir("^cpu([0-9]+)$");
+    std::map<int, std::set<int>> socket_coreids;
+
+    const char* RUN_DIR = "tmp_files";
+    if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
+        perror("mkdir tmp_files");
+        return 0;
+    }
 
     DIR* d = opendir("/sys/devices/system/cpu");
-    if (!d) { perror("opendir"); return 1; }
+    if (!d) {
+        perror("opendir");
+        return 1;
+    }
     while (dirent* e = readdir(d)) {
         std::cmatch m;
         if (!std::regex_match(e->d_name, m, cpu_dir)) continue;
@@ -93,26 +102,32 @@ int main(int argc, char *argv[])
     }
     closedir(d);
 
-
     int core_size = socket_coreids[0].size();
 
-			size_t min_file_size = 512ull * 1024 * 1024;
+    size_t min_file_size = 512ull * 1024 * 1024;
 
-			auto start = std::chrono::high_resolution_clock::now();
-			seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options,core_size);
-			mkdir(options.tmp_dir.c_str(), 0755);
-			string temp_dir = options.tmp_dir;
-			if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\')
-			{
-				temp_dir += '/'; 
-			}
-			seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
-			auto end = std::chrono::high_resolution_clock::now();
-			std::chrono::duration<double> elapsed = end - start;
-			std::cout << "external sorting cost:    " << elapsed.count() << " second\n";
-	
-	return 0;
+    auto start = std::chrono::high_resolution_clock::now();
+    seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options, core_size);
 
-	
+    std::string tmp_prefix = std::string(RUN_DIR);
+    if (tmp_prefix.back() != '/') {
+        tmp_prefix += '/';
+    }
+    // 移除 options.tmp_dir 开头的斜杠（如果有）
+    if (!options.tmp_dir.empty() && options.tmp_dir[0] == '/') {
+        options.tmp_dir = options.tmp_dir.substr(1);
+    }
+    options.tmp_dir = tmp_prefix + options.tmp_dir;
 
-}  
+    mkdir(options.tmp_dir.c_str(), 0755);
+    string temp_dir = options.tmp_dir;
+    if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\') {
+        temp_dir += '/';
+    }
+    seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    std::cout << "external sorting cost:    " << elapsed.count() << " second\n";
+
+    return 0;
+}

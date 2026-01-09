@@ -2641,9 +2641,9 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
         std::cout << "chunk_size_bytes: " << chunk_size_bytes << " bytes" << std::endl;
     } else
         perror("stat");
-    const char *RUN_DIR = "tmp_runs";
+    const char *RUN_DIR = "tmp_files/tmp_runs";
     if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
-        perror("mkdir tmp_runs");
+        perror("mkdir tmp_files/tmp_runs");
         return;
     }
 

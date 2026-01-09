@@ -3,8 +3,9 @@ cdhit.o
 *.clstr
 cd-hit
 output/
-tmp_runs/
+tmp_files/
 tempfiles/
 build/
 cdhit-mpi
 cdhit-preprocess
+compile_flags.txt
