@@ -470,7 +470,7 @@ struct Sequence {
     int size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
     int table_idx;
     // uint32_t stats;
-
+    bool master_flag;
     // if swap != NULL, the sequence is stored in file.
     // swap is opened as temporary file, which will be deleted automatically
     // after the program is finished:

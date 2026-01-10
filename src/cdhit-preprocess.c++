@@ -33,6 +33,7 @@
 
 #include "cdhit-common.h"
 #undef min
+#undef max
 #include <sys/stat.h>
 
 #include <regex>

@@ -2102,7 +2102,8 @@ Sequence::Sequence(const Sequence &other) {
     // printf( "new: %p  %p\n", this, & other );
     memcpy(this, &other, sizeof(Sequence));
     distance = 2.0;
-    if (other.data) {
+    if (other.data &&other.master_flag == 1)
+    {
         size = bufsize = other.size;
         size_R2 = 0;
         data = new char[size + 1];
@@ -2114,6 +2115,14 @@ Sequence::Sequence(const Sequence &other) {
         memcpy(true_data, other.data, size);
 
         // for (i=0; i<size; i++) data[i] = other.data[i];
+    }
+    if (other.data &&other.master_flag == 0)
+    {
+        size = bufsize = other.size;
+        size_R2 = 0;
+        data = new char[size + 1];
+        data[size] = 0;
+        memcpy(data, other.data, size);
     }
     if (other.identifier) {
         int len = strlen(other.identifier);
@@ -3023,7 +3032,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
         one.data = data_ptr;
         one.size = len;
         one.tot_length = len + seq->name.l;
-
+        one.master_flag=0;
         sequences.Append(new Sequence(one));
         now_bytes += len;
         now_num++;
@@ -5108,6 +5117,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             one.size = len;
             one.tot_length = len + seq->name.l;
             one.index = sequences.size() + start_global_id;
+            one.master_flag=1;
             sequences.Append(new Sequence(one));
             id_tables[file_index].emplace_back(seq->name.s, seq->name.l);
             now_bytes += len;
@@ -5533,6 +5543,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 one.size = len;
                 one.tot_length = len + seq->name.l;
                 one.index = sequences.size() + start_global_id;
+                one.master_flag = 1;
                 sequences.Append(new Sequence(one));
                 id_tables[file_index].emplace_back(seq->name.s, seq->name.l);
                 now_bytes += len;
@@ -5683,6 +5694,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     one.size = len;
                     one.tot_length = len + seq->name.l;
                     one.index = rep_sequences.size();
+                    one.master_flag=0;
                     rep_sequences.Append(new Sequence(one));
                     now_byte += len;
 
