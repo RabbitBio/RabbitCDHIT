@@ -240,7 +240,12 @@ void InitNAA(int max);
 
 extern int naa_stat_start_percent;
 extern int naa_stat[5][61][4];
-
+struct RedundantSeqInfoHeader {
+    int   cluster_id;
+    int   size;
+    float identity;
+    int   coverage[4];
+};
 struct IndexCount {
     int index;
     int count;
@@ -409,7 +414,13 @@ struct SequenceMeta {
     long des_begin;
     string identifier;
 };
-
+struct MasterSeqInfo {
+    int   cluster_id;
+    int   size;
+    float identity;
+    int   coverage[4];
+    std::string name;
+};
 struct FastaRecord {
     std::string desc;
     std::string seq;
