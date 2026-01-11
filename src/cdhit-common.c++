@@ -4169,7 +4169,6 @@ void WritePartitionToMmap(const std::vector<MasterSeqInfo> &all_infos, const Par
             current_cluster = m.cluster_id;
             first_in_partition = false;
             memcpy(ptr, ">Cluster ", 9);
-            ;
             ptr += 9;
             ptr = fast_uint_to_str(ptr, m.cluster_id);
             *ptr++ = '\n';
