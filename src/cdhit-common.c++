@@ -4205,13 +4205,8 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
 
     // cout << "--------------------------------" << endl;
     // cout << "[1/6] Sorting and writing result..." << endl;
-    // auto start_time = std::chrono::high_resolution_clock::now();
 
     ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
-
-    // auto end_time = std::chrono::high_resolution_clock::now();
-    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
-    // std::cout << "Sort time: " << duration.count() << " ms" << std::endl;
 
     // cout << "--------------------------------" << endl;
 
