@@ -93,9 +93,11 @@ int main(int argc, char* argv[]) {
     // ------------------------------------------------------------
 
     if (options.output.size() == 0) bomb_error("no output file");
-    if (master) {
-        mkdir(options.output.c_str(), 0755);
-    }
+    // Modify by MGL: remove the rank directory
+    // Place both the representative sequence file and the specific cluster file in the root directory of output.
+    // if (master) {
+    //     mkdir(options.output.c_str(), 0755);
+    // }
     db_in = options.input;
     db_out = options.output;
 

@@ -40,6 +40,7 @@
 #include <atomic>
 #include <cassert>
 #include <chrono>
+#include <cstddef>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -60,9 +61,16 @@
 #include <zlib.h>
 // #endif
 
+#include <fcntl.h>
+#include <sys/mman.h>
+// #include <tbb/blocked_range.h>
 #include <tbb/global_control.h>
+// #include <tbb/parallel_for.h>
+#include <unistd.h>
 
+#include <cerrno>
 #include <map>
+#include <numeric>
 #include <valarray>
 #include <vector>
 
@@ -278,12 +286,14 @@ public:
     int AddWordCounts(NVector<IndexCount> &counts, Sequence *seq, bool skipN = false);
     int AddWordCountsFrag(NVector<IndexCount> &counts, int frag, int frag_size, int repfrag);
 
-    int AddWordCounts(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int idx, bool skipN = false);
-    int AddWordCountsFrag(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int frag, int frag_size);
-    int CountWords(int aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no, NVector<IndexCount> &lookCounts, NVector<uint32_t> &indexMapping,
-                   bool est = false, int min = 0);
-    int CountWords(int aan_no, int qid, Vector<int> &aan_list, Vector<INTs> &aan_list_no, NVector<IndexCount> &lookCounts,
+    int AddWordCounts(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int idx,
+                      bool skipN = false);
+    int AddWordCountsFrag(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int frag,
+                          int frag_size);
+    int CountWords(int aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no, NVector<IndexCount> &lookCounts,
                    NVector<uint32_t> &indexMapping, bool est = false, int min = 0);
+    int CountWords(int aan_no, int qid, Vector<int> &aan_list, Vector<INTs> &aan_list_no,
+                   NVector<IndexCount> &lookCounts, NVector<uint32_t> &indexMapping, bool est = false, int min = 0);
     void PrintAll();
 }; // END class INDEX_TBL
 struct Options {
@@ -670,7 +680,8 @@ struct WorkingBuffer {
     }
 
     int EncodeWords(Sequence *seq, int NA, bool est = false);
-    int CountWords(int aan_no, int qid, const std::vector<std::vector<std::pair<int, int>>> &word_table, bool est, int min);
+    int CountWords(int aan_no, int qid, const std::vector<std::vector<std::pair<int, int>>> &word_table, bool est,
+                   int min);
     void ComputeAAP(const char *seqi, int size);
     void ComputeAAP2(const char *seqi, int size);
 };
@@ -760,41 +771,51 @@ public:
     void Readgz(const char *file, const char *file2, const Options &options);
 
     // 外排序先读后写
-    void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options);
+    void GenerateSorted_Parallel(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
+                                 Options &options);
     char *FindCharOrReadMore(FileContext &ctx, char target, size_t &buffer_pos);
     // 归并
     void MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix);
-    void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options, size_t core_num);
+    void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
+                                Options &options, size_t core_num);
 
-    void WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix, int num_procs);
+    void WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix,
+                     int num_procs);
 
     void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
 
-    void read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status, MPI_Comm worker_comm, Options &options);
+    void read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status, MPI_Comm worker_comm,
+                           Options &options);
 
     void SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Options &options);
 
-    void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output, MPI_Comm worker_comm);
-    void send_cluster(const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size,
-                      const std::vector<std::vector<float>> &clusters_identity, const std::vector<std::vector<int>> &clusters_coverage,
-                      int *&prefix_seq, int *&flat_size, float *&flat_identity, int *&flat_coverage, char *&flat_identifier, int &C, int &N,
-                      int &IDLEN);
-    void encode_WordTable(long *&info_buf, int chunk_id, int start, int end, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
-                          long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size, int send_file_index, int start_global_id);
-    void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf, long long *&prefix_buf,
-                           long long &indexCount_buf_size);
+    void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank,
+                          const char *output, MPI_Comm worker_comm);
+    void send_cluster(const std::vector<std::vector<std::string>> &clusters_identifier,
+                      const std::vector<std::vector<int>> &clusters_size,
+                      const std::vector<std::vector<float>> &clusters_identity,
+                      const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq, int *&flat_size,
+                      float *&flat_identity, int *&flat_coverage, char *&flat_identifier, int &C, int &N, int &IDLEN);
+    void encode_WordTable(long *&info_buf, int chunk_id, int start, int end, long *&cluster_id_buf, long *&suffix_buf,
+                          long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size,
+                          long &prefix_size, int send_file_index, int start_global_id);
+    void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf,
+                           long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size);
     void decode_WordTable(WordTable &table, int start, Slot &s);
     // void decode_WordTable(WordTable &table, int start,long *&info_buf,
     // 					  long *&cluster_id_buf, long *&suffix_buf,
-    // 					  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size,long start_id);
+    // 					  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long
+    // &prefix_size,long start_id);
     void WriteClusterDetail(const Options &options);
     char *str_copy(const char *str);
     void WriteClustersSort(const char *input, const char *output, const Options &options);
     void WriteClusters(const char *db, const char *newdb, const Options &options);
     void WriteClustersgz(const char *db, const char *newdb, const Options &options);
 
-    void WriteClusters(const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options &options);
-    void WriteClustersgz(const char *db, const char *db_pe, const char *newdb, const char *newdb_pe, const Options &options);
+    void WriteClusters(const char *db, const char *db_pe, const char *newdb, const char *newdb_pe,
+                       const Options &options);
+    void WriteClustersgz(const char *db, const char *db_pe, const char *newdb, const char *newdb_pe,
+                         const Options &options);
 
     void WriteExtra1D(const Options &options);
     void WriteExtra2D(SequenceDB &other, const Options &options);
@@ -809,16 +830,19 @@ public:
 
     size_t MinimalMemory(int frag_no, int bsize, int T, const Options &options, size_t extra = 0);
 
-    void ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options, int my_rank);
-    void ClusterOne(Sequence *seq, int id, WordTable &local_table, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options,
-                    int my_rank);
-    void ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options);
-    void ClusterOne_worker(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer, const Options &options,
-                           PaddedLock *locks, int num_locks, int lock_mask);
-    void ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int, int>>> &word_table, WorkingParam &param,
-                           WorkingBuffer &buffer, const Options &options, PaddedLock *locks, int num_locks, int lock_mask);
-    void ClusterOne_single(Sequence *seq, int id, WordTable &word_table, WorkingParam &param, WorkingBuffer &buffer, const Options &options,
-                           int &centers);
+    void ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                    const Options &options, int my_rank);
+    void ClusterOne(Sequence *seq, int id, WordTable &local_table, WordTable &table, WorkingParam &param,
+                    WorkingBuffer &buf, const Options &options, int my_rank);
+    void ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                    const Options &options);
+    void ClusterOne_worker(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer,
+                           const Options &options, PaddedLock *locks, int num_locks, int lock_mask);
+    void ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int, int>>> &word_table,
+                           WorkingParam &param, WorkingBuffer &buffer, const Options &options, PaddedLock *locks,
+                           int num_locks, int lock_mask);
+    void ClusterOne_single(Sequence *seq, int id, WordTable &word_table, WorkingParam &param, WorkingBuffer &buffer,
+                           const Options &options, int &centers);
     // void SelfComparing( int start, int end, WordTable & table,
     //     WorkingParam & param, WorkingBuffer & buf, const Options & options );
 
@@ -828,14 +852,20 @@ public:
     void ClusterTo(SequenceDB &other, const Options &optioins);
     int CheckOne(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
 
-    int CheckOne_worker(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt, int id);
+    int CheckOne_worker(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt,
+                        int id);
     int CheckOneEST(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
     int CheckOneAA(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
-    int CheckOneAA_worker(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt, int id);
-    int CheckOne_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options);
-    int CheckOneAA_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options);
-    int CheckOne_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf, const Options &options);
-    int CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf, const Options &options);
+    int CheckOneAA_worker(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt,
+                          int id);
+    int CheckOne_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                        const Options &options);
+    int CheckOneAA_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                          const Options &options);
+    int CheckOne_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf,
+                        const Options &options);
+    int CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf,
+                          const Options &options);
 
     void Encodeseqs(Sequence *seq, int NAA, int id, bool est);
 };
@@ -848,12 +878,13 @@ void bomb_error(const char *message, const char *message2);
 void bomb_warning(const char *message);
 void bomb_warning(const char *message, const char *message2);
 void format_seq(char *seq);
-int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width, int &band_left, int &band_center,
-                   int &band_right, int required_aa1);
-int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width, int &band_left,
-                       int &band_center, int &band_right, int required_aa1);
-int local_band_align(char query[], char ref[], int qlen, int rlen, ScoreMatrix &mat, int &best_score, int &iden_no, int &alnln, float &dist,
-                     int *alninfo, int band_left, int band_center, int band_right, WorkingBuffer &buffer);
+int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width,
+                   int &band_left, int &band_center, int &band_right, int required_aa1);
+int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width,
+                       int &band_left, int &band_center, int &band_right, int required_aa1);
+int local_band_align(char query[], char ref[], int qlen, int rlen, ScoreMatrix &mat, int &best_score, int &iden_no,
+                     int &alnln, float &dist, int *alninfo, int band_left, int band_center, int band_right,
+                     WorkingBuffer &buffer);
 
 void strrev(char *p);
 int print_usage_2d(char *arg);
@@ -862,12 +893,13 @@ int print_usage_div(char *arg);
 int print_usage_est_2d(char *arg);
 
 int upper_bound_length_rep(int len, const Options &options);
-void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, double NR_clstr, int tolerance, int naa_stat_start_percent,
-                    int naa_stat[5][61][4], int NAA);
-void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, int tolerance, int naa_stat_start_percent, int naa_stat[5][61][4],
-                       int NAA, int iden);
+void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, double NR_clstr, int tolerance,
+                    int naa_stat_start_percent, int naa_stat[5][61][4], int NAA);
+void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, int tolerance,
+                       int naa_stat_start_percent, int naa_stat[5][61][4], int NAA, int iden);
 
-int calc_ann_list(int len, char *seqi, int NAA, int &aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no, bool est = false);
+int calc_ann_list(int len, char *seqi, int NAA, int &aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no,
+                  bool est = false);
 
 float current_time();
 

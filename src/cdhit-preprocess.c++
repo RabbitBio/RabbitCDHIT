@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
 
     const char* RUN_DIR = "output";
     if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
-        perror("mkdir tmp_files");
+        perror("mkdir output");
         return 0;
     }
 
@@ -125,6 +125,7 @@ int main(int argc, char* argv[]) {
     if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\') {
         temp_dir += '/';
     }
+    cout << "temp_dir: " << temp_dir << endl;
     seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;

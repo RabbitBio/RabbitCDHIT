@@ -66,28 +66,31 @@ double get_time() {
     return (double) tv.tv_sec + (double) tv.tv_usec / 1000000;
 }
 alignas(256) static const uint8_t REVERSE_MASK_LUT[256] = {
-    0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48, 0xC8, 0x28, 0xA8, 0x68, 0xE8,
-    0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8, 0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4, 0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4,
-    0x0C, 0x8C, 0x4C, 0xCC, 0x2C, 0xAC, 0x6C, 0xEC, 0x1C, 0x9C, 0x5C, 0xDC, 0x3C, 0xBC, 0x7C, 0xFC, 0x02, 0x82, 0x42, 0xC2, 0x22, 0xA2, 0x62, 0xE2,
-    0x12, 0x92, 0x52, 0xD2, 0x32, 0xB2, 0x72, 0xF2, 0x0A, 0x8A, 0x4A, 0xCA, 0x2A, 0xAA, 0x6A, 0xEA, 0x1A, 0x9A, 0x5A, 0xDA, 0x3A, 0xBA, 0x7A, 0xFA,
-    0x06, 0x86, 0x46, 0xC6, 0x26, 0xA6, 0x66, 0xE6, 0x16, 0x96, 0x56, 0xD6, 0x36, 0xB6, 0x76, 0xF6, 0x0E, 0x8E, 0x4E, 0xCE, 0x2E, 0xAE, 0x6E, 0xEE,
-    0x1E, 0x9E, 0x5E, 0xDE, 0x3E, 0xBE, 0x7E, 0xFE, 0x01, 0x81, 0x41, 0xC1, 0x21, 0xA1, 0x61, 0xE1, 0x11, 0x91, 0x51, 0xD1, 0x31, 0xB1, 0x71, 0xF1,
-    0x09, 0x89, 0x49, 0xC9, 0x29, 0xA9, 0x69, 0xE9, 0x19, 0x99, 0x59, 0xD9, 0x39, 0xB9, 0x79, 0xF9, 0x05, 0x85, 0x45, 0xC5, 0x25, 0xA5, 0x65, 0xE5,
-    0x15, 0x95, 0x55, 0xD5, 0x35, 0xB5, 0x75, 0xF5, 0x0D, 0x8D, 0x4D, 0xCD, 0x2D, 0xAD, 0x6D, 0xED, 0x1D, 0x9D, 0x5D, 0xDD, 0x3D, 0xBD, 0x7D, 0xFD,
-    0x03, 0x83, 0x43, 0xC3, 0x23, 0xA3, 0x63, 0xE3, 0x13, 0x93, 0x53, 0xD3, 0x33, 0xB3, 0x73, 0xF3, 0x0B, 0x8B, 0x4B, 0xCB, 0x2B, 0xAB, 0x6B, 0xEB,
-    0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB, 0x07, 0x87, 0x47, 0xC7, 0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7,
-    0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F, 0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF};
+    0x00, 0x80, 0x40, 0xC0, 0x20, 0xA0, 0x60, 0xE0, 0x10, 0x90, 0x50, 0xD0, 0x30, 0xB0, 0x70, 0xF0, 0x08, 0x88, 0x48,
+    0xC8, 0x28, 0xA8, 0x68, 0xE8, 0x18, 0x98, 0x58, 0xD8, 0x38, 0xB8, 0x78, 0xF8, 0x04, 0x84, 0x44, 0xC4, 0x24, 0xA4,
+    0x64, 0xE4, 0x14, 0x94, 0x54, 0xD4, 0x34, 0xB4, 0x74, 0xF4, 0x0C, 0x8C, 0x4C, 0xCC, 0x2C, 0xAC, 0x6C, 0xEC, 0x1C,
+    0x9C, 0x5C, 0xDC, 0x3C, 0xBC, 0x7C, 0xFC, 0x02, 0x82, 0x42, 0xC2, 0x22, 0xA2, 0x62, 0xE2, 0x12, 0x92, 0x52, 0xD2,
+    0x32, 0xB2, 0x72, 0xF2, 0x0A, 0x8A, 0x4A, 0xCA, 0x2A, 0xAA, 0x6A, 0xEA, 0x1A, 0x9A, 0x5A, 0xDA, 0x3A, 0xBA, 0x7A,
+    0xFA, 0x06, 0x86, 0x46, 0xC6, 0x26, 0xA6, 0x66, 0xE6, 0x16, 0x96, 0x56, 0xD6, 0x36, 0xB6, 0x76, 0xF6, 0x0E, 0x8E,
+    0x4E, 0xCE, 0x2E, 0xAE, 0x6E, 0xEE, 0x1E, 0x9E, 0x5E, 0xDE, 0x3E, 0xBE, 0x7E, 0xFE, 0x01, 0x81, 0x41, 0xC1, 0x21,
+    0xA1, 0x61, 0xE1, 0x11, 0x91, 0x51, 0xD1, 0x31, 0xB1, 0x71, 0xF1, 0x09, 0x89, 0x49, 0xC9, 0x29, 0xA9, 0x69, 0xE9,
+    0x19, 0x99, 0x59, 0xD9, 0x39, 0xB9, 0x79, 0xF9, 0x05, 0x85, 0x45, 0xC5, 0x25, 0xA5, 0x65, 0xE5, 0x15, 0x95, 0x55,
+    0xD5, 0x35, 0xB5, 0x75, 0xF5, 0x0D, 0x8D, 0x4D, 0xCD, 0x2D, 0xAD, 0x6D, 0xED, 0x1D, 0x9D, 0x5D, 0xDD, 0x3D, 0xBD,
+    0x7D, 0xFD, 0x03, 0x83, 0x43, 0xC3, 0x23, 0xA3, 0x63, 0xE3, 0x13, 0x93, 0x53, 0xD3, 0x33, 0xB3, 0x73, 0xF3, 0x0B,
+    0x8B, 0x4B, 0xCB, 0x2B, 0xAB, 0x6B, 0xEB, 0x1B, 0x9B, 0x5B, 0xDB, 0x3B, 0xBB, 0x7B, 0xFB, 0x07, 0x87, 0x47, 0xC7,
+    0x27, 0xA7, 0x67, 0xE7, 0x17, 0x97, 0x57, 0xD7, 0x37, 0xB7, 0x77, 0xF7, 0x0F, 0x8F, 0x4F, 0xCF, 0x2F, 0xAF, 0x6F,
+    0xEF, 0x1F, 0x9F, 0x5F, 0xDF, 0x3F, 0xBF, 0x7F, 0xFF};
 
-alignas(32) static const int32_t LEFT_SHIFT_TABLE[8][8] = {{0, 1, 2, 3, 4, 5, 6, 7}, {7, 0, 1, 2, 3, 4, 5, 6}, {7, 7, 0, 1, 2, 3, 4, 5},
-                                                           {7, 7, 7, 0, 1, 2, 3, 4}, {7, 7, 7, 7, 0, 1, 2, 3}, {7, 7, 7, 7, 7, 0, 1, 2},
-                                                           {7, 7, 7, 7, 7, 7, 0, 1}, {7, 7, 7, 7, 7, 7, 7, 0}};
+alignas(32) static const int32_t LEFT_SHIFT_TABLE[8][8] = {
+    {0, 1, 2, 3, 4, 5, 6, 7}, {7, 0, 1, 2, 3, 4, 5, 6}, {7, 7, 0, 1, 2, 3, 4, 5}, {7, 7, 7, 0, 1, 2, 3, 4},
+    {7, 7, 7, 7, 0, 1, 2, 3}, {7, 7, 7, 7, 7, 0, 1, 2}, {7, 7, 7, 7, 7, 7, 0, 1}, {7, 7, 7, 7, 7, 7, 7, 0}};
 
-alignas(32) static const int32_t RIGHT_SHIFT_TABLE[8][8] = {{7, 6, 5, 4, 3, 2, 1, 0}, {6, 5, 4, 3, 2, 1, 0, 7}, {5, 4, 3, 2, 1, 0, 7, 7},
-                                                            {4, 3, 2, 1, 0, 7, 7, 7}, {3, 2, 1, 0, 7, 7, 7, 7}, {2, 1, 0, 7, 7, 7, 7, 7},
-                                                            {1, 0, 7, 7, 7, 7, 7, 7}, {0, 7, 7, 7, 7, 7, 7, 7}};
-alignas(32) static const int32_t SHUFFLE_TABLE[8][8] = {{0, 1, 2, 3, 4, 5, 6, 7}, {1, 2, 3, 4, 5, 6, 7, 0}, {2, 3, 4, 5, 6, 7, 0, 1},
-                                                        {3, 4, 5, 6, 7, 0, 1, 2}, {4, 5, 6, 7, 0, 1, 2, 3}, {5, 6, 7, 0, 1, 2, 3, 4},
-                                                        {6, 7, 0, 1, 2, 3, 4, 5}, {7, 0, 1, 2, 3, 4, 5, 6}};
+alignas(32) static const int32_t RIGHT_SHIFT_TABLE[8][8] = {
+    {7, 6, 5, 4, 3, 2, 1, 0}, {6, 5, 4, 3, 2, 1, 0, 7}, {5, 4, 3, 2, 1, 0, 7, 7}, {4, 3, 2, 1, 0, 7, 7, 7},
+    {3, 2, 1, 0, 7, 7, 7, 7}, {2, 1, 0, 7, 7, 7, 7, 7}, {1, 0, 7, 7, 7, 7, 7, 7}, {0, 7, 7, 7, 7, 7, 7, 7}};
+alignas(32) static const int32_t SHUFFLE_TABLE[8][8] = {
+    {0, 1, 2, 3, 4, 5, 6, 7}, {1, 2, 3, 4, 5, 6, 7, 0}, {2, 3, 4, 5, 6, 7, 0, 1}, {3, 4, 5, 6, 7, 0, 1, 2},
+    {4, 5, 6, 7, 0, 1, 2, 3}, {5, 6, 7, 0, 1, 2, 3, 4}, {6, 7, 0, 1, 2, 3, 4, 5}, {7, 0, 1, 2, 3, 4, 5, 6}};
 #ifndef NO_AVX512
 void _mm256_load_char_array_forward(__m256i &vec_index, const char *arr, __m256i &seq_vals, __mmask8 mask) {
     __mmask8 copy_mask = mask;
@@ -548,7 +551,8 @@ void Options::Validate() {
     if (global_identity == 0) print = 1;
     if (short_coverage < long_coverage) short_coverage = long_coverage;
     if (short_control > long_control) short_control = long_control;
-    if ((global_identity == 0) && (short_coverage == 0.0) && (min_control == 0)) bomb_error("You are using local identity, but no -aS -aL -A option");
+    if ((global_identity == 0) && (short_coverage == 0.0) && (min_control == 0))
+        bomb_error("You are using local identity, but no -aS -aL -A option");
     if (frag_size < 0) bomb_error("invalid fragment size");
 
 #if 0
@@ -673,8 +677,8 @@ void strrev(char *p) {
 ////extreme left (-)            XXXXXXXXXXXXXXXXXX               seq2, rep seq
 ////              XXXXXXXXXXXXXXX   band = -(len1-1)             seq1
 ////index of diag_score = band+len1-1;
-int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width, int &band_left, int &band_center,
-                   int &band_right, int required_aa1) {
+int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width,
+                   int &band_left, int &band_center, int &band_right, int required_aa1) {
     int i, i1, j, k;
     int *pp;
     int nall = len1 + len2 - 1; // 总“对角线”数
@@ -772,8 +776,8 @@ int diag_test_aapn(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &bu
 }
 // END diag_test_aapn
 
-int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width, int &band_left,
-                       int &band_center, int &band_right, int required_aa1) {
+int diag_test_aapn_est(int NAA1, char iseq2[], int len1, int len2, WorkingBuffer &buffer, int &best_sum, int band_width,
+                       int &band_left, int &band_center, int &band_right, int required_aa1) {
     int i, i1, j, k;
     int *pp, *pp2;
     int nall = len1 + len2 - 1;
@@ -949,8 +953,9 @@ mat is matrix, return ALN_PAIR class
 
 */
 #ifndef NO_AVX512
-int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, int &best_score, int &iden_no, int &alnln,
-                               float &dist, int *alninfo, int band_left, int band_center, int band_right, WorkingBuffer &buffer) {
+int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, int &best_score,
+                               int &iden_no, int &alnln, float &dist, int *alninfo, int band_left, int band_center,
+                               int band_right, WorkingBuffer &buffer) {
     int i, j, k, j1;
     int jj, kk;
     int x, y;
@@ -1107,9 +1112,11 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
             __m256i vec_i_index = _mm512_cvtepi64_epi32(vec_i_minus_1);
             __m256i vec_j_index = _mm512_cvtepi64_epi32(vec_j_minus_1);
 
-            __m256i seq1_i32 = _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_i_index, (const int *) iseq1, 1);
+            __m256i seq1_i32 =
+                _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_i_index, (const int *) iseq1, 1);
 
-            __m256i seq2_i32 = _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_j_index, (const int *) iseq2, 1);
+            __m256i seq2_i32 =
+                _mm256_mmask_i32gather_epi32(_mm256_setzero_si256(), mask, vec_j_index, (const int *) iseq2, 1);
             __m256i seq1_vals = _mm256_and_si256(seq1_i32, _mm256_set1_epi32(0xFF));
             __m256i seq2_vals = _mm256_and_si256(seq2_i32, _mm256_set1_epi32(0xFF));
 #else
@@ -1127,7 +1134,8 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
             __m256i matrix_indices = _mm256_mullo_epi32(seq1_vals, _mm256_set1_epi32(MAX_AA));
             matrix_indices = _mm256_add_epi32(matrix_indices, seq2_vals);
 
-            __m512i vec_sij = _mm512_mask_i32gather_epi64(_mm512_setzero_si512(), mask, matrix_indices, mat.flat_matrix, 8);
+            __m512i vec_sij =
+                _mm512_mask_i32gather_epi64(_mm512_setzero_si512(), mask, matrix_indices, mat.flat_matrix, 8);
 
             // _mm512_store_epi64(i_arr, vec_i);
             // _mm512_store_epi64(j_arr, vec_j);
@@ -1183,7 +1191,8 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
 
                 vec_score = _mm512_add_epi64(vec_score_y1, vec_gap);
 
-                __mmask8 modify_flag = _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) & (0xFE | ((offset) | (vec_idx)));
+                __mmask8 modify_flag =
+                    _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) & (0xFE | ((offset) | (vec_idx)));
                 vec_best_score1 = _mm512_mask_blend_epi64(modify_flag, vec_best_score1, vec_score);
                 vec_back = _mm256_mask_blend_epi32(modify_flag, vec_back, vec_DP_BACK_LEFT);
             }
@@ -1200,8 +1209,8 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
                 vec_gap = _mm512_mask_blend_epi64(gap_flag, vec_gap0, vec_ext_gap);
 
                 vec_score = _mm512_add_epi64(vec_score_y1, vec_gap);
-                __mmask8 modify_flag =
-                    _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) & _mm512_cmple_epi64_mask(_mm512_add_epi64(vec_x, vec_1), vec_R);
+                __mmask8 modify_flag = _mm512_cmpgt_epi64_mask(vec_score, vec_best_score1) &
+                                       _mm512_cmple_epi64_mask(_mm512_add_epi64(vec_x, vec_1), vec_R);
                 vec_best_score1 = _mm512_mask_blend_epi64(modify_flag, vec_best_score1, vec_score);
                 vec_back = _mm256_mask_blend_epi32(modify_flag, vec_back, vec_DP_BACK_TOP);
             }
@@ -1357,8 +1366,9 @@ int rotation_band_align_AVX512(char iseq1[], char iseq2[], int len1, int len2, S
     return OK_FUNC;
 }
 #endif
-int local_band_align(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, int &best_score, int &iden_no, int &alnln, float &dist,
-                     int *alninfo, int band_left, int band_center, int band_right, WorkingBuffer &buffer) {
+int local_band_align(char iseq1[], char iseq2[], int len1, int len2, ScoreMatrix &mat, int &best_score, int &iden_no,
+                     int &alnln, float &dist, int *alninfo, int band_left, int band_center, int band_right,
+                     WorkingBuffer &buffer) {
     int i, j, k, j1;
     int jj, kk;
     int iden_no1;
@@ -1881,7 +1891,8 @@ int WordTable::AddWordCounts(NVector<IndexCount> &counts, Sequence *seq, bool sk
 }
 int WordTable::AddWordCountsFrag(NVector<IndexCount> &counts, int frag, int frag_size, int repfrag) { return 0; }
 // 建立索引表
-int WordTable::AddWordCounts(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int idx, bool skipN) {
+int WordTable::AddWordCounts(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int idx,
+                             bool skipN) {
     int i, j, k;
     // printf( "seq %6i: ", idx );
     for (i = 0; i < aan_no; i++) {
@@ -1899,7 +1910,8 @@ int WordTable::AddWordCounts(int aan_no, Vector<int> &word_encodes, Vector<INTs>
     return OK_FUNC;
 }
 
-int WordTable::AddWordCountsFrag(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int frag, int frag_size) {
+int WordTable::AddWordCountsFrag(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, int frag,
+                                 int frag_size) {
     int i, j, k, i1, k1, fra;
 
     for (i = 0; i < frag; i++) {
@@ -1985,8 +1997,8 @@ void PartialQuickSort(IndexCount *data, int first, int last, int partial) {
     if (upper >= partial) return;
     if (upper + 1 < last) PartialQuickSort(data, upper + 1, last, partial);
 }
-int WordTable::CountWords(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, NVector<IndexCount> &lookCounts,
-                          NVector<uint32_t> &indexMapping, bool est, int min) {
+int WordTable::CountWords(int aan_no, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no,
+                          NVector<IndexCount> &lookCounts, NVector<uint32_t> &indexMapping, bool est, int min) {
     int S = frag_count ? frag_count : sequences.size();
     int j, k, j0, j1, k1, m;
     int ix1, ix2, ix3, ix4;
@@ -2038,8 +2050,8 @@ int WordTable::CountWords(int aan_no, Vector<int> &word_encodes, Vector<INTs> &w
     // printf( "\n\n" );
     return OK_FUNC;
 }
-int WordTable::CountWords(int aan_no, int qid, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no, NVector<IndexCount> &lookCounts,
-                          NVector<uint32_t> &indexMapping, bool est, int min) {
+int WordTable::CountWords(int aan_no, int qid, Vector<int> &word_encodes, Vector<INTs> &word_encodes_no,
+                          NVector<IndexCount> &lookCounts, NVector<uint32_t> &indexMapping, bool est, int min) {
     int S = frag_count ? frag_count : sequences.size();
     int j, k, j0, j1, k1, m;
     int ix1, ix2, ix3, ix4;
@@ -2308,8 +2320,8 @@ static void write_run_fasta(const std::vector<std::pair<std::string, std::string
     fclose(fout);
 }
 
-void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files, Options &options,
-                                        size_t core_num) {
+void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
+                                        Options &options, size_t core_num) {
     int option_l = options.min_length;
     first_chunk_size = 2000;
     total_num = 0;
@@ -2330,9 +2342,9 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
         std::cout << "chunk_size_bytes: " << chunk_size_bytes << " bytes" << std::endl;
     } else
         perror("stat");
-    const char *RUN_DIR = "tmp_files/tmp_runs";
+    const char *RUN_DIR = "output/tmp_runs";
     if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
-        perror("mkdir tmp_files/tmp_runs");
+        perror("mkdir output/tmp_runs");
         return;
     }
 
@@ -2405,7 +2417,9 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
                     inflight.fetch_add(1, std::memory_order_relaxed);
 #pragma omp task firstprivate(ch) depend(out : ch[0 : 1]) priority(1)
                     {
-                        std::stable_sort(ch->begin(), ch->end(), [](auto const &a, auto const &b) { return a.second.size() > b.second.size(); });
+                        std::stable_sort(ch->begin(), ch->end(), [](auto const &a, auto const &b) {
+                            return a.second.size() > b.second.size();
+                        });
                     }
 #pragma omp task firstprivate(ch, my_run, read_ns) depend(in : ch[0 : 1])
                     {
@@ -2418,7 +2432,9 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
                         std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
                         write_run_fasta(*ch, path);
                         auto sort_write_end = clock::now();
-                        auto sort_write_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(sort_write_end - sort_write_start).count();
+                        auto sort_write_ns =
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(sort_write_end - sort_write_start)
+                                .count();
                         std::cout << read_ns << "\tReading\n" << sort_write_ns << "\tSort+Write\n";
 
                         write_slots.fetch_add(1, std::memory_order_relaxed);
@@ -2437,7 +2453,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
 
 #pragma omp task firstprivate(ch) depend(out : ch[0 : 1]) priority(1)
                 {
-                    std::stable_sort(ch->begin(), ch->end(), [](auto const &a, auto const &b) { return a.second.size() > b.second.size(); });
+                    std::stable_sort(ch->begin(), ch->end(),
+                                     [](auto const &a, auto const &b) { return a.second.size() > b.second.size(); });
                 }
 #pragma omp task firstprivate(ch, my_run) depend(in : ch[0 : 1])
                 {
@@ -2460,7 +2477,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     gzclose(fp);
     options.max_entries = max_len * MAX_TABLE_SEQ;
     if (max_len >= 65536 && sizeof(INTs) <= 2) bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
-    if (max_len > MAX_SEQ) bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
+    if (max_len > MAX_SEQ)
+        bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
 
     std::sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
     long long cumulative = 0;
@@ -2523,7 +2541,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     std::cout << "total_mpi_num : " << total_mpi_num << std::endl;
 }
 
-void SequenceDB::WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix, int num_procs) {
+void SequenceDB::WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix,
+                             int num_procs) {
     // 构造 JSON 对象
     using json = nlohmann::json;
     json j;
@@ -2693,7 +2712,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     if (chunks_num < total_mpi_num) std::cout << "Warring:There is a waste of computing resources  " << std::endl;
 }
 
-void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status, MPI_Comm worker_comm, Options &options) {
+void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status,
+                                   MPI_Comm worker_comm, Options &options) {
     int file_index = rank;
     std::string file = temp_dir + "_proc" + std::to_string(rank - 1) + ".fa";
     int start_my_id = sequences.size();
@@ -2719,7 +2739,8 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
         sequences.Append(new Sequence(one));
         now_bytes += len;
         now_num++;
-        if ((now_bytes > chunk_bytes) || (rank == 1 && chunks_id.size() == 0 && sequences.size() >= first_chunk_size) || (now_num >= chunk_size)) {
+        if ((now_bytes > chunk_bytes) || (rank == 1 && chunks_id.size() == 0 && sequences.size() >= first_chunk_size) ||
+            (now_num >= chunk_size)) {
             my_chunks.push_back(make_pair(start_my_id, sequences.size() - 1));
             cerr << "chunk_id    " << chunk_id << endl;
             chunks_id.push_back(chunk_id);
@@ -2778,10 +2799,11 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
         ctrl_[0] = 0;
         ctrl_[1] = (int) tasks_local_.size() - 1;
         ctrl_[2] = 0;
-        MPI_Win_create(tasks_local_.empty() ? MPI_BOTTOM : (void *) tasks_local_.data(), (MPI_Aint) tasks_local_.size() * sizeof(Task), sizeof(Task),
-                       MPI_INFO_NULL, worker_comm, &win_tasks_);
-        MPI_Win_create(tasks_flag.empty() ? MPI_BOTTOM : (void *) tasks_flag.data(), tasks_flag.size() * sizeof(int), sizeof(int), MPI_INFO_NULL,
-                       worker_comm, &win_tasks_flag_);
+        MPI_Win_create(tasks_local_.empty() ? MPI_BOTTOM : (void *) tasks_local_.data(),
+                       (MPI_Aint) tasks_local_.size() * sizeof(Task), sizeof(Task), MPI_INFO_NULL, worker_comm,
+                       &win_tasks_);
+        MPI_Win_create(tasks_flag.empty() ? MPI_BOTTOM : (void *) tasks_flag.data(), tasks_flag.size() * sizeof(int),
+                       sizeof(int), MPI_INFO_NULL, worker_comm, &win_tasks_flag_);
 
         MPI_Win_create((void *) ctrl_, 3 * (MPI_Aint) sizeof(int), sizeof(int), MPI_INFO_NULL, worker_comm, &win_ctrl_);
 
@@ -2819,10 +2841,10 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
 
             meta_[k] = m;
         }
-        MPI_Win_create(pool_data_.empty() ? MPI_BOTTOM : (void *) pool_data_.data(), (MPI_Aint) pool_data_.size(), 1, MPI_INFO_NULL, worker_comm,
-                       &win_pool_d_);
-        MPI_Win_create(meta_.empty() ? MPI_BOTTOM : (void *) meta_.data(), (MPI_Aint) meta_.size() * sizeof(SeqMeta), sizeof(SeqMeta), MPI_INFO_NULL,
-                       worker_comm, &win_meta_);
+        MPI_Win_create(pool_data_.empty() ? MPI_BOTTOM : (void *) pool_data_.data(), (MPI_Aint) pool_data_.size(), 1,
+                       MPI_INFO_NULL, worker_comm, &win_pool_d_);
+        MPI_Win_create(meta_.empty() ? MPI_BOTTOM : (void *) meta_.data(), (MPI_Aint) meta_.size() * sizeof(SeqMeta),
+                       sizeof(SeqMeta), MPI_INFO_NULL, worker_comm, &win_meta_);
         MPI_Win_lock_all(0, win_meta_);
         MPI_Win_lock_all(0, win_pool_d_);
     }
@@ -2927,7 +2949,8 @@ void SequenceDB::WriteClusterDetail(const Options &options) {
         for (i = 0; i < rep_size; i++) {
             i0 = clstr_idx1[i];
             fprintf(fout, ">Cluster %i\n", i);
-            for (k = 0; k < (int) clusters[i0].size(); k++) sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
+            for (k = 0; k < (int) clusters[i0].size(); k++)
+                sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
         }
     } else {
         for (i = 0; i < rep_size; i++) {
@@ -2983,7 +3006,8 @@ void SequenceDB::WriteExtra1D(const Options &options) {
         for (i = 0; i < M; i++) {
             i0 = clstr_idx1[i];
             fprintf(fout, ">Cluster %i\n", i);
-            for (k = 0; k < (int) clusters[i0].size(); k++) sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
+            for (k = 0; k < (int) clusters[i0].size(); k++)
+                sequences[clusters[i0][k]]->PrintInfo(k, fout, options, buf);
         }
     } else {
         for (i = 0; i < M; i++) {
@@ -3072,8 +3096,8 @@ int upper_bound_length_rep(int len, const Options &options) {
     return upper_bound_length_rep(len, opt_s, opt_S, opt_aL, opt_AL);
 }
 
-void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, double cluster_thd, int tolerance, int naa_stat_start_percent,
-                    int naa_stat[5][61][4], int NAA) {
+void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, double cluster_thd, int tolerance,
+                    int naa_stat_start_percent, int naa_stat[5][61][4], int NAA) {
     aa1_cutoff = cluster_thd;
     aa2_cutoff = 1 - (1 - cluster_thd) * 2;
     aan_cutoff = 1 - (1 - cluster_thd) * NAA;
@@ -3088,8 +3112,8 @@ void cal_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, 
     return;
 } // END cal_aax_cutoff
 
-void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, int tolerance, int naa_stat_start_percent, int naa_stat[5][61][4],
-                       int NAA, double cluster_thd) {
+void update_aax_cutoff(double &aa1_cutoff, double &aa2_cutoff, double &aan_cutoff, int tolerance,
+                       int naa_stat_start_percent, int naa_stat[5][61][4], int NAA, double cluster_thd) {
     if (cluster_thd > 1.0) cluster_thd = 1.00;
 
     double aa1_t, aa2_t, aan_t;
@@ -3240,7 +3264,8 @@ void WorkingBuffer::ComputeAAP2(const char *seqi, int size) {
         aap_list[aap_begin[c22] + taap[c22]++] = j1;
     }
 }
-void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer, const Options &options) {
+void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer,
+                            const Options &options) {
     if (seq->state & IS_REDUNDANT) return;
     int frag_size = options.frag_size;
     int NAA = options.NAA;
@@ -3265,7 +3290,8 @@ void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingPara
                 int frg1 = (len - NAA) / frag_size + 1;
                 table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1, frag_size);
             } else {
-                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
+                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(),
+                                    options.isEST);
             }
             table.sequences.Append(seq);
             if (frag_size) {
@@ -3280,49 +3306,50 @@ void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingPara
         if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
     }
 }
-void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer, const Options &options,
-                            int my_rank) {
-    if (seq->state & IS_REDUNDANT) return;
-    int frag_size = options.frag_size;
-    int NAA = options.NAA;
-    int len = seq->size;
-    int len_bound = upper_bound_length_rep(len, options);
-    param.len_upper_bound = len_bound;
-    int flag = CheckOne(seq, table, param, buffer, options);
-
-    if (flag == 0) {
-        if ((seq->identity > 0) && (options.cluster_best)) {
-            // because of the -g option, this seq is similar to seqs in old SEGs
-            seq->state |= IS_REDUNDANT;
-            seq->Clear();
-        } else { // else add to NR90 db
-            int aan_no = len - NAA + 1;
-            int size = rep_seqs.size();
-            rep_seqs.Append(id);
-            seq->cluster_id = size;
-            seq->identity = 0;
-            seq->state |= IS_REP;
-            if (frag_size) { /* not used for EST */
-                int frg1 = (len - NAA) / frag_size + 1;
-                table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1, frag_size);
-            } else {
-                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
-            }
-            table.sequences.Append(seq);
-            if (frag_size) {
-                while (table.sequences.size() < table.frag_count) table.sequences.Append(seq);
-            }
-        }
-    }
-    if ((id + 1) % 1000 == 0) {
-        int size = rep_seqs.size();
-        printf(".");
-        fflush(stdout);
-        if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
-    }
-}
-void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &local_table, WordTable &table, WorkingParam &param, WorkingBuffer &buffer,
+void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer,
                             const Options &options, int my_rank) {
+    if (seq->state & IS_REDUNDANT) return;
+    int frag_size = options.frag_size;
+    int NAA = options.NAA;
+    int len = seq->size;
+    int len_bound = upper_bound_length_rep(len, options);
+    param.len_upper_bound = len_bound;
+    int flag = CheckOne(seq, table, param, buffer, options);
+
+    if (flag == 0) {
+        if ((seq->identity > 0) && (options.cluster_best)) {
+            // because of the -g option, this seq is similar to seqs in old SEGs
+            seq->state |= IS_REDUNDANT;
+            seq->Clear();
+        } else { // else add to NR90 db
+            int aan_no = len - NAA + 1;
+            int size = rep_seqs.size();
+            rep_seqs.Append(id);
+            seq->cluster_id = size;
+            seq->identity = 0;
+            seq->state |= IS_REP;
+            if (frag_size) { /* not used for EST */
+                int frg1 = (len - NAA) / frag_size + 1;
+                table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1, frag_size);
+            } else {
+                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(),
+                                    options.isEST);
+            }
+            table.sequences.Append(seq);
+            if (frag_size) {
+                while (table.sequences.size() < table.frag_count) table.sequences.Append(seq);
+            }
+        }
+    }
+    if ((id + 1) % 1000 == 0) {
+        int size = rep_seqs.size();
+        printf(".");
+        fflush(stdout);
+        if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
+    }
+}
+void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &local_table, WordTable &table, WorkingParam &param,
+                            WorkingBuffer &buffer, const Options &options, int my_rank) {
     if (seq->state & IS_REDUNDANT) return;
     int frag_size = options.frag_size;
     int NAA = options.NAA;
@@ -3345,11 +3372,14 @@ void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &local_table, WordT
             seq->state |= IS_REP;
             if (frag_size) { /* not used for EST */
                 int frg1 = (len - NAA) / frag_size + 1;
-                local_table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1, frag_size);
+                local_table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1,
+                                              frag_size);
                 table.AddWordCountsFrag(aan_no, buffer.word_encodes_backup, buffer.word_encodes_no, frg1, frag_size);
             } else {
-                local_table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, local_table.sequences.size(), options.isEST);
-                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(), options.isEST);
+                local_table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no,
+                                          local_table.sequences.size(), options.isEST);
+                table.AddWordCounts(aan_no, buffer.word_encodes, buffer.word_encodes_no, table.sequences.size(),
+                                    options.isEST);
             }
             table.sequences.Append(seq);
             local_table.sequences.Append(seq);
@@ -3366,8 +3396,8 @@ void SequenceDB::ClusterOne(Sequence *seq, int id, WordTable &local_table, WordT
         if ((id + 1) % 10000 == 0) printf("\r..........%9i  finished  %9i  clusters\n", id + 1, size);
     }
 }
-void SequenceDB::ClusterOne_single(Sequence *seq, int id, WordTable &word_table, WorkingParam &param, WorkingBuffer &buffer, const Options &options,
-                                   int &centers) {
+void SequenceDB::ClusterOne_single(Sequence *seq, int id, WordTable &word_table, WorkingParam &param,
+                                   WorkingBuffer &buffer, const Options &options, int &centers) {
     int len = seq->size;
     int NAA = options.NAA;
     int len_bound = upper_bound_length_rep(len, options);
@@ -3505,8 +3535,9 @@ void wait_all(Slot &s) {
     s.reqs.clear();
 }
 
-void SequenceDB::encode_WordTable(long *&info_buf, int chunk_id, int start, int end, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
-                                  long long *&prefix_buf, long long &indexCount_buf_size, long &prefix_size, int send_file_index,
+void SequenceDB::encode_WordTable(long *&info_buf, int chunk_id, int start, int end, long *&cluster_id_buf,
+                                  long *&suffix_buf, long *&indexCount_buf, long long *&prefix_buf,
+                                  long long &indexCount_buf_size, long &prefix_size, int send_file_index,
                                   int start_global_id) {
     int T = options.threads;
     int len = end - start;
@@ -3527,8 +3558,8 @@ void SequenceDB::encode_WordTable(long *&info_buf, int chunk_id, int start, int 
 
     // 计算每行 size
 }
-void SequenceDB::prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf, long *&indexCount_buf,
-                                   long long *&prefix_buf, long long &indexCount_buf_size) {
+void SequenceDB::prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf,
+                                   long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size) {
     int len = info_buf[1];
     cluster_id_buf = (long *) malloc(len * sizeof(long));
     suffix_buf = (long *) malloc(len * sizeof(long));
@@ -3588,9 +3619,11 @@ void mpi_progress_thread() {
         std::this_thread::sleep_for(std::chrono::microseconds(50));
     }
 }
-void SequenceDB::send_cluster(const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size,
-                              const std::vector<std::vector<float>> &clusters_identity, const std::vector<std::vector<int>> &clusters_coverage,
-                              int *&prefix_seq, int *&flat_size, float *&flat_identity, int *&flat_coverage, char *&flat_identifier, int &C, int &N,
+void SequenceDB::send_cluster(const std::vector<std::vector<std::string>> &clusters_identifier,
+                              const std::vector<std::vector<int>> &clusters_size,
+                              const std::vector<std::vector<float>> &clusters_identity,
+                              const std::vector<std::vector<int>> &clusters_coverage, int *&prefix_seq, int *&flat_size,
+                              float *&flat_identity, int *&flat_coverage, char *&flat_identifier, int &C, int &N,
                               int &IDLEN) {
     int *seq_cnt = (int *) malloc(C * sizeof(int));
     prefix_seq = (int *) malloc((C + 1) * sizeof(int));
@@ -3631,8 +3664,8 @@ void SequenceDB::send_cluster(const std::vector<std::vector<std::string>> &clust
     free(seq_cnt);
     seq_cnt = nullptr;
 }
-void SequenceDB::ClusterOne_worker(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer, const Options &options,
-                                   PaddedLock *locks, int num_locks, int lock_mask) {
+void SequenceDB::ClusterOne_worker(Sequence *seq, int id, WordTable &table, WorkingParam &param, WorkingBuffer &buffer,
+                                   const Options &options, PaddedLock *locks, int num_locks, int lock_mask) {
     int len = seq->size;
     int NAA = options.NAA;
     buffer.EncodeWords(seq, options.NAA, false);
@@ -3649,8 +3682,9 @@ void SequenceDB::ClusterOne_worker(Sequence *seq, int id, WordTable &table, Work
         }
     }
 }
-void SequenceDB::ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int, int>>> &word_table, WorkingParam &param,
-                                   WorkingBuffer &buffer, const Options &options, PaddedLock *locks, int num_locks, int lock_mask) {
+void SequenceDB::ClusterOne_master(Sequence *seq, int id, std::vector<std::vector<std::pair<int, int>>> &word_table,
+                                   WorkingParam &param, WorkingBuffer &buffer, const Options &options,
+                                   PaddedLock *locks, int num_locks, int lock_mask) {
     int len = seq->size;
     int NAA = options.NAA;
     buffer.EncodeWords(seq, options.NAA, false);
@@ -3666,13 +3700,15 @@ void SequenceDB::ClusterOne_master(Sequence *seq, int id, std::vector<std::vecto
         }
     }
 }
-int SequenceDB::CheckOne_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf, const Options &options) {
+int SequenceDB::CheckOne_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf,
+                                const Options &options) {
     int len = seq->size;
     param.len_upper_bound = upper_bound_length_rep(len, options);
     // if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
     return CheckOneAA_single(seq, qid, word_table, param, buf, options);
 }
-int SequenceDB::CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param, WorkingBuffer &buf,
+int SequenceDB::CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table, WorkingParam &param,
+                                  WorkingBuffer &buf,
                                   const Options &options) { // Todo  uint32_t
     NVector<IndexCount> &lookCounts = buf.lookCounts;
 
@@ -3750,26 +3786,27 @@ int SequenceDB::CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table,
         seqj = rep->data; // NR_seq[NR90_idx[j]];
 
         band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
-        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, required_aa1);
+        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                       required_aa1);
         if (best_sum < required_aa2) continue;
 
         int rc = FAILED_FUNC;
 #ifndef NO_AVX512
 
         if (options.print || aln_cover_flag) // return overlap region
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
         else
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
 #else
         // auto t0 = std::chrono::high_resolution_clock::now();
         if (options.print || aln_cover_flag) // return overlap region
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
         else
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
 #endif
         // auto t1 = std::chrono::high_resolution_clock::now();
         // param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
@@ -3796,7 +3833,8 @@ int SequenceDB::CheckOneAA_single(Sequence *seq, int qid, WordTable &word_table,
     }
     return flag;
 }
-int SequenceDB::CheckOne_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options) {
+int SequenceDB::CheckOne_master(Sequence *seq, int qid, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                                const Options &options) {
     int len = seq->size;
     param.len_upper_bound = upper_bound_length_rep(len, options);
     // if( options.isEST ) return CheckOneEST( seq, word_table, param, buf, options );
@@ -3879,25 +3917,26 @@ int SequenceDB::CheckOneAA_master(Sequence *seq, int qid, WordTable &table, Work
         seqj = rep->data; // NR_seq[NR90_idx[j]];
 
         band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
-        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, required_aa1);
+        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                       required_aa1);
         if (best_sum < required_aa2) continue;
 
         int rc = FAILED_FUNC;
 #ifndef NO_AVX512
         if (options.print || aln_cover_flag) // return overlap region
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
         else
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
 #else
         // auto t0 = std::chrono::high_resolution_clock::now();
         if (options.print || aln_cover_flag) // return overlap region
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
         else
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
 #endif
         // auto t1 = std::chrono::high_resolution_clock::now();
         // param.local_align_total_time_ns += std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count();
@@ -3928,7 +3967,8 @@ int SequenceDB::CheckOneAA_master(Sequence *seq, int qid, WordTable &table, Work
     }
     return flag;
 }
-// int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table ,bool est, int min)
+// int WorkingBuffer::CountWords(int aan_no, int qid,const std::vector<std::vector<std::pair<int,int>>>& word_table
+// ,bool est, int min)
 // {
 // 	out_pairs.clear();
 // 	visited.clear();
@@ -3963,10 +4003,208 @@ int SequenceDB::CheckOneAA_master(Sequence *seq, int qid, WordTable &table, Work
 // 	return OK_FUNC;
 // }
 
+//--------------------------------------------------------
+// Achieve efficient information output. -- By Guiliang Ma
+// Used for fast conversion of uint32_t to char* / string
+static inline char *fast_uint_to_str(char *buf, uint32_t val) {
+    if (val == 0) {
+        *buf++ = '0';
+        return buf;
+    }
+    char tmp[12];
+    int len = 0;
+    while (val > 0) {
+        tmp[len++] = val % 10 + '0';
+        val /= 10;
+    }
+    for (int i = len - 1; i >= 0; i--) {
+        *buf++ = tmp[i];
+    }
+    return buf;
+}
+
+// Used for fast conversion of float to char* / string with 2 decimal places
+static inline char *fast_float_to_str_2dec(char *buf, float val) {
+    int integer = (int) val;
+    int decimal = (int) ((val - integer) * 100.0f + 0.5f);
+    if (decimal >= 100) {
+        integer++;
+        decimal = 0;
+    }
+    buf = fast_uint_to_str(buf, integer);
+    *buf++ = '.';
+    *buf++ = '0' + decimal / 10;
+    *buf++ = '0' + decimal % 10;
+    *buf++ = '%';
+    return buf;
+}
+
+// Used for fast counting the number of digits of a uint32_t
+static inline int count_digits(uint32_t val) {
+    if (val == 0) return 1;
+    int count = 0;
+    while (val > 0) {
+        val /= 10;
+        count++;
+    }
+    return count;
+}
+
+// Maintain partition information describing the data range each thread needs to process.
+struct PartitionInfo {
+    size_t start_idx;
+    size_t end_idx;
+    size_t file_offset;
+    size_t estimated_size;
+
+    // 构造函数
+    PartitionInfo() : start_idx(0), end_idx(0), file_offset(0), estimated_size(0) {}
+};
+
+// Used for finding the boundaries of clusters in the sorted result.
+std::vector<size_t> FindClusterBoundaries(const std::vector<MasterSeqInfo> &all_infos, int num_partitions) {
+    std::vector<size_t> boundaries;
+    boundaries.reserve(num_partitions + 1);
+    boundaries.push_back(0);
+    if (all_infos.empty() || num_partitions <= 0) {
+        boundaries.push_back(all_infos.size());
+        return boundaries;
+    }
+    size_t total_size = all_infos.size();
+    size_t target_chunk_size = total_size / num_partitions;
+    for (int p = 1; p < num_partitions; p++) {
+        size_t ideal_pos = p * target_chunk_size;
+
+        // Search boundary of ideal pos + half of target chunk size
+        size_t search_start = ideal_pos;
+        size_t search_end = min(ideal_pos + target_chunk_size / 2, total_size);
+
+        bool found = false;
+        for (size_t i = search_start; i < search_end; ++i) {
+            if (all_infos[i].cluster_id != all_infos[i - 1].cluster_id) {
+                boundaries.push_back(i);
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            boundaries.push_back(search_end);
+        }
+    }
+    boundaries.push_back(total_size);
+    return boundaries;
+}
+
+// Accurately calculate the actual size of each block
+std::vector<PartitionInfo> CalculatePartitionInfo(const std::vector<MasterSeqInfo> &all_infos,
+                                                  const std::vector<size_t> &boundaries, const int num_threads) {
+    omp_set_num_threads(num_threads);
+    size_t num_partitions = boundaries.size() - 1;
+    std::vector<PartitionInfo> partitions(num_partitions);
+
+#pragma omp parallel for schedule(static)
+    for (size_t p = 0; p < num_partitions; ++p) {
+        PartitionInfo &info = partitions[p];
+        info.start_idx = boundaries[p];
+        info.end_idx = boundaries[p + 1];
+
+        size_t partition_size = 0;
+        uint32_t current_cluster = all_infos[info.start_idx].cluster_id;
+        int seq_idx = 0;
+
+        for (size_t i = info.start_idx; i < info.end_idx; ++i) {
+            const MasterSeqInfo &m = all_infos[i];
+
+            if (m.cluster_id != current_cluster) {
+                partition_size += 9 + count_digits(m.cluster_id) + 1;
+                current_cluster = m.cluster_id;
+                seq_idx = 0;
+            }
+
+            partition_size += count_digits(seq_idx) + 1;
+            partition_size += count_digits(m.size) + 5;
+            partition_size += m.name.length();
+
+            if (seq_idx == 0) {
+                partition_size += 6;
+            } else {
+                float percent = m.identity * 100.0f;
+                partition_size += (percent >= 99.995f) ? 15 : 14;
+            }
+            seq_idx++;
+        }
+
+        info.estimated_size = partition_size;
+    }
+
+    std::vector<size_t> sizes(num_partitions);
+    for (size_t p = 0; p < num_partitions; ++p) {
+        sizes[p] = partitions[p].estimated_size;
+    }
+
+    std::vector<size_t> offsets(num_partitions);
+    std::partial_sum(sizes.begin(), sizes.end() - 1, offsets.begin() + 1);
+    offsets[0] = 0;
+
+    for (size_t p = 0; p < num_partitions; ++p) {
+        partitions[p].file_offset = offsets[p];
+    }
+
+    return partitions;
+}
+
+// Write a partition to a memory-mapped file
+void WritePartitionToMmap(const std::vector<MasterSeqInfo> &all_infos, const PartitionInfo &partition,
+                          char *mapped_base) {
+    char *ptr = mapped_base + partition.file_offset;
+    uint32_t current_cluster = all_infos[partition.start_idx].cluster_id;
+    int seq_index = 0;
+    bool first_in_partition = true;
+    for (size_t i = partition.start_idx; i < partition.end_idx; i++) {
+        const MasterSeqInfo &m = all_infos[i];
+        if (m.cluster_id != current_cluster || first_in_partition) {
+            if (!first_in_partition) {
+                seq_index = 0;
+            }
+            current_cluster = m.cluster_id;
+            first_in_partition = false;
+            memcpy(ptr, ">Cluster ", 9);
+            ;
+            ptr += 9;
+            ptr = fast_uint_to_str(ptr, m.cluster_id);
+            *ptr++ = '\n';
+        }
+        ptr = fast_uint_to_str(ptr, seq_index);
+        *ptr++ = '\t';
+        ptr = fast_uint_to_str(ptr, m.size);
+        memcpy(ptr, "aa, >", 5);
+        ptr += 5;
+        size_t name_len = m.name.length();
+        memcpy(ptr, m.name.c_str(), name_len);
+        ptr += name_len;
+        if (m.identity == 0) {
+            memcpy(ptr, "... *\n", 6);
+            ptr += 6;
+        } else {
+            memcpy(ptr, "... at ", 7);
+            ptr += 7;
+            ptr = fast_float_to_str_2dec(ptr, m.identity * 100.0f);
+            *ptr++ = '\n';
+        }
+        seq_index++;
+    }
+}
+
 void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Options &options) {
     tbb::global_control(tbb::global_control::max_allowed_parallelism, options.threads);
-    cout << "--------------------------------" << endl;
-    cout << "Sorting and writing result..." << endl;
+    int num_threads = options.threads;
+    omp_set_num_threads(num_threads);
+    double written_mb = 0.0;
+    double written_time_naive = 0.0;
+    double written_time_mmap = 0.0;
+
+    // cout << "--------------------------------" << endl;
+    // cout << "[1/6] Sorting and writing result..." << endl;
     // auto start_time = std::chrono::high_resolution_clock::now();
 
     ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
@@ -3977,26 +4215,143 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
 
     // cout << "--------------------------------" << endl;
 
-    string clstr_output = options.output + ".clstr ";
-    ofstream clstr_fout(clstr_output);
+    // Naive methods
+    // auto start_time = std::chrono::high_resolution_clock::now();
+    // string cmp_output = options.output + ".clstr.cmp";
+    // ofstream cmp_fout(cmp_output);
 
-    for (size_t i = 0; i < all_infos.size(); ++i) {
-        const MasterSeqInfo &m = all_infos[i];
+    // // 设置浮点数输出精度为2位小数
+    // cmp_fout << std::fixed << std::setprecision(2);
 
-        clstr_fout << m.cluster_id << '\t' << m.size << '\t' << m.identity << '\t' << '>' << m.name << '\t';
+    // if (all_infos.empty()) {
+    //     cmp_fout.close();
+    //     return;
+    // }
 
-        if (options.print) {
-            clstr_fout << m.coverage[0] << '\t' << m.coverage[1] << '\t' << m.coverage[2] << '\t' << m.coverage[3];
-        }
-        clstr_fout << '\n';
+    // uint32_t current_cluster = all_infos[0].cluster_id;
+    // int seq_index = 0;
+    // bool first_entry = true;
+
+    // for (size_t i = 0; i < all_infos.size(); ++i) {
+    //     const MasterSeqInfo &m = all_infos[i];
+
+    //     // 检测cluster变化，输出cluster标题
+    //     if (m.cluster_id != current_cluster || first_entry) {
+    //         if (!first_entry) {
+    //             seq_index = 0; // 新cluster，重置索引
+    //         }
+    //         current_cluster = m.cluster_id;
+    //         first_entry = false;
+
+    //         cmp_fout << ">Cluster " << m.cluster_id << "\n";
+    //     }
+
+    //     // 输出序列信息行
+    //     cmp_fout << seq_index << "\t" << m.size << "aa, >" << m.name << "...";
+
+    //     if (seq_index == 0) {
+    //         // 代表序列
+    //         cmp_fout << " *\n";
+    //     } else {
+    //         // 其他序列，显示相似度
+    //         cmp_fout << " at " << (m.identity * 100.0f) << "%\n";
+    //     }
+
+    //     seq_index++;
+    // }
+
+    // cmp_fout.close();
+    // auto end_time = std::chrono::high_resolution_clock::now();
+    // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+    // cout << "Naive methods time: " << duration.count() << " ms" << endl;
+    // written_time_naive = (double) duration.count() / 1000.0;
+    // naive methods end
+
+    // start_time = std::chrono::high_resolution_clock::now();
+
+    // cout << "[2/6] Finding cluster boundaries..." << endl;
+    if (all_infos.empty()) {
+        return;
     }
 
-    clstr_fout.close();
+    std::vector<size_t> boundaries = FindClusterBoundaries(all_infos, num_threads);
+
+    // cout << "\tUsing [" << num_threads << "] threads, [" << boundaries.size() - 1 << "] partitions" << endl;
+
+    // cout << "[3/6] Calculating partition sizes..." << endl;
+
+    std::vector<PartitionInfo> partitions = CalculatePartitionInfo(all_infos, boundaries, num_threads);
+    size_t total_size = 0;
+    for (const auto &p : partitions) {
+        total_size += p.estimated_size;
+    }
+    size_t safe_size = total_size + (total_size * 3 / 100);
+
+    // cout << "[4/6] Creating memory-map..." << endl;
+    string clstr_output = options.output + ".clstr";
+    // string clstr_output = "/home/bigssd/mgl_data/huge.clstr";
+    int fd = open(clstr_output.c_str(), O_RDWR | O_CREAT | O_TRUNC, 0644);
+    if (fd == -1) {
+        cerr << "ERROR: Failed to create mmap file: " << strerror(errno) << endl;
+        return;
+    }
+    if (ftruncate(fd, safe_size) == -1) {
+        cerr << "ERROR: Failed to allocate memory space: " << strerror(errno) << endl;
+        close(fd);
+        return;
+    }
+
+    char *mapped = (char *) mmap(nullptr, safe_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapped == MAP_FAILED) {
+        cerr << "ERROR: mmap failed: " << strerror(errno) << endl;
+        close(fd);
+        return;
+    }
+
+    // cout << "[5/6] Parallel Writing ..." << endl;
+
+    // auto write_start = std::chrono::high_resolution_clock::now();
+#pragma omp parallel for schedule(dynamic)
+    for (size_t p = 0; p < partitions.size(); p++) {
+        WritePartitionToMmap(all_infos, partitions[p], mapped);
+    }
+
+    // tbb::parallel_for(tbb::blocked_range<size_t>(0, partitions.size()), [&](const tbb::blocked_range<size_t> &range)
+    // {
+    //     for (size_t p = range.begin(); p != range.end(); ++p) {
+    //         WritePartitionToMmap(all_infos, partitions[p], mapped);
+    //     }
+    // });
+
+    // auto write_end = std::chrono::high_resolution_clock::now();
+    // auto write_duration = std::chrono::duration_cast<std::chrono::milliseconds>(write_end - write_start);
+    // cout << "      Completed in " << write_duration.count() << " ms" << endl;
+
+    // start_time = std::chrono::high_resolution_clock::now();
+
+    // cout << "[6/6] Finalizing..." << endl;
+    msync(mapped, total_size, MS_SYNC);
+
+    // end_time = std::chrono::high_resolution_clock::now();
+    // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+
+    // cout << "msync time: " << duration.count() << " ms" << endl;
+    // written_mb = (double) total_size / (1024.0 * 1024.0);
+    // written_time_mmap = (double) duration.count() / 1000.0;
+    // cout << "Naive Written Speed: " << written_mb / written_time_naive << " MB/s" << endl;
+    // cout << "Mmap Written Speed: " << written_mb / written_time_mmap << " MB/s" << endl;
+
+    munmap(mapped, safe_size);
+    ftruncate(fd, total_size);
+    close(fd);
+
+    cout << "[DONE] Cluster Information written to: " << clstr_output << endl;
+    // clstr_fout.close();
     return;
 }
 
-void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output,
-                                  MPI_Comm worker_comm) {
+void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank,
+                                  const char *output, MPI_Comm worker_comm) {
     int rank_size;
     MPI_Comm_size(MPI_COMM_WORLD, &rank_size);
     int source = 0;
@@ -4016,7 +4371,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
         temp_dir += '/';
     }
     if (not options.isEST)
-        cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd, options.tolerance, naa_stat_start_percent, naa_stat, NAA);
+        cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd, options.tolerance,
+                       naa_stat_start_percent, naa_stat, NAA);
     Vector<WorkingParam> params(T);
     Vector<WorkingBuffer> buffers(T);
 
@@ -4071,8 +4427,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
         // string clstr_output = options.output + '/' + std::to_string(my_rank) + ".clstr";
         // ofstream clstr_fout(clstr_output);
 
-        string rep_output = options.output + '/' + std::to_string(my_rank);
+        // Modify by MGL: remove the rank directory
+        // string rep_output = options.output + '/' + std::to_string(my_rank);
+        string rep_output = options.output;
         ofstream fout(rep_output);
+
         std::vector<std::vector<string>> id_tables(rank_size - 1);
         vector<int> read_flag(chunks_num, 0);
         int output_index = 0;
@@ -4180,14 +4539,16 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     Sequence *seq = sequences[j];
                     if (seq->state & IS_REDUNDANT) continue;
                     int tid = omp_get_thread_num();
-                    ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options, locks, NUM_LOCKS, LOCK_MASK);
+                    ClusterOne_worker(seq, j, word_table, params[tid], buffers[tid], options, locks, NUM_LOCKS,
+                                      LOCK_MASK);
                 }
 #pragma omp parallel for schedule(dynamic)
                 for (long long j = 0; j < (long long) word_table.NAAN; ++j) {
                     NVector<IndexCount> &row = word_table.indexCounts[j];
 
                     if (row.size < 2 || row.items == NULL) continue;
-                    std::sort(row.items, row.items + row.size, [](const IndexCount &a, const IndexCount &b) { return a.index < b.index; });
+                    std::sort(row.items, row.items + row.size,
+                              [](const IndexCount &a, const IndexCount &b) { return a.index < b.index; });
                 }
 
                 double tA1 = get_time();
@@ -4244,8 +4605,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
             printf("\n%9i  finished  %9i  clusters\n", start_global_id + sequences.size(), rep_seqs.size());
             int end_rep_suffix = rep_seqs.size();
-            encode_WordTable(info_buf, i, start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf, indexCount_buf, prefix_buf,
-                             indexCount_buf_size, prefix_size, send_file_index, start_global_id);
+            encode_WordTable(info_buf, i, start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
+                             indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index,
+                             start_global_id);
             word_table.Clear();
             if (i > 0) {
                 MPI_Request request[4] = {MPI_REQUEST_NULL};
@@ -4282,9 +4644,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 // 				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 // 				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 // 				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                // 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                // 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD,
+                // MPI_STATUS_IGNORE);
 
-                // #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
+                // #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage,
+                // flat_identifier)
                 // 					{
                 // 						for (int c = 0; c < C; ++c)
                 // 						{
@@ -4308,11 +4672,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 // 							}
 
                 // 							omp_set_lock(&locks[c]);
-                // 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
-                // 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
-                // 							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
-                // 							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
-                // 							omp_unset_lock(&locks[c]);
+                // 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(),
+                // ids.end()); 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(),
+                // sizes.end()); 							clusters_identity[c].insert(clusters_identity[c].end(),
+                // idts.begin(), idts.end()); clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(),
+                // covs.end()); 							omp_unset_lock(&locks[c]);
                 // 						}
                 // 						free(prefix_seq);
                 // 						free(flat_size);
@@ -4329,13 +4693,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 // for (int kk = 0; kk < C; kk++)
                 // {
                 // 	clstr_fout << ">Cluster " << (output_index + kk) << "\n";
-                // 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
-                // for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
+                // 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *"
+                // <<"\n"; for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
                 // {
-                // 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
-                // 	int *c = &clusters_coverage[kk][kkk * 4];
-                // 	clstr_fout << " at ";
-                // 	if (options.print)
+                // 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk]
+                // << "..."; 	int *c = &clusters_coverage[kk][kkk * 4]; 	clstr_fout << " at "; 	if (options.print)
                 // 		clstr_fout << c[0] << ":" << c[1] << ":" << c[2] << ":" << c[3] << "/";
                 // 	clstr_fout << std::fixed << std::setprecision(2) << (clusters_identity[kk][kkk] * 100) << "%";
 
@@ -4388,8 +4750,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             // 				MPI_Recv(flat_size, N, MPI_INT, src, 111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // 				MPI_Recv(flat_identity, N, MPI_FLOAT, src, 112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
             // 				MPI_Recv(flat_coverage, N * 4, MPI_INT, src, 113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            // 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-            // #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage, flat_identifier)
+            // 				MPI_Recv(flat_identifier, N * (max_idf + 1), MPI_CHAR, src, 114, MPI_COMM_WORLD,
+            // MPI_STATUS_IGNORE); #pragma omp task firstprivate(N, prefix_seq, flat_size, flat_identity, flat_coverage,
+            // flat_identifier)
             // 					{
             // 						for (int c = 0; c < C; ++c)
             // 						{
@@ -4413,11 +4776,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             // 							}
 
             // 							omp_set_lock(&locks[c]);
-            // 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(), ids.end());
-            // 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(), sizes.end());
-            // 							clusters_identity[c].insert(clusters_identity[c].end(), idts.begin(), idts.end());
-            // 							clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(), covs.end());
-            // 							omp_unset_lock(&locks[c]);
+            // 							clusters_identifier[c].insert(clusters_identifier[c].end(), ids.begin(),
+            // ids.end()); 							clusters_size[c].insert(clusters_size[c].end(), sizes.begin(),
+            // sizes.end()); 							clusters_identity[c].insert(clusters_identity[c].end(),
+            // idts.begin(), idts.end()); clusters_coverage[c].insert(clusters_coverage[c].end(), covs.begin(),
+            // covs.end()); 							omp_unset_lock(&locks[c]);
             // 						}
             // 						free(prefix_seq);
             // 						free(flat_size);
@@ -4433,10 +4796,12 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             // for (int kk = 0; kk < C; kk++)
             // {
             // 	clstr_fout << ">Cluster " << (last_rep_index + kk) << "\n";
-            // 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *" <<"\n";
+            // 	clstr_fout << 0 << '\t' << rep_size_cur[kk] << "aa, >" << rep_identifier_cur[kk] << "..." << " *"
+            // <<"\n";
             // 	// for (int kkk = 0; kkk < clusters_identifier[kk].size(); kkk++)
             // 	// {
-            // 	// 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk] << "...";
+            // 	// 	clstr_fout << kkk + 1 << '\t' << clusters_size[kk][kkk] << "aa, >" << clusters_identifier[kk][kkk]
+            // << "...";
             // 	// 	int *c = &clusters_coverage[kk][kkk * 4];
             // 	// 	clstr_fout << " at ";
             // 	// 	if (options.print)
@@ -4469,8 +4834,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     while (received < C_remote) {
                         int n = min(CHUNK_SEQS, C_remote - received);
 
-                        MPI_Recv(buf.data() + received, n * (int) sizeof(RedundantSeqInfoHeader), MPI_BYTE, src, 500, MPI_COMM_WORLD,
-                                 MPI_STATUS_IGNORE);
+                        MPI_Recv(buf.data() + received, n * (int) sizeof(RedundantSeqInfoHeader), MPI_BYTE, src, 500,
+                                 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
                         received += n;
                     }
@@ -4493,6 +4858,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 double tb2 = get_time();
                 cerr << "total recv time " << tb2 - tb1 << endl;
 
+                cout << "Representative Information written: " << rep_output << endl;
                 SortAndWriteResult(all_infos, options);
                 break;
             }
@@ -4681,7 +5047,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     now_byte += len;
 
                     rep_sequences[rep_sequences.size() - 1]->ConvertBases();
-                    if ((soure_chunk != 0 && now_byte > chunk_bytes) || (soure_chunk == 0 && rep_sequences.size() >= first_chunk_size) ||
+                    if ((soure_chunk != 0 && now_byte > chunk_bytes) ||
+                        (soure_chunk == 0 && rep_sequences.size() >= first_chunk_size) ||
                         (rep_sequences.size() >= chunk_size)) {
                         chunk_kseq[file_index] = seq;
                         now_byte = 0;
@@ -4705,10 +5072,12 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 int tid = omp_get_thread_num();
                 Sequence *seq = rep_sequences[j];
                 if (seq->state & IS_REP)
-                    ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options, locks, NUM_LOCKS, LOCK_MASK);
+                    ClusterOne_worker(seq, seq->table_idx, word_table, params[tid], buffers[tid], options, locks,
+                                      NUM_LOCKS, LOCK_MASK);
             }
             double t142 = get_time();
-            cerr << "build word table time   " << t142 - t141 << " chunk  " << soure_chunk << "  by rank  " << my_rank << endl;
+            cerr << "build word table time   " << t142 - t141 << " chunk  " << soure_chunk << "  by rank  " << my_rank
+                 << endl;
             total_time += t142 - t141;
             int remain_chunks = my_chunks.size() - start;
 
@@ -4734,7 +5103,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                     Task t;
                                     MPI_Fetch_and_op(&dec, &top, MPI_INT, worker_rank, 0, MPI_SUM, win_ctrl_);
                                     MPI_Win_flush(worker_rank, win_ctrl_);
-                                    MPI_Get(&t, sizeof(Task), MPI_BYTE, worker_rank, top, sizeof(Task), MPI_BYTE, win_tasks_);
+                                    MPI_Get(&t, sizeof(Task), MPI_BYTE, worker_rank, top, sizeof(Task), MPI_BYTE,
+                                            win_tasks_);
                                     MPI_Win_flush_local(worker_rank, win_tasks_);
                                     l_shared = t.l;
                                     r_shared = t.r;
@@ -4776,8 +5146,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 #pragma omp master
                             {
                                 const int cnt = r_shared - l_shared + 1;
-                                MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared, cnt * sizeof(SeqMeta), MPI_BYTE,
-                                        win_meta_);
+                                MPI_Put(&meta_[l_shared], cnt * sizeof(SeqMeta), MPI_BYTE, worker_rank, l_shared,
+                                        cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
                                 MPI_Win_flush(worker_rank, win_meta_);
                             }
                         }
@@ -4795,15 +5165,17 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                         MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
                                         MPI_Win_flush_local(worker_rank, win_tasks_flag_);
                                         while (task_flag != 1) {
-                                            MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT, win_tasks_flag_);
+                                            MPI_Get(&task_flag, 1, MPI_INT, worker_rank, tt, 1, MPI_INT,
+                                                    win_tasks_flag_);
                                             MPI_Win_flush_local(worker_rank, win_tasks_flag_);
                                             cerr << "等等等等等等等等等等等等等等等等等等等等等" << endl;
                                             usleep(1000);
                                         }
                                         const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
                                         std::vector<SeqMeta> metas(cnt);
-                                        MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, sub_chunks[tt].first,
-                                                (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+                                        MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank,
+                                                sub_chunks[tt].first, (int) (cnt * sizeof(SeqMeta)), MPI_BYTE,
+                                                win_meta_);
                                         MPI_Win_flush_local(worker_rank, win_meta_);
                                         for (int ttt = sub_chunks[tt].first; ttt <= sub_chunks[tt].second; ttt++) {
                                             const auto &m = metas[ttt - sub_chunks[tt].first];
@@ -4856,14 +5228,15 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             MPI_Fetch_and_op(&dec, &stealing_bottom, MPI_INT, tt, 1, MPI_SUM, win_ctrl_);
                             MPI_Win_flush(tt, win_ctrl_);
                             Task t;
-                            MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE, win_tasks_);
+                            MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE,
+                                    win_tasks_);
                             MPI_Win_flush_local(tt, win_tasks_);
 
                             const int cnt = t.r - t.l + 1;
                             std::vector<SeqMeta> metas(cnt);
 
-                            MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l, (int) (cnt * sizeof(SeqMeta)),
-                                    MPI_BYTE, win_meta_);
+                            MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l,
+                                    (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
 
                             MPI_Win_flush_local(tt, win_meta_);
 
@@ -4871,7 +5244,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             for (const auto &m : metas) total_bytes += (size_t) m.data_len;
                             std::vector<uint8_t> slab(total_bytes);
                             size_t cursor = metas[0].data_off;
-                            MPI_Get(slab.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint) cursor, total_bytes, MPI_BYTE, win_pool_d_);
+                            MPI_Get(slab.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint) cursor, total_bytes, MPI_BYTE,
+                                    win_pool_d_);
                             MPI_Win_flush_local(tt, win_pool_d_);
 #pragma omp parallel num_threads(T)
                             {
@@ -4910,10 +5284,12 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             MPI_Get(&task_flag, 1, MPI_INT, tt, stealing_bottom, 1, MPI_INT, win_tasks_flag_);
                             MPI_Win_flush_local(tt, win_tasks_flag_);
                             if (task_flag == 0) {
-                                MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta), MPI_BYTE, win_meta_);
+                                MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta),
+                                        MPI_BYTE, win_meta_);
                                 MPI_Win_flush(tt, win_meta_);
                                 int dec = 1;
-                                MPI_Fetch_and_op(&dec, &task_flag, MPI_INT, tt, stealing_bottom, MPI_SUM, win_tasks_flag_);
+                                MPI_Fetch_and_op(&dec, &task_flag, MPI_INT, tt, stealing_bottom, MPI_SUM,
+                                                 win_tasks_flag_);
                                 MPI_Win_flush(tt, win_tasks_flag_);
                             }
 
@@ -4982,7 +5358,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 }
             }
             double t15 = get_time();
-            cerr << "-----checkone time  " << t15 - t14 << " chunk  " << soure_chunk << "  by rank  " << my_rank << endl;
+            cerr << "-----checkone time  " << t15 - t14 << " chunk  " << soure_chunk << "  by rank  " << my_rank
+                 << endl;
 
             word_table.Clear();
             slots[cur].release();
@@ -5017,8 +5394,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         }
                         const int cnt = sub_chunks[tt].second - sub_chunks[tt].first + 1;
                         std::vector<SeqMeta> metas(cnt);
-                        MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank, sub_chunks[tt].first,
-                                (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
+                        MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, worker_rank,
+                                sub_chunks[tt].first, (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
                         MPI_Win_flush_local(worker_rank, win_meta_);
 
 #pragma omp parallel for schedule(static)
@@ -5052,14 +5429,14 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             // 			if (seq->state & IS_REDUNDANT && seq->cluster_id != -1)
             // 			{
 
-            // 				clusters_identifier[seq->cluster_id - record_last].emplace_back(std::string(seq->identifier));
-            // 				clusters_size[seq->cluster_id - record_last].emplace_back(seq->size);
-            // 				clusters_identity[seq->cluster_id - record_last].emplace_back(seq->identity);
-            // 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[0]);
-            // 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[1]);
-            // 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[2]);
-            // 				clusters_coverage[seq->cluster_id - record_last].emplace_back(seq->coverage[3]);
-            // 				seq->cluster_id = -1;
+            // 				clusters_identifier[seq->cluster_id -
+            // record_last].emplace_back(std::string(seq->identifier)); 				clusters_size[seq->cluster_id -
+            // record_last].emplace_back(seq->size); 				clusters_identity[seq->cluster_id -
+            // record_last].emplace_back(seq->identity); 				clusters_coverage[seq->cluster_id -
+            // record_last].emplace_back(seq->coverage[0]); 				clusters_coverage[seq->cluster_id -
+            // record_last].emplace_back(seq->coverage[1]); 				clusters_coverage[seq->cluster_id -
+            // record_last].emplace_back(seq->coverage[2]); 				clusters_coverage[seq->cluster_id -
+            // record_last].emplace_back(seq->coverage[3]); 				seq->cluster_id = -1;
             // 			}
             // 		}
             // 	}
@@ -5134,7 +5511,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 for (int offset = 0; offset < C; offset += CHUNK_SEQS) {
                     int n = min(CHUNK_SEQS, C - offset);
                     MPI_Request req;
-                    MPI_Isend(info_headers.data() + offset, n * (int) sizeof(RedundantSeqInfoHeader), MPI_BYTE, 0, 500, MPI_COMM_WORLD, &req);
+                    MPI_Isend(info_headers.data() + offset, n * (int) sizeof(RedundantSeqInfoHeader), MPI_BYTE, 0, 500,
+                              MPI_COMM_WORLD, &req);
                     reqs.push_back(req);
                 }
 
@@ -5188,8 +5566,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 //         clstr_fout << ">" << clusters_identifier[kk][m] << "\t";
 
                 //         int *cov = &clusters_coverage[kk][m * 4];
-                //         if (options.print) clstr_fout << cov[0] << "\t" << cov[1] << "\t" << cov[2] << "\t" << cov[3];
-                //         clstr_fout << "\n";
+                //         if (options.print) clstr_fout << cov[0] << "\t" << cov[1] << "\t" << cov[2] << "\t" <<
+                //         cov[3]; clstr_fout << "\n";
                 //     }
                 // }
                 // double tb2 = get_time();
@@ -5209,8 +5587,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 ctrl_[2] = top;
                 MPI_Put(ctrl_, 3, MPI_INT, worker_rank, 0, 3, MPI_INT, win_ctrl_);
                 tasks_flag.assign(sub_chunks.size(), 0);
-                MPI_Put(tasks_flag.data(), sub_chunks.size() * sizeof(int), MPI_INT, worker_rank, 0, sub_chunks.size() * sizeof(int), MPI_INT,
-                        win_tasks_flag_);
+                MPI_Put(tasks_flag.data(), sub_chunks.size() * sizeof(int), MPI_INT, worker_rank, 0,
+                        sub_chunks.size() * sizeof(int), MPI_INT, win_tasks_flag_);
 
                 MPI_Win_flush(worker_rank, win_ctrl_);
                 MPI_Win_flush(worker_rank, win_tasks_flag_);
@@ -5235,7 +5613,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-int SequenceDB::CheckOne_worker(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options, int id) {
+int SequenceDB::CheckOne_worker(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                                const Options &options, int id) {
     int len = seq->size;
     // cerr<<seq->data<<endl;
     param.len_upper_bound = upper_bound_length_rep(len, options);
@@ -5243,7 +5622,8 @@ int SequenceDB::CheckOne_worker(Sequence *seq, WordTable &table, WorkingParam &p
     return CheckOneAA_worker(seq, table, param, buf, options, id);
 }
 
-int SequenceDB::CheckOne(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options) {
+int SequenceDB::CheckOne(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                         const Options &options) {
     int len = seq->size;
     // cerr<<seq->data<<endl;
     param.len_upper_bound = upper_bound_length_rep(len, options);
@@ -5251,7 +5631,8 @@ int SequenceDB::CheckOne(Sequence *seq, WordTable &table, WorkingParam &param, W
     return CheckOneAA(seq, table, param, buf, options);
 }
 
-int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options, int id) {
+int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                                  const Options &options, int id) {
     NVector<IndexCount> &lookCounts = buf.lookCounts;
     NVector<uint32_t> &indexMapping = buf.indexMapping;
     Vector<INTs> &word_encodes_no = buf.word_encodes_no;
@@ -5367,25 +5748,26 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
 
         band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 
-        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, required_aa1);
+        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                       required_aa1);
         if (best_sum < required_aa2) continue;
 
         int rc = FAILED_FUNC;
 #ifndef NO_AVX512
         if (options.print || aln_cover_flag) // return overlap region
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
         else
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
 #else
         // auto t0 = std::chrono::high_resolution_clock::now();
         if (options.print || aln_cover_flag) // return overlap region
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
         else
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
 #endif
 
         if (rc == FAILED_FUNC) continue;
@@ -5421,7 +5803,8 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
         for (int t = 0; t < 4; ++t) meta_[id].coverage[t] = seq->coverage[t];
 
         if (not options.cluster_best) break;
-        update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff, options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+        update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff, options.tolerance, naa_stat_start_percent, naa_stat, NAA,
+                          tiden_pc);
         param.ComputeRequiredBases(options.NAA, 2, options);
     }
     if (frag_size) ic = lookCounts.items;
@@ -5439,7 +5822,8 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
     }
     return flag;
 }
-int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options) {
+int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                           const Options &options) {
     NVector<IndexCount> &lookCounts = buf.lookCounts;
     NVector<uint32_t> &indexMapping = buf.indexMapping;
     Vector<INTs> &word_encodes_no = buf.word_encodes_no;
@@ -5555,25 +5939,26 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
 
         band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
 
-        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, required_aa1);
+        diag_test_aapn(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                       required_aa1);
         if (best_sum < required_aa2) continue;
 
         int rc = FAILED_FUNC;
 #ifndef NO_AVX512
         if (options.print || aln_cover_flag) // return overlap region
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
         else
-            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                            band_right, buf);
+            rc = rotation_band_align_AVX512(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance,
+                                            talign_info, band_left, band_center, band_right, buf);
 #else
         // auto t0 = std::chrono::high_resolution_clock::now();
         if (options.print || aln_cover_flag) // return overlap region
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
         else
-            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right,
-                                  buf);
+            rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                  band_left, band_center, band_right, buf);
 #endif
 
         if (rc == FAILED_FUNC) continue;
@@ -5603,7 +5988,8 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
         seq->coverage[2] = talign_info[2] + 1;
         seq->coverage[3] = talign_info[3] + 1;
         if (not options.cluster_best) break;
-        update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff, options.tolerance, naa_stat_start_percent, naa_stat, NAA, tiden_pc);
+        update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff, options.tolerance, naa_stat_start_percent, naa_stat, NAA,
+                          tiden_pc);
         param.ComputeRequiredBases(options.NAA, 2, options);
     }
     if (frag_size) ic = lookCounts.items;
@@ -5621,7 +6007,8 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
     }
     return flag;
 }
-int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf, const Options &options) {
+int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param, WorkingBuffer &buf,
+                            const Options &options) {
     NVector<IndexCount> &lookCounts = buf.lookCounts;
     NVector<uint32_t> &indexMapping = buf.indexMapping;
     Vector<INTs> &word_encodes_no = buf.word_encodes_no;
@@ -5728,22 +6115,23 @@ int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param
             }
 
             band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
-            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, required_aa1);
+            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                               required_aa1);
             if (best_sum < required_aas) continue;
             // if( comp and flag and (not options.cluster_best) and j > rep->cluster_id ) goto Break;
 
             int rc = FAILED_FUNC;
             if (options.print || aln_cover_flag) { // return overlap region
-                rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                      band_right, buf);
+                rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                      band_left, band_center, band_right, buf);
                 if (comp) {
                     talign_info[0] = len - talign_info[0] - 1;
                     talign_info[1] = len - talign_info[1] - 1;
                 }
             } else {
                 // printf( "%5i %5i %5i %5i\n", band_width1, band_right-band_left, band_left, band_right );
-                rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center,
-                                      band_right, buf);
+                rc = local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info,
+                                      band_left, band_center, band_right, buf);
             }
             if (rc == FAILED_FUNC) continue;
             // printf( "%i  %i  %i\n", best_score, tiden_no, required_aa1 );
@@ -5774,7 +6162,8 @@ int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param
                     if (talign_info[1] - talign_info[0] + 1 < min_aln_lenS) continue;
                 }
             }
-            if (options.cluster_best and fabs(tiden_pc - seq->identity) < 1E-9 and rep->cluster_id >= seq->cluster_id) continue;
+            if (options.cluster_best and fabs(tiden_pc - seq->identity) < 1E-9 and rep->cluster_id >= seq->cluster_id)
+                continue;
             if ((not options.cluster_best) and flag != 0 and rep->cluster_id >= seq->cluster_id) continue;
             flag = comp ? -1 : 1;
             seq->identity = tiden_pc;
@@ -5831,8 +6220,10 @@ void SequenceDB::ComputeDistance(const Options &options) {
             char *seqj = rep->data;
             int len2 = rep->size;
             band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
-            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, 0);
-            local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right, buf);
+            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                               0);
+            local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left,
+                             band_center, band_right, buf);
             dists[seq->index][rep->index] = dists[rep->index][seq->index] = distance;
         }
         if (not options.option_r) break;
@@ -5847,9 +6238,12 @@ void SequenceDB::ComputeDistance(const Options &options) {
             char *seqj = rep->data;
             int len2 = rep->size;
             band_width1 = (options.band_width < len + len2 - 2) ? options.band_width : len + len2 - 2;
-            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right, 0);
-            local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left, band_center, band_right, buf);
-            if (distance < dists[seq->index][rep->index]) dists[seq->index][rep->index] = dists[rep->index][seq->index] = distance;
+            diag_test_aapn_est(NAA1, seqj, len, len2, buf, best_sum, band_width1, band_left, band_center, band_right,
+                               0);
+            local_band_align(seqi, seqj, len, len2, mat, best_score, tiden_no, alnln, distance, talign_info, band_left,
+                             band_center, band_right, buf);
+            if (distance < dists[seq->index][rep->index])
+                dists[seq->index][rep->index] = dists[rep->index][seq->index] = distance;
         }
     }
     std::string output = options.output + ".dist";
@@ -5865,7 +6259,8 @@ void SequenceDB::ComputeDistance(const Options &options) {
     fclose(fout);
 }
 
-int calc_ann_list(int len, char *seqi, int NAA, int &aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no, bool est) {
+int calc_ann_list(int len, char *seqi, int NAA, int &aan_no, Vector<int> &aan_list, Vector<INTs> &aan_list_no,
+                  bool est) {
     int i, j, k, i0, i1, k1;
 
     // check_aan_list
