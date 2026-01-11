@@ -81,7 +81,7 @@ int main(int argc, char* argv[]) {
     std::regex cpu_dir("^cpu([0-9]+)$");
     std::map<int, std::set<int>> socket_coreids;
 
-    const char* RUN_DIR = "tmp_files";
+    const char* RUN_DIR = "output";
     if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
         perror("mkdir tmp_files");
         return 0;

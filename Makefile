@@ -9,7 +9,7 @@ CC = mpiicpx
 ifeq ($(openmp),no)
   CCFLAGS = -DNO_OPENMP
 else
-  CCFLAGS = -fopenmp
+  CCFLAGS = -fopenmp -D_REENTRANT
 endif
 ifeq ($(AVX512),yes)
 #   CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq -fno-vectorize 
@@ -19,6 +19,32 @@ else
 endif
 #LDFLAGS = -static -lz -o
 #LDFLAGS = /usr/lib/x86_64-linux-gnu/libz.a -o
+
+
+# TBB 配置 - 可以通过环境变量 TBB_ROOT 指定，或使用默认路径
+TBB_ROOT ?= /opt/intel/oneapi/tbb/latest
+TBB_LIB_DIR = $(TBB_ROOT)/lib/intel64/gcc4.8
+TBB_INCLUDE_DIR = $(TBB_ROOT)/include
+
+# 检查 TBB 是否存在，如果不存在则使用系统默认
+ifeq ($(wildcard $(TBB_LIB_DIR)/libtbb.so),)
+  # TBB 不在默认路径，尝试其他可能的位置
+  TBB_LIB_DIR = $(shell if [ -d "$(TBB_ROOT)/lib/intel64" ]; then echo "$(TBB_ROOT)/lib/intel64"; \
+                            elif [ -d "$(TBB_ROOT)/lib" ]; then echo "$(TBB_ROOT)/lib"; \
+                            else echo ""; fi)
+endif
+
+# 添加 TBB 路径
+ifneq ($(TBB_LIB_DIR),)
+  LDFLAGS += -L$(TBB_LIB_DIR)
+endif
+ifneq ($(TBB_INCLUDE_DIR),)
+  CCFLAGS += -I$(TBB_INCLUDE_DIR)
+endif
+
+# Intel oneAPI TBB 需要链接 tbb 和 tbbmalloc
+LIBS = -ltbb -ltbbmalloc -latomic -lpthread
+
 
 # default with zlib
 # without zlib
@@ -31,6 +57,8 @@ else
   CCFLAGS += -DWITH_ZLIB -g
   LDFLAGS += -lz -o
 endif
+
+
 # CCFLAGS += -DREADY
 # support debugging
 # in command line:
@@ -68,10 +96,10 @@ clean:
 
 # programs
 cdhit-mpi: $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(BUILD_DIR)/cdhit-mpi.o
-	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-mpi.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(LDFLAGS) cdhit-mpi
+	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-mpi.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o ${LIBS} $(LDFLAGS) cdhit-mpi
 
 cdhit-preprocess: $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(BUILD_DIR)/cdhit-preprocess.o
-	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-preprocess.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o $(LDFLAGS) cdhit-preprocess
+	$(CC) $(CCFLAGS) $(BUILD_DIR)/cdhit-preprocess.o $(BUILD_DIR)/cdhit-common.o $(BUILD_DIR)/cdhit-utility.o ${LIBS} $(LDFLAGS) cdhit-preprocess
 
 # objects
 $(BUILD_DIR)/cdhit-common.o: $(SRC_DIR)/cdhit-common.c++ $(INC_DIR)/cdhit-common.h

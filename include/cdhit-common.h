@@ -60,10 +60,14 @@
 #include <zlib.h>
 // #endif
 
+#include <tbb/global_control.h>
+
 #include <map>
 #include <valarray>
 #include <vector>
 
+#include "ips2ra.hpp"
+#include "ips4o.hpp"
 #include "json.hpp"
 
 #define CDHIT_VERSION "4.8.1"
@@ -241,10 +245,10 @@ void InitNAA(int max);
 extern int naa_stat_start_percent;
 extern int naa_stat[5][61][4];
 struct RedundantSeqInfoHeader {
-    int   cluster_id;
-    int   size;
+    int cluster_id;
+    int size;
     float identity;
-    int   coverage[4];
+    int coverage[4];
 };
 struct IndexCount {
     int index;
@@ -415,10 +419,10 @@ struct SequenceMeta {
     string identifier;
 };
 struct MasterSeqInfo {
-    int   cluster_id;
-    int   size;
+    uint32_t cluster_id;
+    int size;
     float identity;
-    int   coverage[4];
+    int coverage[4];
     std::string name;
 };
 struct FastaRecord {
@@ -767,6 +771,9 @@ public:
     void ReadJsonInfo(const std::string &file, const std::string &output_dir, Options &options, bool master);
 
     void read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status, MPI_Comm worker_comm, Options &options);
+
+    void SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Options &options);
+
     void DoClustering_MPI(const Options &options, int my_rank, bool master, bool worker, int worker_rank, const char *output, MPI_Comm worker_comm);
     void send_cluster(const std::vector<std::vector<std::string>> &clusters_identifier, const std::vector<std::vector<int>> &clusters_size,
                       const std::vector<std::vector<float>> &clusters_identity, const std::vector<std::vector<int>> &clusters_coverage,

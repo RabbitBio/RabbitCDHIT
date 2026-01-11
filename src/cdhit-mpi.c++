@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     options.Validate();
 
     // The purpose is merely to facilitate git.
-    const char* RUN_DIR = "tmp_files";
+    const char* RUN_DIR = "output";
     std::string tmp_prefix = std::string(RUN_DIR);
     if (tmp_prefix.back() != '/') {
         tmp_prefix += '/';
