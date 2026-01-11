@@ -467,21 +467,21 @@ struct Sequence {
     char *true_data;
     int size;
     int bufsize;
-    int size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
+    // int size_R2; // size = size.R1 + size.R2 for back-to-back merged seq
     int table_idx;
     // uint32_t stats;
     bool master_flag;
     // if swap != NULL, the sequence is stored in file.
     // swap is opened as temporary file, which will be deleted automatically
     // after the program is finished:
-    FILE *swap;
+    // FILE *swap;
     // stream offset of the sequence:
-    int offset;
+    // int offset;
 
     // stream offset of the description string in the database:
-    size_t des_begin, des_begin2;
+    // size_t des_begin, des_begin2;
     // total record length
-    int tot_length, tot_length2;
+    // int tot_length, tot_length2;
 
     char *identifier;
 
