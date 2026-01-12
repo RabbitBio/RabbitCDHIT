@@ -2018,6 +2018,7 @@ int WordTable::CountWords(int aan_no, Vector<int> &word_encodes, Vector<INTs> &w
         j = *we;
         j1 = *wen;
         // if( j1 >1 ) printf( " %3i", j1 );
+        if (j < 0 || j >= indexCounts.size())continue;
         if (j1 == 0) continue;
         NVector<IndexCount> &one = indexCounts[j];
         k1 = one.Size();
@@ -2071,6 +2072,7 @@ int WordTable::CountWords(int aan_no, int qid, Vector<int> &word_encodes, Vector
         j = *we;
         j1 = *wen;
         // if( j1 >1 ) printf( " %3i", j1 );
+        if (j < 0 || j >= indexCounts.size())continue;
         if (j1 == 0) continue;
         NVector<IndexCount> &one = indexCounts[j];
         k1 = one.Size();
@@ -3904,6 +3906,7 @@ int SequenceDB::CheckOneAA_master(Sequence *seq, int qid, WordTable &table, Work
         // cerr<<"ic->index "<<ic->index<<endl;
         // Sequence *rep = table.sequences[ ic->index ];
         Sequence *rep = sequences[ic->index];
+        if (rep->state & IS_REDUNDANT)continue;
         len2 = rep->size;
         if (len2 > len_upper_bound) continue;
         if (options.has2D && len2 < len_lower_bound) continue;
@@ -4024,48 +4027,33 @@ static inline char *fast_uint_to_str(char *buf, uint32_t val) {
 }
 
 // Used for fast conversion of float to char* / string with 2 decimal places
-static inline char *fast_float_to_str_2dec(char *buf, float val) {
-    // 银行家舍入（round to nearest, ties to even）
-    float scaled = val * 100.0f;
-    float floored = floorf(scaled);
-    float diff = scaled - floored;
+static inline char *fast_float_to_str_2dec(char *buf, float val)
+{
+    // 1. printf("%.2f") 会把 float 提升为 double
+    double x = (double)val;
 
-    long long rounded;
-    if (diff < 0.5f) {
-        // 小于0.5，向下舍入
-        rounded = (long long) floored;
-    } else if (diff > 0.5f) {
-        // 大于0.5，向上舍入
-        rounded = (long long) floored + 1;
-    } else {
-        // 恰好等于0.5，舍入到偶数
-        long long floor_val = (long long) floored;
-        if (floor_val % 2 == 0) {
-            rounded = floor_val; // 已经是偶数，向下
-        } else {
-            rounded = floor_val + 1; // 奇数，向上变偶数
-        }
-    }
+    // 2. 放大 100 倍，使用 nearbyint 做银行家舍入（ties-to-even）
+    double scaled  = x * 100.0;
+    long long iv   = (long long) nearbyint(scaled);  
 
-    int integer = rounded / 100;
-    int decimal = rounded % 100;
+    // 3. 拆分整数和两位小数
+    unsigned int integer = (unsigned int)(iv / 100);
+    unsigned int decimal = (unsigned int)(iv % 100);
 
-    // 确保 decimal 为正数
-    if (decimal < 0) {
-        decimal = -decimal;
-    }
-
-    // 输出整数部分
+    // 4. 输出整数部分
     buf = fast_uint_to_str(buf, integer);
 
-    // 输出小数部分（总是两位）
+    // 5. 输出 ".xx"
     *buf++ = '.';
     *buf++ = '0' + (decimal / 10);
     *buf++ = '0' + (decimal % 10);
+
+    // 如你不需要百分号，就不要加
     *buf++ = '%';
 
     return buf;
 }
+
 
 // Used for fast counting the number of digits of a uint32_t
 static inline int count_digits(uint32_t val) {
@@ -4272,11 +4260,12 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
 
     // Naive methods
     auto start_time = std::chrono::high_resolution_clock::now();
-    string cmp_output = options.output + ".clstr.cmp";
-    ofstream cmp_fout(cmp_output);
 
     // 设置浮点数输出精度为2位小数
 #ifdef OUTPUT_CMP
+    string cmp_output = options.output + ".clstr.cmp";
+    ofstream cmp_fout(cmp_output);
+
     cmp_fout << std::fixed << std::setprecision(2);
 
     if (all_infos.empty()) {
@@ -4625,60 +4614,107 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     NVector<IndexCount> &row = word_table.indexCounts[j];
 
                     if (row.size < 2 || row.items == NULL) continue;
-                    std::sort(row.items, row.items + row.size,
+                   ips4o::sort(row.items, row.items + row.size,
                               [](const IndexCount &a, const IndexCount &b) { return a.index < b.index; });
                 }
 
                 double tA1 = get_time();
-#pragma omp parallel for schedule(dynamic, 1)
-                for (int j = 0; j < N; j++) {
-                    int tid = omp_get_thread_num();
-                    Sequence *seq = sequences[j];
-                    if (seq->state & IS_REDUNDANT) continue;
-                    int flag = CheckOne_master(seq, j, word_table, params[tid], buffers[tid], options);
-                    if (flag == 0) seq->state |= IS_REP;
-                }
-                double tA2 = get_time();
-                std::cerr << "checkone time   : " << (tA2 - tA1) << " s\n";
                 std::vector<size_t> cnt(N, 0);
-                for (int t = 0; t < T; t++) {
-                    auto &vec = buffers[t].thread_edges;
-                    for (auto &e : vec) ++cnt[e.first];
-                }
+                int num_batches = 10;
+                int batch_size = (N + num_batches - 1) / num_batches;
+                for (int batch_idx = 0; batch_idx < num_batches; ++batch_idx)
+                {
+                    // 计算当前批次的起始和结束索引
+                    int start = batch_idx * batch_size;
+                    int end = (start + batch_size > N) ? N : (start + batch_size);
 
-                for (int u = 0; u < N; ++u)
-                    if (cnt[u]) neigh[u].reserve(neigh[u].size() + cnt[u]);
+                    if (start >= end)
+                        break; // 防止越界
 
-                for (int t = 0; t < T; t++) {
-                    auto &vec = buffers[t].thread_edges;
-                    for (auto &e : vec) neigh[e.first].push_back(e.second);
-                    vec.clear();
-                }
+// 1. 并行计算部分 (范围改为 start -> end)
+#pragma omp parallel for schedule(dynamic, 1)
+                    for (int j = start; j < end; j++)
+                    {
+                        int tid = omp_get_thread_num();
+                        Sequence *seq = sequences[j];
+                        if (seq->state & IS_REDUNDANT)
+                            continue;
+                        int flag = CheckOne_master(seq, j, word_table, params[tid], buffers[tid], options);
+                        if (flag == 0)
+                            seq->state |= IS_REP;
+                    }
 
-                for (int j = 0; j < N; ++j) {
-                    Sequence *seq = sequences[j];
-                    if (seq->state & IS_REDUNDANT) continue;
-                    if (!neigh[j].empty()) {
-                        for (int v : neigh[j]) {
-                            if (sequences[v]->state & IS_REP) {
-                                seq->state |= IS_REDUNDANT;
-                                break;
+                    // 2. 聚合结果部分
+                    // 优化：cnt 每次重新生成或重置。
+                    // 如果 N 很大，建议在循环外分配 vector，这里只做 std::fill(cnt.begin(), cnt.end(), 0)
+
+                    for (int t = 0; t < T; t++)
+                    {
+                        auto &vec = buffers[t].thread_edges;
+                        for (auto &e : vec)
+                            ++cnt[e.first];
+                    }
+
+                    // 优化：只遍历当前批次的 u 范围进行 reserve，节省时间
+                    #pragma omp parallel for schedule(static)
+                    for (int u = start; u < end; ++u)
+                        if (cnt[u])
+                            neigh[u].reserve(neigh[u].size() + cnt[u]);
+
+                    for (int t = 0; t < T; t++)
+                    {
+                        auto &vec = buffers[t].thread_edges;
+                        for (auto &e : vec)
+                            neigh[e.first].push_back(e.second);
+                        vec.clear(); // 关键：清空 buffer 供下一个 batch 使用
+                    }
+
+                    // 3. 串行聚类部分 (范围改为 start -> end)
+                    for (int j = start; j < end; ++j)
+                    {
+                        Sequence *seq = sequences[j];
+                        if (seq->state & IS_REDUNDANT)
+                            continue;
+
+                        if (!neigh[j].empty())
+                        {
+                            for (int v : neigh[j])
+                            {
+                                // 检查邻居是否已选为代表
+                                // 注意：如果 v 在后续的 batch 中，这里 v 还没被处理，状态可能是初始值
+                                // 这通常符合贪婪聚类算法（只和前面的比，或者和已知的 representative 比）
+                                if (sequences[v]->state & IS_REP)
+                                {
+                                    seq->state |= IS_REDUNDANT;
+                                    break;
+                                }
                             }
                         }
+                        if (seq->state & IS_REDUNDANT)
+                            continue;
+
+                        // 选为新的代表
+                        int size = rep_seqs.size();
+                        rep_seqs.Append(seq->index);
+                        seq->cluster_id = size;
+                        seq->identity = 0;
+                        seq->state |= IS_REP;
+                        seq->table_idx = centers;
+                        ++centers;
                     }
-                    if (seq->state & IS_REDUNDANT) continue;
-                    int size = rep_seqs.size();
-                    rep_seqs.Append(seq->index);
-                    seq->cluster_id = size;
-                    seq->identity = 0;
-                    seq->state |= IS_REP;
-                    seq->table_idx = centers;
-                    ++centers;
+                } // End of batch loop
+                for (int j = 0; j < N; ++j)
+                {
+                    Sequence *seq = sequences[j];
+                    if (seq->state & IS_REDUNDANT)
+                        continue;
                     fout << ">" << seq->identifier << "\n";
                     fout << seq->true_data << "\n";
-                    // clstr_fout << seq->cluster_id << "\t";
-                    // clstr_fout << seq->size << "\t0\t>" << seq->identifier << "\n";
+                    // clstr_fout << ...
                 }
+
+                double tA2 = get_time();
+                std::cerr << "checkone time   : " << (tA2 - tA1) << " s\n";
             }
 
             printf("\n%9i  finished  %9i  clusters\n", start_global_id + sequences.size(), rep_seqs.size());
