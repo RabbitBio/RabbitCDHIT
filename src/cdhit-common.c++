@@ -4204,9 +4204,10 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
 
     // cout << "--------------------------------" << endl;
     // cout << "[1/6] Sorting and writing result..." << endl;
+    // ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
 
-    ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
-
+    ips2ra::parallel::sort(all_infos.begin(), all_infos.end(),
+                           [](const MasterSeqInfo &info) { return info.cluster_id; });
     // cout << "--------------------------------" << endl;
 
     // Naive methods
