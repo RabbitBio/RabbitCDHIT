@@ -4025,17 +4025,45 @@ static inline char *fast_uint_to_str(char *buf, uint32_t val) {
 
 // Used for fast conversion of float to char* / string with 2 decimal places
 static inline char *fast_float_to_str_2dec(char *buf, float val) {
-    int integer = (int) val;
-    int decimal = (int) ((val - integer) * 100.0f + 0.5f);
-    if (decimal >= 100) {
-        integer++;
-        decimal = 0;
+    // 银行家舍入（round to nearest, ties to even）
+    float scaled = val * 100.0f;
+    float floored = floorf(scaled);
+    float diff = scaled - floored;
+
+    long long rounded;
+    if (diff < 0.5f) {
+        // 小于0.5，向下舍入
+        rounded = (long long) floored;
+    } else if (diff > 0.5f) {
+        // 大于0.5，向上舍入
+        rounded = (long long) floored + 1;
+    } else {
+        // 恰好等于0.5，舍入到偶数
+        long long floor_val = (long long) floored;
+        if (floor_val % 2 == 0) {
+            rounded = floor_val; // 已经是偶数，向下
+        } else {
+            rounded = floor_val + 1; // 奇数，向上变偶数
+        }
     }
+
+    int integer = rounded / 100;
+    int decimal = rounded % 100;
+
+    // 确保 decimal 为正数
+    if (decimal < 0) {
+        decimal = -decimal;
+    }
+
+    // 输出整数部分
     buf = fast_uint_to_str(buf, integer);
+
+    // 输出小数部分（总是两位）
     *buf++ = '.';
-    *buf++ = '0' + decimal / 10;
-    *buf++ = '0' + decimal % 10;
+    *buf++ = '0' + (decimal / 10);
+    *buf++ = '0' + (decimal % 10);
     *buf++ = '%';
+
     return buf;
 }
 
@@ -4100,6 +4128,7 @@ std::vector<PartitionInfo> CalculatePartitionInfo(const std::vector<MasterSeqInf
                                                   const std::vector<size_t> &boundaries, const int num_threads) {
     omp_set_num_threads(num_threads);
     size_t num_partitions = boundaries.size() - 1;
+    // cout << ">>>> num_partitions: " << num_partitions << endl;
     std::vector<PartitionInfo> partitions(num_partitions);
 
 #pragma omp parallel for schedule(static)
@@ -4108,6 +4137,7 @@ std::vector<PartitionInfo> CalculatePartitionInfo(const std::vector<MasterSeqInf
         info.start_idx = boundaries[p];
         info.end_idx = boundaries[p + 1];
 
+        bool first_in_partition = true;
         size_t partition_size = 0;
         uint32_t current_cluster = all_infos[info.start_idx].cluster_id;
         int seq_idx = 0;
@@ -4115,27 +4145,56 @@ std::vector<PartitionInfo> CalculatePartitionInfo(const std::vector<MasterSeqInf
         for (size_t i = info.start_idx; i < info.end_idx; ++i) {
             const MasterSeqInfo &m = all_infos[i];
 
-            if (m.cluster_id != current_cluster) {
+            if (m.cluster_id != current_cluster || first_in_partition) {
+                // if (!first_in_partition) {
+                //     seq_index = 0;
+                // }
+                // >Cluster [cluster_id]\n
+                // 9:">Cluster "
+                // count_digits(m.cluster_id): cluster_id
+                // 1: "\n"
+                first_in_partition = false;
                 partition_size += 9 + count_digits(m.cluster_id) + 1;
                 current_cluster = m.cluster_id;
                 seq_idx = 0;
             }
 
+            // [seq_idx]\t[size]aa, >[name]... at [identity]%\n
+            // [seq_idx]\t[size]aa, >[name]... *\n
+
+            // count_digits(seq_idx): seq_idx
+            // 1: "\t"
+            // count_digits(m.size): size
+            // 5: "aa, >"
+            // name.length(): name
             partition_size += count_digits(seq_idx) + 1;
             partition_size += count_digits(m.size) + 5;
             partition_size += m.name.length();
 
-            if (seq_idx == 0) {
+            if (m.identity == 0) {
+                // 6:"... *\n"
                 partition_size += 6;
             } else {
+                // "... at [identity]%\n"
                 float percent = m.identity * 100.0f;
-                partition_size += (percent >= 99.995f) ? 15 : 14;
+                // 7:"... at "
+                partition_size += 7;
+                // 7 or 6:
+                //   7:"100.00%"
+                //   6:"xx.xx%"
+                partition_size += (percent >= 99.995f) ? 7 : 6;
+                // 1:"\n"
+                partition_size += 1;
             }
             seq_idx++;
         }
 
         info.estimated_size = partition_size;
     }
+
+    // char *buff;
+    // fast_float_to_str_2dec(buff, 100.00f);
+    // exit(0);
 
     std::vector<size_t> sizes(num_partitions);
     for (size_t p = 0; p < num_partitions; ++p) {
@@ -4179,6 +4238,7 @@ void WritePartitionToMmap(const std::vector<MasterSeqInfo> &all_infos, const Par
         memcpy(ptr, "aa, >", 5);
         ptr += 5;
         size_t name_len = m.name.length();
+        // if (i == 1670149) cout << ">>>> name: " << m.name << endl;
         memcpy(ptr, m.name.c_str(), name_len);
         ptr += name_len;
         if (m.identity == 0) {
@@ -4211,51 +4271,55 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
     // cout << "--------------------------------" << endl;
 
     // Naive methods
-    // auto start_time = std::chrono::high_resolution_clock::now();
-    // string cmp_output = options.output + ".clstr.cmp";
-    // ofstream cmp_fout(cmp_output);
+    auto start_time = std::chrono::high_resolution_clock::now();
+    string cmp_output = options.output + ".clstr.cmp";
+    ofstream cmp_fout(cmp_output);
 
-    // // 设置浮点数输出精度为2位小数
-    // cmp_fout << std::fixed << std::setprecision(2);
+    // 设置浮点数输出精度为2位小数
+#ifdef OUTPUT_CMP
+    cmp_fout << std::fixed << std::setprecision(2);
 
-    // if (all_infos.empty()) {
-    //     cmp_fout.close();
-    //     return;
-    // }
+    if (all_infos.empty()) {
+        cmp_fout.close();
+        return;
+    }
 
-    // uint32_t current_cluster = all_infos[0].cluster_id;
-    // int seq_index = 0;
-    // bool first_entry = true;
+    uint32_t current_cluster = all_infos[0].cluster_id;
+    int seq_index = 0;
+    bool first_entry = true;
 
-    // for (size_t i = 0; i < all_infos.size(); ++i) {
-    //     const MasterSeqInfo &m = all_infos[i];
+    for (size_t i = 0; i < all_infos.size(); ++i) {
+        const MasterSeqInfo &m = all_infos[i];
 
-    //     // 检测cluster变化，输出cluster标题
-    //     if (m.cluster_id != current_cluster || first_entry) {
-    //         if (!first_entry) {
-    //             seq_index = 0; // 新cluster，重置索引
-    //         }
-    //         current_cluster = m.cluster_id;
-    //         first_entry = false;
+        // 检测cluster变化，输出cluster标题
+        if (m.cluster_id != current_cluster || first_entry) {
+            if (!first_entry) {
+                seq_index = 0; // 新cluster，重置索引
+            }
+            current_cluster = m.cluster_id;
+            first_entry = false;
 
-    //         cmp_fout << ">Cluster " << m.cluster_id << "\n";
-    //     }
+            cmp_fout << ">Cluster " << m.cluster_id << "\n";
+        }
 
-    //     // 输出序列信息行
-    //     cmp_fout << seq_index << "\t" << m.size << "aa, >" << m.name << "...";
+        if (m.cluster_id == 27872) cout << ">>>>" << m.identity << endl;
 
-    //     if (seq_index == 0) {
-    //         // 代表序列
-    //         cmp_fout << " *\n";
-    //     } else {
-    //         // 其他序列，显示相似度
-    //         cmp_fout << " at " << (m.identity * 100.0f) << "%\n";
-    //     }
+        // 输出序列信息行
+        cmp_fout << seq_index << "\t" << m.size << "aa, >" << m.name << "...";
 
-    //     seq_index++;
-    // }
+        if (m.identity == 0) {
+            // 代表序列
+            cmp_fout << " *\n";
+        } else {
+            // 其他序列，显示相似度
+            cmp_fout << " at " << (m.identity * 100.0f) << "%\n";
+        }
 
-    // cmp_fout.close();
+        seq_index++;
+    }
+
+    cmp_fout.close();
+#endif
     // auto end_time = std::chrono::high_resolution_clock::now();
     // auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
     // cout << "Naive methods time: " << duration.count() << " ms" << endl;
@@ -4269,18 +4333,35 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
         return;
     }
 
+    // cout << "--------------------------------" << endl;
     std::vector<size_t> boundaries = FindClusterBoundaries(all_infos, num_threads);
+    // for (size_t i = 0; i < boundaries.size(); i++) {
+    //     if (i != boundaries.size() - 1) {
+    //         cout << boundaries[i] << " (";
+    //         cout << all_infos[boundaries[i]].cluster_id << ", " << all_infos[boundaries[i + 1] - 1].cluster_id << ")
+    //         "; cout << boundaries[i + 1] << "\n";
+    //     }
+    // }
+    // cout << endl;
+    // cout << "--------------------------------" << endl;
 
     // cout << "\tUsing [" << num_threads << "] threads, [" << boundaries.size() - 1 << "] partitions" << endl;
 
     // cout << "[3/6] Calculating partition sizes..." << endl;
 
     std::vector<PartitionInfo> partitions = CalculatePartitionInfo(all_infos, boundaries, num_threads);
+    // for (const auto &p : partitions) {
+    //     cout << ">>>> partition: " << p.start_idx << " " << p.end_idx << " " << all_infos[p.start_idx].cluster_id <<
+    //     " "
+    //          << all_infos[p.end_idx - 1].cluster_id << " " << p.estimated_size << endl;
+    // }
     size_t total_size = 0;
     for (const auto &p : partitions) {
         total_size += p.estimated_size;
     }
-    size_t safe_size = total_size + (total_size * 3 / 100);
+    // double file_size = (double) total_size / (1024.0 * 1024.0);
+    // cout << ">>>> file_size: " << file_size << " MB" << endl;
+    size_t safe_size = total_size + (total_size * 10 / 100);
 
     // cout << "[4/6] Creating memory-map..." << endl;
     string clstr_output = options.output + ".clstr";
@@ -4302,6 +4383,8 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
         close(fd);
         return;
     }
+
+    char *tmp = mapped;
 
     // cout << "[5/6] Parallel Writing ..." << endl;
 
@@ -4325,7 +4408,7 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
     // start_time = std::chrono::high_resolution_clock::now();
 
     // cout << "[6/6] Finalizing..." << endl;
-    msync(mapped, total_size, MS_SYNC);
+    msync(mapped, total_size + total_size * 3 / 100, MS_SYNC);
 
     // end_time = std::chrono::high_resolution_clock::now();
     // duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
@@ -4853,7 +4936,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 double tb2 = get_time();
                 cerr << "total recv time " << tb2 - tb1 << endl;
 
-                cout << "Representative Information written: " << rep_output << endl;
+                cout << "[DONE] Representative Information written to: " << rep_output << endl;
                 SortAndWriteResult(all_infos, options);
                 break;
             }
