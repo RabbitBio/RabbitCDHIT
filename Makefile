@@ -9,13 +9,13 @@ CC = mpiicpx
 ifeq ($(openmp),no)
   CCFLAGS = -DNO_OPENMP
 else
-  CCFLAGS = -fopenmp -D_REENTRANT
+  CCFLAGS = -qopenmp -D_REENTRANT -mcx16
 endif
 ifeq ($(AVX512),yes)
 #   CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq -fno-vectorize 
 CCFLAGS += -march=native
 else
-   CCFLAGS += -DNO_AVX512
+   CCFLAGS += -DNO_AVX512 
 endif
 #LDFLAGS = -static -lz -o
 #LDFLAGS = /usr/lib/x86_64-linux-gnu/libz.a -o
@@ -43,7 +43,7 @@ ifneq ($(TBB_INCLUDE_DIR),)
 endif
 
 # Intel oneAPI TBB 需要链接 tbb 和 tbbmalloc
-LIBS = -ltbb -ltbbmalloc -latomic -lpthread
+LIBS = -ltbb -ltbbmalloc
 
 
 # default with zlib

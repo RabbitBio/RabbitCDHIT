@@ -2333,7 +2333,6 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     total_desc = 0;
     max_len = 0;
     min_len = (size_t) -1;
-    std::vector<size_t> all_lengths;
     max_idf = 0;
     int T = options.threads;
     struct stat st;
@@ -2396,7 +2395,6 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
                 total_num++;
                 total_letter += len;
                 total_desc += seq->name.l;
-                all_lengths.push_back((size_t) len);
                 if ((size_t) len > max_len) {
                     max_len = (size_t) len;
                     max_name = idf;
@@ -2481,18 +2479,6 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     if (max_len >= 65536 && sizeof(INTs) <= 2) bomb_warning("Some seqs longer than 65536, you may define LONG_SEQ");
     if (max_len > MAX_SEQ)
         bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
-
-    std::sort(all_lengths.begin(), all_lengths.end(), std::greater<>());
-    long long cumulative = 0;
-    for (size_t L : all_lengths) {
-        cumulative += L;
-        if (cumulative >= total_letter / 2) {
-            len_n50 = L;
-            break;
-        }
-    }
-    all_lengths.clear();
-    all_lengths.shrink_to_fit();
     for (int i = 0; i < run_id; i++) {
         std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(i) + ".fa";
         run_files.push_back(path);
@@ -2503,7 +2489,6 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     std::cout << "Total letters: " << total_letter << "\n";
     std::cout << "total_num_divede: " << total_num_divide << "\n";
     std::cout << "Total number: " << total_num << "\n";
-    std::cout << "N50 length: " << len_n50 << "\n";
     if (total_num > 25000000) {
         chunk_size = 500000;
     } else {
@@ -2555,7 +2540,6 @@ void SequenceDB::WriteToJSON(const std::string &file, const std::string &output_
         {"chunks_num", chunks_num},
         {"chunk_size", chunk_size},
         {"total_num", total_num},
-        {"len_n50", len_n50},
         {"min_len", min_len},
         {"num_procs", num_procs},
         {"total_letter", total_letter},
@@ -2590,7 +2574,6 @@ void SequenceDB::ReadJsonInfo(const std::string &file, const std::string &output
     chunks_num = j["info"]["chunks_num"].get<int>();
     chunk_size = j["info"]["chunk_size"].get<int>();
     total_num = j["info"]["total_num"].get<long long>();
-    len_n50 = j["info"]["len_n50"].get<size_t>();
     min_len = j["info"]["min_len"].get<size_t>();
     chunk_bytes = j["info"]["chunk_bytes"].get<long long>();
     first_chunk_size = j["info"]["first_chunk_size"].get<int>();
@@ -4159,12 +4142,17 @@ std::vector<PartitionInfo> CalculatePartitionInfo(const std::vector<MasterSeqInf
             partition_size += count_digits(m.size) + 5;
             partition_size += m.name.length();
 
+
             if (m.identity == 0) {
                 // 6:"... *\n"
                 partition_size += 6;
             } else {
                 // "... at [identity]%\n"
                 float percent = m.identity * 100.0f;
+                if(options.print){
+                    // cmp_fout << m.coverage[0] << ":" << ccoverage[1] << ":" << ccoverage[2] << ":" << ccoverage[3] << "/";
+                    partition_size += count_digits(m.coverage[0])+count_digits(m.coverage[1])+count_digits(m.coverage[2])+count_digits(m.coverage[3])+4;
+                }
                 // 7:"... at "
                 partition_size += 7;
                 // 7 or 6:
@@ -4235,6 +4223,16 @@ void WritePartitionToMmap(const std::vector<MasterSeqInfo> &all_infos, const Par
         } else {
             memcpy(ptr, "... at ", 7);
             ptr += 7;
+            if(options.print){
+                ptr = fast_uint_to_str(ptr,m.coverage[0]);
+                *ptr++=':';
+                ptr = fast_uint_to_str(ptr,m.coverage[1]);
+                *ptr++=':';
+                ptr = fast_uint_to_str(ptr,m.coverage[2]);
+                *ptr++=':';
+                ptr = fast_uint_to_str(ptr,m.coverage[3]);
+                *ptr++='/';
+            }
             ptr = fast_float_to_str_2dec(ptr, m.identity * 100.0f);
             *ptr++ = '\n';
         }
@@ -4291,8 +4289,6 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
             cmp_fout << ">Cluster " << m.cluster_id << "\n";
         }
 
-        if (m.cluster_id == 27872) cout << ">>>>" << m.identity << endl;
-
         // 输出序列信息行
         cmp_fout << seq_index << "\t" << m.size << "aa, >" << m.name << "...";
 
@@ -4301,9 +4297,11 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
             cmp_fout << " *\n";
         } else {
             // 其他序列，显示相似度
+            if (options.print)
+ 			cmp_fout << m.coverage[0] << ":" << ccoverage[1] << ":" << ccoverage[2] << ":" << ccoverage[3] << "/";
             cmp_fout << " at " << (m.identity * 100.0f) << "%\n";
         }
-
+        
         seq_index++;
     }
 
@@ -4458,7 +4456,6 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
     // int remaining = 0;
     // int local_remaining = 0;
     // Options opts(options);
-    // opts.ComputeTableLimits(min_len, max_len, len_n50, mem_need);
     // size_t max_items = opts.max_entries;
     // size_t max_seqs = opts.max_sequences;
 
@@ -4620,7 +4617,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
                 double tA1 = get_time();
                 std::vector<size_t> cnt(N, 0);
-                int num_batches = 10;
+                int num_batches = 20;
                 int batch_size = (N + num_batches - 1) / num_batches;
                 for (int batch_idx = 0; batch_idx < num_batches; ++batch_idx)
                 {
@@ -4974,6 +4971,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
                 cout << "[DONE] Representative Information written to: " << rep_output << endl;
                 SortAndWriteResult(all_infos, options);
+                double tb3 = get_time();
+                cerr << "total write time " << tb3 - tb2 << endl;
                 break;
             }
             last_rep_index = rep_seqs.size();
@@ -5235,7 +5234,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                 break;
                             }
 
-#pragma omp for schedule(guided)
+#pragma omp for schedule(dynamic,1)
                             for (int k = l_shared; k <= r_shared; ++k) {
                                 Sequence *seq = sequences[k];
                                 if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP)) continue;
@@ -5363,7 +5362,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             MPI_Win_flush_local(tt, win_pool_d_);
 #pragma omp parallel num_threads(T)
                             {
-#pragma omp for schedule(guided)
+#pragma omp for schedule(dynamic,1)
                                 for (int ttt = 0; ttt < cnt; ttt++) {
                                     int tid = omp_get_thread_num();
                                     auto &m = metas[ttt];

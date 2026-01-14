@@ -701,7 +701,6 @@ public:
     size_t max_len;
     size_t min_len;
     size_t max_idf;
-    size_t len_n50;
     int Production_threads;
     int mpi_size;
     int total_mpi_num;
@@ -749,7 +748,6 @@ public:
         min_len = 0;
         max_idf = 0;
         max_len = 0;
-        len_n50 = 0;
     }
 
     ~SequenceDB() { Clear(); }
