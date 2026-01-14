@@ -53,7 +53,7 @@ typename Cfg::difference_type Sorter<Cfg>::classifyLocally(const iterator my_beg
     auto& buffers = local_.buffers;
 
     // Do the classification
-    classifier_->template classify(my_begin, my_end, level_,
+    classifier_->classify(my_begin, my_end, level_,
                                    [&](typename Cfg::bucket_type bucket, iterator it) {
                                        // Only flush buffers on overflow
                                        if (buffers.isFull(bucket)) {
