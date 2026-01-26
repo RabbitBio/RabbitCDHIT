@@ -730,7 +730,7 @@ public:
     MPI_Win win_ctrl_ = MPI_WIN_NULL;
     MPI_Win win_meta_ = MPI_WIN_NULL;
     MPI_Win win_pool_d_ = MPI_WIN_NULL;
-
+    volatile int* ptr_ctrl_ = nullptr;
     void Clear() {
         for (int i = 0; i < sequences.size(); i++) delete sequences[i];
         sequences.clear();
@@ -849,7 +849,8 @@ public:
     void DoClustering(int T, const Options &options);
     void ClusterTo(SequenceDB &other, const Options &optioins);
     int CheckOne(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
-
+    int CheckOne_stealing(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
+    int CheckOneAA_stealing(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);
     int CheckOne_worker(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt,
                         int id);
     int CheckOneEST(Sequence *seq, WordTable &tab, WorkingParam &par, WorkingBuffer &buf, const Options &opt);

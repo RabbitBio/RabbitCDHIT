@@ -33,7 +33,7 @@ SequenceDB seq_db;
 
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char* argv[]) {
-    sleep(0);
+    // sleep(0);
     string db_in;
     string db_out;
     vector<SequenceMeta> meta_table;
@@ -110,7 +110,12 @@ int main(int argc, char* argv[]) {
         temp_dir += '/';
     }
     seq_db.ReadJsonInfo("info.json", temp_dir, options, master);
-    if (size != seq_db.total_mpi_num) bomb_error("Number of processes does not match");
+    if (size != seq_db.total_mpi_num) 
+    {
+        cerr<<"size "<<size<<endl;
+        cerr<<"seq_db.total_mpi_num "<<seq_db.total_mpi_num<<endl;
+bomb_error("Number of processes does not match");
+    }
 
     if (!master) {
         seq_db.read_sorted_files(temp_dir, rank, size, false, worker_comm, options);
