@@ -482,34 +482,42 @@ bool Options::SetOptionEST(const char *flag, const char *value) {
         return false;
     return true;
 }
-bool Options::SetOptions(int argc, char *argv[], bool twod, bool est) {
+bool Options::SetOptions(int argc, char *argv[], int rank, bool twod, bool est) {
     int i, n;
     char date[100];
     strcpy(date, __DATE__);
     n = strlen(date);
     for (i = 1; i < n; i++)
-        if (date[i - 1] == ' ' and date[i] == ' ') date[i] = '0';
-    printf("================================================================\n");
-    printf("Program: CD-HIT, V" CDHIT_VERSION WITH_OPENMP ", %s, " __TIME__ "\n", date);
-    printf("Command:");
-    n = 9;
-    for (i = 0; i < argc; i++) {
-        n += strlen(argv[i]) + 1;
-        if (n >= 64) {
-            printf("\n         %s", argv[i]);
-            n = strlen(argv[i]) + 9;
-        } else {
-            printf(" %s", argv[i]);
+        if (date[i - 1] == ' ' && date[i] == ' ') date[i] = '0';
+
+    if (rank == 0) {
+        printf("================================================================\n");
+        printf("Program: RabbitCD-HIT," WITH_OPEMMP_AND_MPI ", %s, " __TIME__ "\n", date);
+
+        printf("Command:");
+        n = 9;
+        for (i = 0; i < argc; i++) {
+            n += (int)strlen(argv[i]) + 1;
+            if (n >= 64) {
+                printf("\n         %s", argv[i]);
+                n = (int)strlen(argv[i]) + 9;
+            } else {
+                printf(" %s", argv[i]);
+            }
         }
+        printf("\n\n");
+
+        time_t tm = time(NULL);
+        printf("Started: %s", ctime(&tm));
+        printf("================================================================\n");
+        printf("                            Output                              \n");
+        printf("----------------------------------------------------------------\n");
+        fflush(stdout);
     }
-    printf("\n\n");
-    time_t tm = time(NULL);
-    printf("Started: %s", ctime(&tm));
-    printf("================================================================\n");
-    printf("                            Output                              \n");
-    printf("----------------------------------------------------------------\n");
+
     has2D = twod;
     isEST = est;
+
     for (i = 1; i + 1 < argc; i += 2)
         if (SetOption(argv[i], argv[i + 1]) == 0) return false;
     if (i < argc) return false;
@@ -517,6 +525,7 @@ bool Options::SetOptions(int argc, char *argv[], bool twod, bool est) {
     atexit(CleanUpTempFiles);
     return true;
 }
+
 void Options::Validate() {
     if (useIdentity and useDistance) bomb_error("can not use both identity cutoff and distance cutoff");
     if (useDistance) {
@@ -3550,35 +3559,50 @@ void SequenceDB::prepare_to_decode(WordTable &table, long *&info_buf, long *&clu
     cluster_id_buf = (long *) malloc(len * sizeof(long));
     suffix_buf = (long *) malloc(len * sizeof(long));
 }
-void SequenceDB::decode_WordTable(WordTable &table, int start, Slot &s) {
+void SequenceDB::decode_WordTable(WordTable &table, int start, Slot &s, const Options &options)
+{
     int T = options.threads;
     int len = s.info[1];
     int start_id = s.info[6];
-    int my_rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    // int my_rank;
+    // MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
     table.sequences.resize(len);
-    if (chunks_id[start] == s.info[0]) {
+    if (chunks_id[start] == s.info[0])
+    {
         int table_start_id = my_chunks[start].first;
 #pragma omp parallel for num_threads(T)
-        for (int i = 0; i < len; i++) {
+        for (int i = 0; i < len; i++)
+        {
             int index = i;
 
             Sequence *seq = rep_sequences[s.seqs_suffix[index] - start_id];
             Sequence *seq1 = sequences[s.seqs_suffix[index] - start_id + table_start_id];
-
+            if (options.stealing)
+            {
+                auto &m = meta_[s.seqs_suffix[index] - start_id + table_start_id];
+                m.cluster_id = s.cluster_id[index];
+                m.state = IS_REP;
+                m.identity = 0;
+            }
+            else
+            {
+                seq1->cluster_id = s.cluster_id[index];
+                seq1->state |= IS_REP;
+                seq1->identity = 0;
+            }
             seq->cluster_id = s.cluster_id[index];
             seq->identity = 0;
             seq->table_idx = i;
             seq->state |= IS_REP;
-            seq1->cluster_id = s.cluster_id[index];
-            seq1->state |= IS_REP;
-            seq1->identity = 0;
+
             seq1->Clear();
 
             table.sequences[i] = seq;
         }
-    } else {
+    }
+    else
+    {
 #pragma omp parallel for num_threads(T)
         for (int i = 0; i < len; i++) {
             int index = i;
@@ -5166,7 +5190,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             }
 
             record += slots[cur].info[1];
-            decode_WordTable(word_table, start, slots[cur]);
+            decode_WordTable(word_table, start, slots[cur],options);
 
             double t141 = get_time();
             omp_set_num_threads(T);
@@ -5238,7 +5262,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 #pragma omp for schedule(dynamic,1)
                             for (int k = l_shared; k <= r_shared; ++k) {
                                 Sequence *seq = sequences[k];
-                                if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP)) continue;
+                                auto &m = meta_[k];
+                                if ((m.state & IS_REDUNDANT) || (m.state & IS_REP)) continue;
                                 if (tid == 0 && !over_flag)
                                 {
                                     if (!done_flag)
@@ -5283,9 +5308,10 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
                                 for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j) {
                                     int k = (j - my_chunks[idx].first) * 2;
-                                    Sequence *seq = sequences[j];
-                                    if (seq->state & IS_REDUNDANT) {
-                                        rep_chunk_buf[k] = (int) seq->state;
+                                    // Sequence *seq = sequences[j];
+                                    auto &m = meta_[j];
+                                    if (m.state & IS_REDUNDANT) {
+                                        rep_chunk_buf[k] = (int)m.state;
                                         rep_chunk_buf[k + 1] = -1;
                                     } else {
                                         rep_chunk_buf[k] = 0;
@@ -5544,41 +5570,41 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             if (options.stealing) {
 
                 MPI_Barrier(worker_comm);
-                MPI_Win_sync(win_ctrl_);
-                bottom = ptr_ctrl_[1];
-                // MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
-                // MPI_Win_flush_local(worker_rank, win_ctrl_);
-                if (bottom < sub_chunks.size() - 1)
-                {
-                    int start_chunk_idx = bottom + 1;
-                    int end_chunk_idx = sub_chunks.size() - 1;
+                // MPI_Win_sync(win_ctrl_);
+        //         bottom = ptr_ctrl_[1];
+        //         // MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
+        //         // MPI_Win_flush_local(worker_rank, win_ctrl_);
+        //         if (bottom < sub_chunks.size() - 1)
+        //         {
+        //             int start_chunk_idx = bottom + 1;
+        //             int end_chunk_idx = sub_chunks.size() - 1;
 
-                    int global_start = sub_chunks[start_chunk_idx].first;
-                    int global_end = sub_chunks[end_chunk_idx].second;
+        //             int global_start = sub_chunks[start_chunk_idx].first;
+        //             int global_end = sub_chunks[end_chunk_idx].second;
 
-                    size_t total_count = global_end - global_start + 1;
+        //             size_t total_count = global_end - global_start + 1;
 
-                    std::vector<SeqMeta> all_metas(total_count);
-                    MPI_Win_sync(win_meta_);
+        //             std::vector<SeqMeta> all_metas(total_count);
+        //             MPI_Win_sync(win_meta_);
         
-        #pragma omp parallel for schedule(static)
-        for (int i = 0; i < (int)total_count; ++i) {
-            int seq_idx = global_start + i;
-            const auto &m = meta_[seq_idx];
+        // #pragma omp parallel for schedule(static)
+        // for (int i = 0; i < (int)total_count; ++i) {
+        //     int seq_idx = global_start + i;
+        //     const auto &m = meta_[seq_idx];
             
-            Sequence *seq = sequences[seq_idx];
+        //     Sequence *seq = sequences[seq_idx];
 
-            if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP)) continue;
+        //     if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP)) continue;
 
-            if (m.state & IS_REDUNDANT) {
-                seq->state = m.state;
-                seq->cluster_id = m.cluster_id;
-                seq->identity = m.identity;
-                seq->distance = m.distance;
-                for (int t = 0; t < 4; ++t) seq->coverage[t] = m.coverage[t];
-            }
-        }
-                }
+        //     if (m.state & IS_REDUNDANT) {
+        //         seq->state = m.state;
+        //         seq->cluster_id = m.cluster_id;
+        //         seq->identity = m.identity;
+        //         seq->distance = m.distance;
+        //         for (int t = 0; t < 4; ++t) seq->coverage[t] = m.coverage[t];
+        //     }
+        // }
+        //         }
             }
             // double tb1 = get_time();
             // int C = record - record_last;
@@ -5658,20 +5684,45 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 double tb1 = get_time();
                 int C = (int) sequences.size();
                 vector<RedundantSeqInfoHeader> info_headers(C);
+                if (options.stealing)
+                {
 #pragma omp parallel for
-                for (int ii = 0; ii < (int) my_chunks.size(); ++ii) {
-                    for (int j = my_chunks[ii].first; j <= my_chunks[ii].second; ++j) {
-                        Sequence *seq = sequences[j];
-                        RedundantSeqInfoHeader &h = info_headers[j];
-                        h.cluster_id = seq->cluster_id;
-                        h.size = seq->size;
-                        h.identity = seq->identity;
-                        h.coverage[0] = seq->coverage[0];
-                        h.coverage[1] = seq->coverage[1];
-                        h.coverage[2] = seq->coverage[2];
-                        h.coverage[3] = seq->coverage[3];
+                    for (int ii = 0; ii < (int)my_chunks.size(); ++ii)
+                    {
+                        for (int j = my_chunks[ii].first; j <= my_chunks[ii].second; ++j)
+                        {
+                            auto &m = meta_[j];
+                            RedundantSeqInfoHeader &h = info_headers[j];
+                            h.cluster_id = m.cluster_id;
+                            h.size = m.size;
+                            h.identity = m.identity;
+                            h.coverage[0] = m.coverage[0];
+                            h.coverage[1] = m.coverage[1];
+                            h.coverage[2] = m.coverage[2];
+                            h.coverage[3] = m.coverage[3];
+                        }
                     }
                 }
+                else
+                {
+#pragma omp parallel for
+                    for (int ii = 0; ii < (int)my_chunks.size(); ++ii)
+                    {
+                        for (int j = my_chunks[ii].first; j <= my_chunks[ii].second; ++j)
+                        {
+                            Sequence *seq = sequences[j];
+                            RedundantSeqInfoHeader &h = info_headers[j];
+                            h.cluster_id = seq->cluster_id;
+                            h.size = seq->size;
+                            h.identity = seq->identity;
+                            h.coverage[0] = seq->coverage[0];
+                            h.coverage[1] = seq->coverage[1];
+                            h.coverage[2] = seq->coverage[2];
+                            h.coverage[3] = seq->coverage[3];
+                        }
+                    }
+                }
+
                 std::vector<MPI_Request> reqs;
                 int max_seqs_hdr = INT_MAX / (int) sizeof(RedundantSeqInfoHeader);
                 int CHUNK_SEQS = max_seqs_hdr;
@@ -5955,29 +6006,31 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
         tiden_pc = tiden_no / (float) len_eff1;
         if (options.useDistance) {
             if (distance > options.distance_thd) continue;
-            if (distance >= seq->distance) continue; // existing distance
+            // if (distance >= seq->distance) continue; // existing distance
+            if (distance >= meta_[id].distance) continue; // existing distance
         } else {
             if (tiden_pc < options.cluster_thd) continue;
-            if (tiden_pc <= seq->identity) continue; // existing iden_no
+            // if (tiden_pc <= seq->identity) continue; // existing iden_no
+            if (tiden_pc <= meta_[id].identity) continue; // existing iden_no
         }
         if (aln_cover_flag) {
             if (talign_info[3] - talign_info[2] + 1 < min_aln_lenL) continue;
             if (talign_info[1] - talign_info[0] + 1 < min_aln_lenS) continue;
         }
-        if (options.has2D) seq->state |= IS_REDUNDANT;
+        // if (options.has2D) seq->state |= IS_REDUNDANT;
+        if (options.has2D) meta_[id].state = IS_REDUNDANT;
         flag = 1;
-        seq->identity = tiden_pc;
-        seq->cluster_id = rep->cluster_id;
-        seq->distance = distance;
-        seq->coverage[0] = talign_info[0] + 1;
-        seq->coverage[1] = talign_info[1] + 1;
-        seq->coverage[2] = talign_info[2] + 1;
-        seq->coverage[3] = talign_info[3] + 1;
-        meta_[id].state = seq->state;
-        meta_[id].cluster_id = seq->cluster_id;
-        meta_[id].identity = seq->identity;
-        meta_[id].distance = seq->distance;
-        for (int t = 0; t < 4; ++t) meta_[id].coverage[t] = seq->coverage[t];
+        // seq->identity = tiden_pc;
+        // seq->cluster_id = rep->cluster_id;
+        // seq->distance = distance;
+        // seq->coverage[0] = talign_info[0] + 1;
+        // seq->coverage[1] = talign_info[1] + 1;
+        // seq->coverage[2] = talign_info[2] + 1;
+        // seq->coverage[3] = talign_info[3] + 1;
+        meta_[id].cluster_id = rep->cluster_id;
+        meta_[id].identity = tiden_pc;
+        meta_[id].distance = distance;
+        for (int t = 0; t < 4; ++t) meta_[id].coverage[t] = talign_info[t] + 1;
 
         if (not options.cluster_best) break;
         update_aax_cutoff(aa1_cutoff, aa2_cutoff, aan_cutoff, options.tolerance, naa_stat_start_percent, naa_stat, NAA,
@@ -5994,7 +6047,8 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
 
         if (!options.cluster_best) {
             seq->Clear();
-            seq->state |= IS_REDUNDANT;
+            meta_[id].state = IS_REDUNDANT;
+            // seq->state |= IS_REDUNDANT;
         }
     }
     return flag;

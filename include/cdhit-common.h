@@ -413,7 +413,7 @@ struct Options {
     bool SetOption(const char *flag, const char *value);
     bool SetOption2D(const char *flag, const char *value);
     bool SetOptionEST(const char *flag, const char *value);
-    bool SetOptions(int argc, char *argv[], bool twodata = false, bool est = false);
+    bool SetOptions(int argc, char *argv[], int rank,bool twodata = false, bool est = false);
 
     void Validate();
     void ComputeTableLimits(int min_len, int max_len, int typical_len, size_t mem_need);
@@ -799,7 +799,7 @@ public:
                           long &prefix_size, int send_file_index, int start_global_id);
     void prepare_to_decode(WordTable &table, long *&info_buf, long *&cluster_id_buf, long *&suffix_buf,
                            long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size);
-    void decode_WordTable(WordTable &table, int start, Slot &s);
+    void decode_WordTable(WordTable &table, int start, Slot &s, const Options &options);
     // void decode_WordTable(WordTable &table, int start,long *&info_buf,
     // 					  long *&cluster_id_buf, long *&suffix_buf,
     // 					  long *&indexCount_buf, long long *&prefix_buf, long long &indexCount_buf_size, long

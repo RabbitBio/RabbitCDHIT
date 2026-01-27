@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
     int total_seqs = 0;
     // ***********************************    parse command line and open file
     if (argc < 5) print_usage_preprocess(argv[0]);
-    if (options.SetOptions(argc, argv) == 0) print_usage_preprocess(argv[0]);
+    if (options.SetOptions(argc, argv,0) == 0) print_usage_preprocess(argv[0]);
     options.Validate();
 
     db_in = options.input;
