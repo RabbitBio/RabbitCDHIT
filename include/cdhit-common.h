@@ -302,6 +302,8 @@ struct Options {
     int NAA_top_limit;
     int NodeNum;
     int threads_per_node;
+    int core_size;
+    int numa_size;
     size_t max_memory;        // -M: 400,000,000 in bytes
     int min_length;           // -l: 10 bases
     bool cluster_best;        // -g: 0, the first; 1, the best
@@ -370,6 +372,8 @@ struct Options {
         NAA = 5;
         NodeNum = 0;
         threads_per_node = 0;
+        core_size = 0;
+        numa_size = 0;
         NAA_top_limit = 5;
         cluster_thd = 0.9;
         distance_thd = 0.0;
@@ -775,7 +779,7 @@ public:
     // 归并
     void MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix);
     void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
-                                Options &options, size_t core_num);
+                                Options &options, size_t core_num,size_t numa_size);
 
     void WriteToJSON(const std::string &file, const std::string &output_dir, const std::string &output_prefix,
                      int num_procs);

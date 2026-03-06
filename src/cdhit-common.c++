@@ -385,6 +385,10 @@ bool Options::SetOptionCommon(const char *flag, const char *value) {
         NodeNum = atof(value);
     else if (strcmp(flag, "-NT") == 0)
         threads_per_node = atof(value);
+    else if (strcmp(flag, "-ST") == 0)
+        core_size = atof(value);
+    else if (strcmp(flag, "-nT") == 0)
+        numa_size = atof(value);
     else if (strcmp(flag, "-bak") == 0)
         backupFile = intval;
     else if (strcmp(flag, "-ready") == 0)
@@ -2332,7 +2336,7 @@ static void write_run_fasta(const std::vector<std::pair<std::string, std::string
 }
 
 void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
-                                        Options &options, size_t core_num) {
+                                        Options &options, size_t core_num, size_t numa_size) {
     int option_l = options.min_length;
     first_chunk_size = 2000;
     total_num = 0;
@@ -2509,9 +2513,12 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     int Production_rate;
     int Consumption_rate;
     int factor = 2;
-    if (chunk_size >= 500000) factor = 4;
-    if (chunk_size <= 100000) factor = 2;
-    for (int t = 4; t <= 8; t = t * 2) {
+    // if (chunk_size >= 500000) factor = 4;
+    // if (chunk_size <= 100000) factor = 2;
+    int numa_num = options.threads_per_node/numa_size;
+    int MPI_max = max(8,numa_num);
+    cerr<<"MPI_max "<<MPI_max<<endl;
+    for (int t = 4; t <= MPI_max; t = t * 2) {
         Production_threads = options.threads_per_node / t;
         Consumption_threads = total_threads - Production_threads;
         Production_rate = chunk_size / Production_threads;
@@ -2525,7 +2532,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     }
 
     Production_threads = options.threads_per_node / mpi_size;
-    if (Production_threads > core_num || options.NodeNum > 4) {
+    // if (Production_threads > core_num || options.NodeNum > 4) {
+    if (Production_threads > core_num ) {
         Production_threads = core_num;
         mpi_size = options.threads_per_node / Production_threads;
     }
@@ -3190,13 +3198,34 @@ int WorkingBuffer::EncodeWords(Sequence *seq, int NAA, bool est) {
     int aan_no = len - NAA + 1;
     int i, j, i0, i1;
     int skip = 0;
-    unsigned char k, k1;
-    for (j = 0; j < aan_no; j++) {
-        char *word = seqi + j;
-        int encode = 0;
-        for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
-        word_encodes[j] = word_encodes_backup[j] = encode;
+    // unsigned char k, k1;
+    // for (j = 0; j < aan_no; j++) {
+    //     char *word = seqi + j;
+    //     int encode = 0;
+    //     for (k = 0, k1 = NAA - 1; k < NAA; k++, k1--) encode += word[k] * NAAN_array[k1];
+    //     word_encodes[j] = word_encodes_backup[j] = encode;
+    // }
+    const int base    = NAAN_array[1];
+    const int basePow = NAAN_array[NAA - 1];
+
+    // 1) 初始化第一个窗口编码：O(NAA)
+    int enc = 0;
+    for (int k = 0; k < NAA; ++k) {
+        const int k1 = NAA - 1 - k;
+        enc += (int)seqi[k] * NAAN_array[k1];
     }
+
+    // 2) rolling 生成所有窗口编码：O(aan_no)
+    // enc(j+1) = (enc(j) - seq[j]*basePow) * base + seq[j+NAA]
+    for (int j = 0; j < aan_no; ++j) {
+        word_encodes[j] = word_encodes_backup[j] = enc;
+
+        // update to next window
+        if (j + NAA < len) {
+            enc = (enc - (int)seqi[j] * basePow) * base + (int)seqi[j + NAA];
+        }
+    }
+
 
     if (est) {
         for (j = 0; j < len; j++) {
@@ -3209,6 +3238,7 @@ int WorkingBuffer::EncodeWords(Sequence *seq, int NAA, bool est) {
         for (j = 0; j < aan_no; j++) skip += (word_encodes[j] == -1);
     }
     // assert(aan_no<35808);
+    //ips4o::sort(word_encodes.begin(), word_encodes.begin() + aan_no);
     std::sort(word_encodes.begin(), word_encodes.begin() + aan_no);
     for (j = 0; j < aan_no; j++) word_encodes_no[j] = 1;
     for (j = aan_no - 1; j; j--) {
@@ -4518,7 +4548,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
         // Modify by MGL: remove the rank directory
         // string rep_output = options.output + '/' + std::to_string(my_rank);
-        string rep_output = options.output;
+        string rep_output = options.output+ ".txt";
         ofstream fout(rep_output);
 
         std::vector<std::vector<string>> id_tables(rank_size - 1);
