@@ -85,7 +85,7 @@ Options
 # The external sorting process uses 64 threads.  
  ./cdhit-preprocess -i DB.fa  -T 64 -N 1 -NT 128 -tmp tmp
 ```
-After preprocessing, a JSON file will be generated in the tmp directory:
+After preprocessing, a JSON file will be generated in `output/tmp`:
 ```json
  {
     "files": {
@@ -111,11 +111,21 @@ After preprocessing, a JSON file will be generated in the tmp directory:
     }
 }
 ```
+After preprocessing, you can run the following command to perform clustering:
 
+```bash
+mpirun -np 4 ./cdhit-mpi -o DB_output -T 32 -tmp tmp
+```
 Here, total_mpi_num and threads_per_node correspond to the number of MPI processes and threads required for clustering,
 which are equivalent to the parameters -np and -T, respectively.
 The -tmp option should be set to the same directory specified above.
+The -o argument specifies the prefix of the output files.
+If the dataset is very large or the available computational resources are limited, enabling the work-stealing mode is recommended for better load balancing:
 ```bash
-mpirun -np 4 ./cdhit-mpi -o output -T 32 -tmp huge_tmp
+mpirun -np 4 ./cdhit-mpi -o DB_output -T 32 -tmp tmp -stealing 1
 ```
+The final output files are stored in the output directory, including:
 
+*.txt: contains the names and sequences of representative sequences.
+
+*.clstr: contains the cluster membership information for all sequences.
