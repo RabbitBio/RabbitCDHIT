@@ -15,7 +15,7 @@ make
 ## 2) Workflow (must follow this order)
 
 1. Run `cdhit-preprocess` to generate preprocessed files and `info.json`.
-2. Run `cdhit-mpi` for clustering using the generated files.
+2. Run `cdhit-mpi` for clustering and **you must use the output of Step 1 as input**.
 
 ## 3) Preprocess stage
 
@@ -26,47 +26,36 @@ make
 ### Important preprocess arguments
 
 - `-i`: input FASTA file (supports `.gz`)
-- `-tmp`: temp run-file directory (recommend local fast disk)
-- `-pre_out`: preprocess output directory (`info.json` and `_proc*.fa` will be written here)
-- `-ST`: physical cores per socket (optional, recommended for multi-machine runs)
-- `-nT`: physical cores per NUMA node (optional, recommended for multi-machine runs)
+- `-N`: number of nodes for the MPI workflow. 
+- `-NT`: total threads per node for the MPI workflow.
+- `-T`: threads used by `cdhit-preprocess` itself.
+- `-tmp`: temp run-file directory.
+- `-pre_out`: preprocess output directory.
 
 ## 4) Clustering stage
-
-Use `-i` in `cdhit-mpi` to point to the same directory as preprocess `-pre_out`.
-
-```bash
-mpirun -np <NP_FROM_JSON> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <T_FROM_JSON>
-```
-
-Work-stealing example:
-
-```bash
-mpirun -np <NP_FROM_JSON> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <T_FROM_JSON> -stealing 1
-```
-
-## 5) Critical requirement for `cdhit-mpi`
-
-When running `./cdhit-mpi`, these two values MUST match `info.json`:
-
-- `mpirun -np` **must equal** `info.total_mpi_num`
-- `cdhit-mpi -T` **must equal** `info.threads_per_node`
-
-If they do not match, the run may fail or show unstable performance/results.
-
-## 6) Read `-np` and `-T` from `info.json`
-
-Read `info.total_mpi_num` and `info.threads_per_node` from:
+Read `info.total_mpi_num` and `info.threads_per_rank` from:
 
 - `/absolute/path/to/preprocess_output/info.json`
 
 Then run:
 
 ```bash
-mpirun -np <value_from_info.total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <value_from_info.threads_per_node>
+mpirun -np <value_from_info.total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <value_from_info.threads_per_rank>
 ```
 
-## 7) Output files
+When running `./cdhit-mpi`, these two values MUST match `info.json`:
+
+- `mpirun -np` **must equal** `info.total_mpi_num`
+- `cdhit-mpi -T` **must equal** `info.threads_per_rank`
+
+If they do not match, the run may fail.
+Work-stealing example:
+
+```bash
+mpirun -np <value_from_info.total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <value_from_info.threads_per_rank> -stealing 1
+```
+
+## 5) Output files
 
 - `*.txt`: representative sequence names and sequences
 - `*.clstr`: cluster membership information

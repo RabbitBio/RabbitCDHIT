@@ -2554,7 +2554,7 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     total_mpi_num = options.NodeNum * mpi_size;
     chunk_bytes = total_letter / total_num * chunk_size;
     std::cout << "chunk_size: " << chunk_size << std::endl;
-    std::cout << "threads_per_node : " << Production_threads << std::endl;
+    std::cout << "threads_per_rank : " << Production_threads << std::endl;
     std::cout << "total_mpi_num : " << total_mpi_num << std::endl;
 }
 
@@ -2577,7 +2577,7 @@ void SequenceDB::WriteToJSON(const std::string &file, const std::string &output_
         {"total_chunk", total_chunk},
         {"chunk_bytes", chunk_bytes},
         {"first_chunk_size", first_chunk_size},
-        {"threads_per_node", Production_threads},
+        {"threads_per_rank", Production_threads},
         {"total_mpi_num", total_mpi_num},
 
     };
@@ -2607,7 +2607,7 @@ void SequenceDB::ReadJsonInfo(const std::string &file, const std::string &output
     min_len = j["info"]["min_len"].get<size_t>();
     chunk_bytes = j["info"]["chunk_bytes"].get<long long>();
     first_chunk_size = j["info"]["first_chunk_size"].get<int>();
-    Production_threads = j["info"]["threads_per_node"].get<int>();
+    Production_threads = j["info"]["threads_per_rank"].get<int>();
     total_mpi_num = j["info"]["total_mpi_num"].get<int>();
     string temp_dir = j["files"]["output_dir"].get<string>();
     if (master) {

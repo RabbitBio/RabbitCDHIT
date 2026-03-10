@@ -41,10 +41,14 @@ char txt_option_N[] = "\tnumber of nodes, required\n";
 char txt_option_NT[] = "\tnumber of threads per node, required\n";
 char txt_option_ST[] =
 "\tphysical cores per socket (optional)\n \
-\tfor multi-machine runs, set this explicitly to avoid wrong auto-detection\n";
+\tby default, the program auto-detects this value on the current machine;\n \
+\tif preprocess runs on machine A but cdhit-mpi runs on machine B,\n \
+\tset this to machine B's physical cores per socket\n";
 char txt_option_nT[] =
 "\tphysical cores per NUMA node (optional)\n \
-\tfor multi-machine runs, set this explicitly to avoid wrong auto-detection\n";
+\tby default, the program auto-detects this value on the current machine;\n \
+\tif preprocess runs on machine A but cdhit-mpi runs on machine B,\n \
+\tset this to machine B's physical cores per NUMA node\n";
 char txt_option_tmp[] = "\tabs path for tmp run files, default $PWD/tmp_runs\n";
 char txt_option_pre_out[] = "\tabs path for preprocess output files, default $PWD/preprocess_output\n";
 char txt_option_i_mpi[] = "\tabs path for preprocess input files, default $PWD/preprocess_output\n";
