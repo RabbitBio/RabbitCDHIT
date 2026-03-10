@@ -156,7 +156,7 @@ int print_usage_preprocess (char *arg) {
   // cout << cd_hit_ver << "\n\n" ;
   cout << "Usage: " << arg << " [Options] \n\nOptions\n\n";
   cout << "   -i" << txt_option_i;
-  cout << "   -o" << txt_option_o;
+  // cout << "   -o" << txt_option_o;
   cout << "   -N" << txt_option_N;
   cout << "   -NT" << txt_option_NT;
   cout << "   -tmp" << txt_option_tmp;
