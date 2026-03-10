@@ -43,7 +43,7 @@ ifneq ($(TBB_INCLUDE_DIR),)
 endif
 
 # Intel oneAPI TBB 需要链接 tbb 和 tbbmalloc
-LIBS = -ltbb -ltbbmalloc
+LIBS = -ltbb -ltbbmalloc -latomic
 
 
 # default with zlib
