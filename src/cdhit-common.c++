@@ -5856,7 +5856,30 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
         omp_destroy_lock(&locks[i].lock);
     }
     delete[] locks;
+    if (worker && options.stealing)
+    {
+        // Ensure all workers have finished RMA operations before tearing down windows.
+        MPI_Barrier(worker_comm);
+
+        auto cleanup_win = [](MPI_Win &w)
+        {
+            if (w != MPI_WIN_NULL)
+            {
+                MPI_Win_flush_all(w);
+                MPI_Win_unlock_all(w);
+                MPI_Win_free(&w);
+            }
+        };
+
+        cleanup_win(win_pool_d_);
+        cleanup_win(win_meta_);
+        cleanup_win(win_ctrl_);
+        cleanup_win(win_tasks_);
+        cleanup_win(win_tasks_flag_);
+        ptr_ctrl_ = nullptr;
+    }
     MPI_Barrier(MPI_COMM_WORLD);
+
     if (master) {
         printf("\n%9lli  finished  %9i  clusters\n", total_num, rep_seqs.size());
     }
