@@ -33,6 +33,7 @@
 #include <mpi.h>
 #include <stdint.h>
 #include <sys/time.h>
+#include <unistd.h>
 
 #include <valarray>
 #ifndef NO_OPENMP
@@ -259,6 +260,19 @@ struct TempFiles {
 const char *temp_dir = "";
 TempFiles temp_files;
 
+static std::string MakeAbsolutePathFromCwd(const std::string &path, const char *default_name) {
+    std::string target = path.empty() ? std::string(default_name) : path;
+    if (!target.empty() && target[0] == '/') return target;
+
+    char cwd_buf[PATH_MAX];
+    if (getcwd(cwd_buf, sizeof(cwd_buf)) == nullptr) {
+        return target;
+    }
+    std::string cwd(cwd_buf);
+    if (!cwd.empty() && cwd.back() != '/') cwd.push_back('/');
+    return cwd + target;
+}
+
 FILE *OpenTempFile(const char *dir = NULL) {
     TempFile *file = new TempFile(dir);
 #pragma omp critical
@@ -321,8 +335,8 @@ bool Options::SetOptionCommon(const char *flag, const char *value) {
         output = value;
     else if (strcmp(flag, "-op") == 0)
         output_pe = value;
-    else if (strcmp(flag, "-tmp") == 0)
-        tmp_dir = value;
+    else if (strcmp(flag, "-pre_out") == 0)
+        preprocess_dir = value;
     else if (strcmp(flag, "-stealing") == 0)
         stealing = true;
     else if (strcmp(flag, "-M") == 0)
@@ -567,6 +581,7 @@ void Options::Validate() {
     if ((global_identity == 0) && (short_coverage == 0.0) && (min_control == 0))
         bomb_error("You are using local identity, but no -aS -aL -A option");
     if (frag_size < 0) bomb_error("invalid fragment size");
+    preprocess_dir = MakeAbsolutePathFromCwd(preprocess_dir, "preprocess_output");
 
 #if 0
 	if( useDistance ){
@@ -2320,17 +2335,15 @@ static void write_run_fasta(const std::vector<std::pair<std::string, std::string
         perror(("fopen" + path).c_str());
         exit(1);
     }
+    // Reduce syscall overhead when writing large run files.
+    std::setvbuf(fout, nullptr, _IOFBF, 1 << 20);
     for (const auto &p : chunk) {
-        if (p.first.back() != '\n') {
-            fprintf(fout, ">%s\n", p.first.c_str());
-        } else {
-            fprintf(fout, ">%s", p.first.c_str());
-        }
-        if (!p.second.empty() && p.second.back() != '\n') {
-            fprintf(fout, "%s\n", p.second.c_str());
-        } else {
-            fprintf(fout, "%s", p.second.c_str());
-        }
+        std::fputc('>', fout);
+        if (!p.first.empty()) std::fwrite(p.first.data(), 1, p.first.size(), fout);
+        if (p.first.empty() || p.first.back() != '\n') std::fputc('\n', fout);
+
+        if (!p.second.empty()) std::fwrite(p.second.data(), 1, p.second.size(), fout);
+        if (p.second.empty() || p.second.back() != '\n') std::fputc('\n', fout);
     }
     fclose(fout);
 }
@@ -2356,9 +2369,9 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
         std::cout << "chunk_size_bytes: " << chunk_size_bytes << " bytes" << std::endl;
     } else
         perror("stat");
-    const char *RUN_DIR = "output/tmp_runs";
-    if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST) {
-        perror("mkdir output/tmp_runs");
+    std::string run_dir = MakeAbsolutePathFromCwd(temp_dir, "tmp_runs");
+    if (mkdir(run_dir.c_str(), 0755) != 0 && errno != EEXIST) {
+        perror(("mkdir " + run_dir).c_str());
         return;
     }
 
@@ -2442,7 +2455,7 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
 #pragma omp taskyield
                         }
                         auto sort_write_start = clock::now();
-                        std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+                        std::string path = run_dir + "/run_" + std::to_string(my_run) + ".fa";
                         write_run_fasta(*ch, path);
                         auto sort_write_end = clock::now();
                         auto sort_write_ns =
@@ -2476,7 +2489,7 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
                         if (slots > 0 && write_slots.compare_exchange_weak(slots, slots - 1)) break;
 #pragma omp taskyield
                     }
-                    std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(my_run) + ".fa";
+                    std::string path = run_dir + "/run_" + std::to_string(my_run) + ".fa";
                     write_run_fasta(*ch, path);
                     write_slots.fetch_add(1, std::memory_order_relaxed);
                     delete ch;
@@ -2493,7 +2506,7 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     if (max_len > MAX_SEQ)
         bomb_warning("Some seqs are too long, please rebuild the program with make parameter MAX_SEQ=...");
     for (int i = 0; i < run_id; i++) {
-        std::string path = std::string(RUN_DIR) + "/run_" + std::to_string(i) + ".fa";
+        std::string path = run_dir + "/run_" + std::to_string(i) + ".fa";
         run_files.push_back(path);
     }
     std::cout << "longest and shortest : " << max_name << " and " << min_name << "\n";
@@ -4486,9 +4499,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
     int frag_size = options.frag_size;
     int len, len_bound;
     int flag;
-    string temp_dir = options.tmp_dir;
-    if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\') {
-        temp_dir += '/';
+    string preprocess_output_dir = options.preprocess_dir;
+    if (!preprocess_output_dir.empty() && preprocess_output_dir.back() != '/' && preprocess_output_dir.back() != '\\') {
+        preprocess_output_dir += '/';
     }
     if (not options.isEST)
         cal_aax_cutoff(aa1_cutoff, aas_cutoff, aan_cutoff, options.cluster_thd, options.tolerance,
@@ -4574,7 +4587,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
         kseq_t *seq = nullptr;
         Clear();
         Sequence one;
-        std::string file = temp_dir + "_proc" + std::to_string(file_index) + ".fa";
+        std::string file = preprocess_output_dir + "_proc" + std::to_string(file_index) + ".fa";
 
         send_file_index = file_index;
         if (chunk_kseq[file_index] == nullptr) {
@@ -5022,7 +5035,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
             for (int i = 0; i < sequences.size(); i++) delete sequences[i];
             sequences.clear();
             Sequence one;
-            std::string file = temp_dir + "_proc" + std::to_string(file_index) + ".fa";
+            std::string file = preprocess_output_dir + "_proc" + std::to_string(file_index) + ".fa";
             cerr << "master  file_index      " << file_index << endl;
             send_file_index = file_index;
             if (chunk_kseq[file_index] == nullptr) {
@@ -5174,7 +5187,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 for (int i = 0; i < rep_sequences.size(); i++) delete rep_sequences[i];
                 rep_sequences.clear();
                 Sequence one;
-                std::string file = temp_dir + "_proc" + std::to_string(file_index) + ".fa";
+                std::string file = preprocess_output_dir + "_proc" + std::to_string(file_index) + ".fa";
                 cerr << "file_index      " << file_index << endl;
                 if (chunk_kseq[file_index] == nullptr) {
                     gzFile fp = gzopen(file.c_str(), "r");

@@ -354,7 +354,7 @@ struct Options {
     string input2_pe;
     string output;
     string output_pe;
-    string tmp_dir;
+    string preprocess_dir;
 
     int sort_output;  // -sc
     int sort_outputf; // -sf
@@ -368,7 +368,7 @@ struct Options {
         isEST = false;
         is454 = false;
         stealing = false;
-        tmp_dir = "tmp";
+        preprocess_dir = "preprocess_output";
         NAA = 5;
         NodeNum = 0;
         threads_per_node = 0;

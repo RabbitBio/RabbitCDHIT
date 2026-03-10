@@ -179,23 +179,14 @@ int main(int argc, char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
     seq_db.Pipeline_External_Sort(db_in.c_str(), min_file_size, run_files, options, core_size,numa_size);
 
-    std::string tmp_prefix = std::string(RUN_DIR);
-    if (tmp_prefix.back() != '/') {
-        tmp_prefix += '/';
+    mkdir(options.preprocess_dir.c_str(), 0755);
+    string preprocess_output_dir = options.preprocess_dir;
+    if (!preprocess_output_dir.empty() && preprocess_output_dir.back() != '/' &&
+        preprocess_output_dir.back() != '\\') {
+        preprocess_output_dir += '/';
     }
-    // 移除 options.tmp_dir 开头的斜杠（如果有）
-    if (!options.tmp_dir.empty() && options.tmp_dir[0] == '/') {
-        options.tmp_dir = options.tmp_dir.substr(1);
-    }
-    options.tmp_dir = tmp_prefix + options.tmp_dir;
-
-    mkdir(options.tmp_dir.c_str(), 0755);
-    string temp_dir = options.tmp_dir;
-    if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\') {
-        temp_dir += '/';
-    }
-    cout << "temp_dir: " << temp_dir << endl;
-    seq_db.MergeSortedRuns_KWay(run_files, temp_dir);
+    cout << "preprocess_output_dir: " << preprocess_output_dir << endl;
+    seq_db.MergeSortedRuns_KWay(run_files, preprocess_output_dir);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "external sorting cost:    " << elapsed.count() << " second\n";

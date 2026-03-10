@@ -39,7 +39,15 @@ char txt_option_c[] =
 \tdivided by the full length of the shorter sequence\n";
 char txt_option_N[] = "\tnumber of nodes, required\n";
 char txt_option_NT[] = "\tnumber of threads per node, required\n";
-char txt_option_tmp[] = "\toutput directory for sequences after external sorting, default tmp\n";
+char txt_option_ST[] =
+"\tphysical cores per socket (optional)\n \
+\tfor multi-machine runs, set this explicitly to avoid wrong auto-detection\n";
+char txt_option_nT[] =
+"\tphysical cores per NUMA node (optional)\n \
+\tfor multi-machine runs, set this explicitly to avoid wrong auto-detection\n";
+char txt_option_tmp[] = "\tabs path for tmp run files, default $PWD/tmp_runs\n";
+char txt_option_pre_out[] = "\tabs path for preprocess output files, default $PWD/preprocess_output\n";
+char txt_option_i_mpi[] = "\tabs path for preprocess input files, default $PWD/preprocess_output\n";
 char txt_option_G[] = 
 "\tuse global sequence identity, default 1\n \
 \tif set to 0, then use local sequence identity, calculated as :\n \
@@ -159,7 +167,10 @@ int print_usage_preprocess (char *arg) {
   // cout << "   -o" << txt_option_o;
   cout << "   -N" << txt_option_N;
   cout << "   -NT" << txt_option_NT;
+  cout << "   -ST" << txt_option_ST;
+  cout << "   -nT" << txt_option_nT;
   cout << "   -tmp" << txt_option_tmp;
+  cout << "   -pre_out" << txt_option_pre_out;
   cout << "   -T" << txt_option_T;
   cout << "   -l" << txt_option_l;
   cout << "   -h\tprint this help\n\n";
@@ -169,6 +180,7 @@ int print_usage_preprocess (char *arg) {
 
 int print_usage_mpi (char *arg) {
   cout << "Usage: "<< arg << " [Options] \n\nOptions\n\n";
+  cout << "   -o" << txt_option_o;
   cout << "   -c" << txt_option_c;
   cout << "   -G" << txt_option_G;
   cout << "   -b" << txt_option_b;
@@ -185,6 +197,7 @@ int print_usage_mpi (char *arg) {
   cout << "   -uL" << txt_option_uL;
   cout << "   -uS" << txt_option_uS;
   cout << "   -U" << txt_option_U;
+  cout << "   -i" << txt_option_i_mpi;
   cout << "   -g" << txt_option_g;
   cout << "   -h\tprint this help\n\n";
   exit(1);

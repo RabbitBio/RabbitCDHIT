@@ -73,6 +73,12 @@ int main(int argc, char* argv[]) {
     // ***********************************    parse command line and open file
     if (argc < 5) print_usage_mpi(argv[0]);
     if (options.SetOptions(argc, argv,rank) == 0) print_usage_mpi(argv[0]);
+    if (options.input.empty()) bomb_error("no input directory for cdhit-mpi (-i)");
+    if (options.output.empty()) bomb_error("no output prefix for cdhit-mpi (-o)");
+    // cdhit-mpi: use -i as preprocess input directory.
+    if (!options.input.empty()) {
+        options.preprocess_dir = options.input;
+    }
     options.Validate();
 
     // The purpose is merely to facilitate git.
@@ -81,11 +87,6 @@ int main(int argc, char* argv[]) {
     if (tmp_prefix.back() != '/') {
         tmp_prefix += '/';
     }
-    if (!options.tmp_dir.empty() && options.tmp_dir[0] == '/') {
-        options.tmp_dir = options.tmp_dir.substr(1);
-    }
-    options.tmp_dir = tmp_prefix + options.tmp_dir;
-
     if (!options.output.empty() && options.output[0] == '/') {
         options.output = options.output.substr(1);
     }
@@ -105,11 +106,12 @@ int main(int argc, char* argv[]) {
     options.NAAN = NAAN_array[options.NAA];
     seq_db.NAAN = NAAN_array[options.NAA];
 
-    string temp_dir = options.tmp_dir;
-    if (!temp_dir.empty() && temp_dir.back() != '/' && temp_dir.back() != '\\') {
-        temp_dir += '/';
+    string preprocess_output_dir = options.preprocess_dir;
+    if (!preprocess_output_dir.empty() && preprocess_output_dir.back() != '/' &&
+        preprocess_output_dir.back() != '\\') {
+        preprocess_output_dir += '/';
     }
-    seq_db.ReadJsonInfo("info.json", temp_dir, options, master);
+    seq_db.ReadJsonInfo("info.json", preprocess_output_dir, options, master);
     if (size != seq_db.total_mpi_num) 
     {
         cerr<<"size "<<size<<endl;
@@ -118,7 +120,7 @@ bomb_error("Number of processes does not match");
     }
 
     if (!master) {
-        seq_db.read_sorted_files(temp_dir, rank, size, false, worker_comm, options);
+        seq_db.read_sorted_files(preprocess_output_dir, rank, size, false, worker_comm, options);
         MPI_Barrier(worker_comm);
     }
 
@@ -130,6 +132,7 @@ bomb_error("Number of processes does not match");
         cout << "program completed !" << endl << endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    // cerr<<"this"<<endl;
     MPI_Finalize();
     return 0;
 }
