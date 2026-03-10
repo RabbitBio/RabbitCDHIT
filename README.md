@@ -20,7 +20,7 @@ make
 ## 3) Preprocess stage
 
 ```bash
-./cdhit-preprocess -i DB.fa -N 1 -NT 128 -T 64 -ST 64 -nT 32 -tmp /absolute/path/to/tmp_runs -pre_out /absolute/path/to/preprocess_output
+./cdhit-preprocess -i DB.fa -N 1 -NT 128 -T 64 -tmp /absolute/path/to/tmp_runs -pre_out /absolute/path/to/preprocess_output
 ```
 
 ### Important preprocess arguments
@@ -49,6 +49,7 @@ When running `./cdhit-mpi`, these two values MUST match `info.json`:
 - `cdhit-mpi -T` **must equal** `info.threads_per_rank`
 
 If they do not match, the run may fail.
+
 Work-stealing example:
 
 ```bash
