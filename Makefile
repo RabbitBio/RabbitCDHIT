@@ -9,7 +9,7 @@ CC = mpiicpx
 ifeq ($(openmp),no)
   CCFLAGS = -DNO_OPENMP
 else
-  CCFLAGS = -fopenmp -D_REENTRANT -mcx16
+  CCFLAGS = -fopenmp -D_REENTRANT -mcx16 -std=c++17
 endif
 ifeq ($(AVX512),yes)
 #   CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq -fno-vectorize 
