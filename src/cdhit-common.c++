@@ -2623,13 +2623,15 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     int num_procs = total_mpi_num - 1;
     std::priority_queue<FastaRecord> pq;
     std::vector<FILE *> fps(run_files.size(), nullptr);
+    constexpr size_t kMergeIoBufSize = 1 << 20; // 1 MiB stdio buffer
 
     for (size_t i = 0; i < run_files.size(); ++i) {
-        FILE *fp = fopen(run_files[i].c_str(), "r");
+        FILE *fp = fopen(run_files[i].c_str(), "rb");
         if (!fp) {
             std::cerr << "Failed to open run file: " << run_files[i] << std::endl;
             continue;
         }
+        setvbuf(fp, nullptr, _IOFBF, kMergeIoBufSize);
         fps[i] = fp;
 
         char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
@@ -2650,11 +2652,12 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     for (int i = 0; i < num_procs; ++i) {
         std::string filename = output_prefix + "_proc" + std::to_string(i) + ".fa";
 
-        proc_files[i].fp = fopen(filename.c_str(), "w");
+        proc_files[i].fp = fopen(filename.c_str(), "wb");
         if (!proc_files[i].fp) {
             fprintf(stderr, "FATAL: Failed to create output file %s (%s)\n", filename.c_str(), strerror(errno));
             exit(EXIT_FAILURE);
         }
+        setvbuf(proc_files[i].fp, nullptr, _IOFBF, kMergeIoBufSize);
     }
 
     size_t global_chunk_id = -1;
@@ -2662,17 +2665,10 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     size_t current_chunk_bytes = 0;
     int current_proc = -1;
     auto rotate_chunk = [&] {
-        if (current_proc != -1) {
-            auto &pf = proc_files[current_proc];
-            fflush(pf.fp);
-        }
-
         global_chunk_id++;
         current_proc = (global_chunk_id) % num_procs;
         current_chunk_size = 0;
         current_chunk_bytes = 0;
-
-        auto &pf = proc_files[current_proc];
     };
 
     rotate_chunk();
@@ -2704,9 +2700,7 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
         }
     }
     if (current_chunk_bytes > 0) {
-        auto &pf = proc_files[current_proc];
         chunks_num++;
-        fflush(pf.fp);
     }
     total_chunk = global_chunk_id;
 
