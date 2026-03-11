@@ -33,9 +33,10 @@ make
 - `-pre_out`: preprocess output directory.
 
 ## 4) Clustering stage
-Read `info.total_mpi_num` and `info.threads_per_rank` from:
+Read `info.total_mpi_num` and `info.threads_per_node` from either:
 
 - `/absolute/path/to/preprocess_output/info.json`
+- the terminal output printed by the Preprocess stage
 
 Then run:
 
