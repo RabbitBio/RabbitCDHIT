@@ -11,7 +11,13 @@ git clone --recursive https://github.com/RabbitBio/RabbitCDHIT.git
 cd RabbitCDHIT
 make
 ```
+By default, the project uses `mpiicpx` as the MPI C++ compiler.  
+If `mpiicpx` is not available on your machine, edit `CC` in `Makefile` and switch it to `mpicxx`, then rebuild.
 
+If your CPU supports AVX512, compile with:
+```bash
+make AVX512=yes
+```
 ## 2) Workflow (must follow this order)
 
 1. Run `cdhit-preprocess` to generate preprocessed files and `info.json`.
@@ -33,7 +39,7 @@ make
 - `-pre_out`: preprocess output directory.
 
 ## 4) Clustering stage
-Read `info.total_mpi_num` and `info.threads_per_node` from either:
+Read `info.total_mpi_num` and `info.threads_per_rank` from either:
 
 - `/absolute/path/to/preprocess_output/info.json`
 - the terminal output printed by the Preprocess stage
