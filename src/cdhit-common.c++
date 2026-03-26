@@ -35,6 +35,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+#include <condition_variable>
 #include <valarray>
 #ifndef NO_OPENMP
 
@@ -2384,8 +2385,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     }
     kseq_t *seq = kseq_init(fp);
 
-    static constexpr int MAX_INFLIGHT = 8;
-    static constexpr int MAX_WRITE_PAR = 1;
+    static constexpr int MAX_INFLIGHT = 32;
+    static constexpr int MAX_WRITE_PAR = 4;
 
     std::atomic<int> inflight{0};
     std::atomic<int> write_slots{MAX_WRITE_PAR};
@@ -2545,8 +2546,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     }
 
     Production_threads = options.threads_per_node / mpi_size;
-    // if (Production_threads > core_num || options.NodeNum > 4) {
-    if (Production_threads > core_num ) {
+    if (Production_threads > core_num || (options.NodeNum > 4 && core_num == numa_size)) {
+    // if (Production_threads > core_num ) {
         Production_threads = core_num;
         mpi_size = options.threads_per_node / Production_threads;
     }
@@ -2621,26 +2622,128 @@ void SequenceDB::ReadJsonInfo(const std::string &file, const std::string &output
 void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix) {
     if (run_files.empty()) return;
     int num_procs = total_mpi_num - 1;
-    std::priority_queue<FastaRecord> pq;
-    std::vector<FILE *> fps(run_files.size(), nullptr);
+    if (num_procs <= 0) {
+        std::cerr << "FATAL: invalid process count for merge: " << num_procs << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    constexpr size_t kMergeFanIn = 64;
+    struct HeapNode {
+        size_t seq_len;
+        size_t file_id;
+        bool operator<(const HeapNode &other) const {
+            if (seq_len != other.seq_len) return seq_len < other.seq_len;
+            return file_id > other.file_id;
+        }
+    };
+    auto read_record = [](FILE *fp, char *desc_buf, char *seq_buf, std::string &desc, std::string &seq) -> bool {
+        if (!fgets(desc_buf, MAX_LINE_SIZE, fp)) return false;
+        if (!fgets(seq_buf, MAX_LINE_SIZE, fp)) return false;
+        desc.assign(desc_buf);
+        seq.assign(seq_buf);
+        return true;
+    };
     constexpr size_t kMergeIoBufSize = 1 << 20; // 1 MiB stdio buffer
+    auto merge_group_to_run = [&](const std::vector<std::string> &inputs, const std::string &out_path) -> bool {
+        std::priority_queue<HeapNode> local_pq;
+        std::vector<FILE *> local_fps(inputs.size(), nullptr);
+        std::vector<FastaRecord> local_heads(inputs.size());
+        std::vector<char> local_desc_buf(MAX_LINE_SIZE);
+        std::vector<char> local_seq_buf(MAX_LINE_SIZE);
 
-    for (size_t i = 0; i < run_files.size(); ++i) {
-        FILE *fp = fopen(run_files[i].c_str(), "rb");
+        FILE *out_fp = fopen(out_path.c_str(), "wb");
+        if (!out_fp) {
+            fprintf(stderr, "FATAL: Failed to create intermediate run %s (%s)\n", out_path.c_str(), strerror(errno));
+            return false;
+        }
+        setvbuf(out_fp, nullptr, _IOFBF, kMergeIoBufSize);
+
+        for (size_t i = 0; i < inputs.size(); ++i) {
+            FILE *fp = fopen(inputs[i].c_str(), "rb");
+            if (!fp) {
+                std::cerr << "Failed to open run file: " << inputs[i] << std::endl;
+                continue;
+            }
+            setvbuf(fp, nullptr, _IOFBF, kMergeIoBufSize);
+            local_fps[i] = fp;
+            local_heads[i].file_id = i;
+            local_heads[i].desc.reserve(max_idf + 4);
+            local_heads[i].seq.reserve(max_len + 4);
+            if (read_record(fp, local_desc_buf.data(), local_seq_buf.data(), local_heads[i].desc, local_heads[i].seq)) {
+                local_pq.push(HeapNode{local_heads[i].seq.size(), i});
+            }
+        }
+
+        while (!local_pq.empty()) {
+            HeapNode node = local_pq.top();
+            local_pq.pop();
+            size_t fid = node.file_id;
+            const FastaRecord &rec = local_heads[fid];
+            fwrite(rec.desc.data(), 1, rec.desc.size(), out_fp);
+            fwrite(rec.seq.data(), 1, rec.seq.size(), out_fp);
+            if (read_record(local_fps[fid], local_desc_buf.data(), local_seq_buf.data(), local_heads[fid].desc,
+                            local_heads[fid].seq)) {
+                local_pq.push(HeapNode{local_heads[fid].seq.size(), fid});
+            }
+        }
+
+        bool ok = (fclose(out_fp) == 0);
+        for (auto *fp : local_fps)
+            if (fp) fclose(fp);
+        return ok;
+    };
+
+    std::vector<std::string> stage_files = run_files;
+    std::vector<std::string> created_merge_files;
+    size_t round_id = 0;
+    while (stage_files.size() > kMergeFanIn) {
+        const size_t groups = (stage_files.size() + kMergeFanIn - 1) / kMergeFanIn;
+        std::vector<std::string> next_stage(groups);
+        std::atomic<bool> stage_ok{true};
+#pragma omp parallel for schedule(dynamic)
+        for (long long g = 0; g < static_cast<long long>(groups); ++g) {
+            if (!stage_ok.load(std::memory_order_relaxed)) continue;
+            const size_t base = static_cast<size_t>(g) * kMergeFanIn;
+            const size_t end = (base + kMergeFanIn < stage_files.size()) ? (base + kMergeFanIn) : stage_files.size();
+            std::vector<std::string> group(stage_files.begin() + base, stage_files.begin() + end);
+            std::string inter_path = output_prefix + "_merge_r" + std::to_string(round_id) + "_g" + std::to_string(g) +
+                                     ".fa";
+            if (!merge_group_to_run(group, inter_path)) {
+                stage_ok.store(false, std::memory_order_relaxed);
+                continue;
+            }
+            next_stage[g] = std::move(inter_path);
+            // Free disk space as soon as this group is compacted.
+            for (const auto &f : group) remove(f.c_str());
+        }
+        if (!stage_ok.load(std::memory_order_relaxed)) {
+            fprintf(stderr, "FATAL: parallel staged merge failed at round %zu\n", round_id);
+            exit(EXIT_FAILURE);
+        }
+        for (const auto &f : next_stage) created_merge_files.push_back(f);
+        stage_files.swap(next_stage);
+        round_id++;
+    }
+
+    std::priority_queue<HeapNode> pq;
+    std::vector<FILE *> fps(stage_files.size(), nullptr);
+    std::vector<FastaRecord> heads(stage_files.size());
+    std::vector<char> desc_buf(MAX_LINE_SIZE);
+    std::vector<char> seq_buf(MAX_LINE_SIZE);
+
+    for (size_t i = 0; i < stage_files.size(); ++i) {
+        FILE *fp = fopen(stage_files[i].c_str(), "rb");
         if (!fp) {
-            std::cerr << "Failed to open run file: " << run_files[i] << std::endl;
+            std::cerr << "Failed to open run file: " << stage_files[i] << std::endl;
             continue;
         }
         setvbuf(fp, nullptr, _IOFBF, kMergeIoBufSize);
         fps[i] = fp;
 
-        char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
-        if (fgets(desc, MAX_LINE_SIZE, fp) && fgets(seq, MAX_LINE_SIZE, fp)) {
-            FastaRecord rec;
-            rec.desc = desc;
-            rec.seq = seq;
-            rec.file_id = i;
-            pq.push(rec);
+        heads[i].file_id = i;
+        heads[i].desc.reserve(max_idf + 4);
+        heads[i].seq.reserve(max_len + 4);
+        if (read_record(fp, desc_buf.data(), seq_buf.data(), heads[i].desc, heads[i].seq)) {
+            pq.push(HeapNode{heads[i].seq.size(), i});
         }
     }
 
@@ -2660,10 +2763,73 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
         setvbuf(proc_files[i].fp, nullptr, _IOFBF, kMergeIoBufSize);
     }
 
+    struct ChunkPayload {
+        int proc_id;
+        std::string data;
+    };
+    std::mutex write_mu;
+    std::condition_variable cv_not_empty;
+    std::condition_variable cv_not_full;
+    std::deque<ChunkPayload> write_q;
+    constexpr size_t kMaxQueuedChunks = 4;
+    bool producer_done = false;
+    bool writer_failed = false;
+    std::string writer_error;
+
+    std::thread writer_thread([&] {
+        while (true) {
+            ChunkPayload item;
+            {
+                std::unique_lock<std::mutex> lk(write_mu);
+                cv_not_empty.wait(lk, [&] { return !write_q.empty() || producer_done; });
+                if (write_q.empty()) {
+                    if (producer_done) break;
+                    continue;
+                }
+                item = std::move(write_q.front());
+                write_q.pop_front();
+            }
+            cv_not_full.notify_one();
+
+            FILE *out = proc_files[item.proc_id].fp;
+            if (!item.data.empty()) {
+                size_t n = item.data.size();
+                size_t written = fwrite(item.data.data(), 1, n, out);
+                if (written != n) {
+                    std::lock_guard<std::mutex> lk(write_mu);
+                    writer_failed = true;
+                    writer_error = "Failed to write merged chunk to output file";
+                    producer_done = true;
+                    cv_not_empty.notify_all();
+                    cv_not_full.notify_all();
+                    break;
+                }
+            }
+        }
+    });
+
+    auto enqueue_chunk = [&](std::string &&chunk_data, int proc_id) -> bool {
+        if (chunk_data.empty()) return true;
+        std::unique_lock<std::mutex> lk(write_mu);
+        cv_not_full.wait(lk, [&] { return write_q.size() < kMaxQueuedChunks || writer_failed; });
+        if (writer_failed) return false;
+        write_q.push_back(ChunkPayload{proc_id, std::move(chunk_data)});
+        lk.unlock();
+        cv_not_empty.notify_one();
+        return true;
+    };
+
     size_t global_chunk_id = -1;
     size_t current_chunk_size = 0;
     size_t current_chunk_bytes = 0;
     int current_proc = -1;
+    size_t chunk_buf_reserve = 1 << 20;
+    if (chunk_bytes > 0) {
+        const size_t suggested = static_cast<size_t>(chunk_bytes) + 4096;
+        if (suggested > chunk_buf_reserve) chunk_buf_reserve = suggested;
+    }
+    std::string current_chunk_data;
+    current_chunk_data.reserve(chunk_buf_reserve);
     auto rotate_chunk = [&] {
         global_chunk_id++;
         current_proc = (global_chunk_id) % num_procs;
@@ -2672,32 +2838,49 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     };
 
     rotate_chunk();
-
+    bool merge_ok = true;
     while (!pq.empty()) {
-        FastaRecord rec = pq.top();
+        HeapNode node = pq.top();
         pq.pop();
+        size_t fid = node.file_id;
+        const FastaRecord &rec = heads[fid];
 
-        auto &pf = proc_files[current_proc];
-        fwrite(rec.desc.data(), 1, rec.desc.size(), pf.fp);
-        fwrite(rec.seq.data(), 1, rec.seq.size(), pf.fp);
+        current_chunk_data.append(rec.desc);
+        current_chunk_data.append(rec.seq);
         current_chunk_bytes += rec.seq.length() - 1;
         current_chunk_size++;
-        int fid = rec.file_id;
-        char desc[MAX_LINE_SIZE], seq[MAX_LINE_SIZE];
-        if (fgets(desc, MAX_LINE_SIZE, fps[fid]) && fgets(seq, MAX_LINE_SIZE, fps[fid])) {
-            FastaRecord new_rec;
-            new_rec.desc = desc;
-            new_rec.seq = seq;
-            new_rec.file_id = fid;
-            pq.push(new_rec);
+        if (read_record(fps[fid], desc_buf.data(), seq_buf.data(), heads[fid].desc, heads[fid].seq)) {
+            pq.push(HeapNode{heads[fid].seq.size(), fid});
         }
 
         if ((current_chunk_bytes > chunk_bytes) || (chunks_num == 0 && current_chunk_size >= first_chunk_size) ||
             (current_chunk_size >= chunk_size)) {
             if (current_chunk_bytes > chunk_bytes && chunks_num == 0) first_chunk_size = current_chunk_size;
+            if (!enqueue_chunk(std::move(current_chunk_data), current_proc)) {
+                merge_ok = false;
+                break;
+            }
+            current_chunk_data = std::string();
+            current_chunk_data.reserve(chunk_buf_reserve);
             rotate_chunk();
             chunks_num++;
         }
+    }
+    if (merge_ok && current_chunk_bytes > 0) {
+        if (!enqueue_chunk(std::move(current_chunk_data), current_proc)) merge_ok = false;
+    }
+    {
+        std::lock_guard<std::mutex> lk(write_mu);
+        producer_done = true;
+    }
+    cv_not_empty.notify_all();
+    if (writer_thread.joinable()) writer_thread.join();
+    if (writer_failed || !merge_ok) {
+        if (!writer_error.empty())
+            fprintf(stderr, "FATAL: %s\n", writer_error.c_str());
+        else
+            fprintf(stderr, "FATAL: merge/output pipeline failed\n");
+        exit(EXIT_FAILURE);
     }
     if (current_chunk_bytes > 0) {
         chunks_num++;
@@ -2709,12 +2892,13 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     for (auto *fp : fps)
         if (fp) fclose(fp);
 
-    for (const auto &fname : run_files) remove(fname.c_str());
+    for (const auto &fname : stage_files) remove(fname.c_str());
+    for (const auto &fname : created_merge_files) remove(fname.c_str());
     proc_files.clear();
     std::vector<ProcFile>().swap(proc_files);
     fps.clear();
     std::vector<FILE *>().swap(fps);
-    pq = std::priority_queue<FastaRecord>();
+    pq = std::priority_queue<HeapNode>();
     WriteToJSON("info.json", output_prefix, "_proc", num_procs);
     std::cout << "Successfully write info.json!\n";
     std::cout << "chunk_num: " << chunks_num << std::endl;
