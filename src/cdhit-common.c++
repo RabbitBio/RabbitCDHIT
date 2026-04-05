@@ -2516,8 +2516,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     std::cout << "Total letters: " << total_letter << "\n";
     std::cout << "total_num_divede: " << total_num_divide << "\n";
     std::cout << "Total number: " << total_num << "\n";
-    if (total_num > 25000000) {
-        chunk_size = 500000;
+    if (total_num > 20000000) {
+        chunk_size = 400000;
     } else {
         chunk_size = total_num / 50;
     }
@@ -4949,6 +4949,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
             printf("\n%9i  finished  %9i  clusters\n", start_global_id + sequences.size(), rep_seqs.size());
             int end_rep_suffix = rep_seqs.size();
+            
             encode_WordTable(info_buf, i, start_rep_suffix, end_rep_suffix, cluster_id_buf, seqs_suffix_buf,
                              indexCount_buf, prefix_buf, indexCount_buf_size, prefix_size, send_file_index,
                              start_global_id);
@@ -5320,6 +5321,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
     }
 
     if (worker) {
+        std::vector<SeqMeta> metas_buf;
+        std::vector<uint8_t> slab_buf;
+
         vector<int> read_chunk(chunks_num, 0);
         kseq_t *seq = nullptr;
         vector<gzFile> chunk_fp(rank_size - 1, nullptr);
@@ -5443,30 +5447,17 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             static int have_task = 0;
 #pragma omp master
                             {
-                                MPI_Win_sync(win_ctrl_);
-                                top = ptr_ctrl_[0];
-                                bottom = ptr_ctrl_[1];
-                                // MPI_Get(tb, 2, MPI_INT, worker_rank, 0, 2, MPI_INT, win_ctrl_);
-                                // // MPI_Get(&top, 1, MPI_INT, worker_rank, 0, 1, MPI_INT, win_ctrl_);
-                                // // MPI_Get(&bottom, 1, MPI_INT, worker_rank, 1, 1, MPI_INT, win_ctrl_);
-                                // MPI_Win_flush_local(worker_rank, win_ctrl_);
-                                // top = tb[0];
-                                // bottom = tb[1];
-                                // cerr<<"bottom "<<bottom<<endl;
+                                MPI_Get(tb, 2, MPI_INT, worker_rank, 0, 2, MPI_INT, win_ctrl_);
+                                MPI_Win_flush_local(worker_rank, win_ctrl_);
+                                top = tb[0];
+                                bottom = tb[1];
                                 if (top <= bottom) {
-                                    int dec = 1;
-                                    // Task t;
-                                    
-
-                                    MPI_Fetch_and_op(&dec, &top, MPI_INT, worker_rank, 0, MPI_SUM, win_ctrl_);
+                                    int task_idx = -1;
+                                    int inc = 1;
+                                    MPI_Fetch_and_op(&inc, &task_idx, MPI_INT, worker_rank, 0, MPI_SUM, win_ctrl_);
                                     MPI_Win_flush(worker_rank, win_ctrl_);
-                                    // MPI_Get(&t, sizeof(Task), MPI_BYTE, worker_rank, top, sizeof(Task), MPI_BYTE,
-                                    //         win_tasks_);
-                                    // MPI_Win_flush_local(worker_rank, win_tasks_);
-                                    // l_shared = t.l;
-                                    // r_shared = t.r;
-                                    l_shared = sub_chunks[top].first;
-                                    r_shared = sub_chunks[top].second;
+                                    l_shared = sub_chunks[task_idx].first;
+                                    r_shared = sub_chunks[task_idx].second;
                                     have_task = 1;
                                 } else {
                                     l_shared = 1;
@@ -5580,6 +5571,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 for (int offset = -3; offset <= 3; ++offset) {
                     int tt = (worker_rank + offset + worker_size) % worker_size;
                     if (tt == worker_rank) continue;
+                    // std::vector<SeqMeta> metas_buf;
+                    // std::vector<uint8_t> slab_buf;
                     while (true) {
                         // int stealing_top, stealing_bottom, origin_top;
                         MPI_Get(remote_idxs, 3, MPI_INT, tt, 0, 3, MPI_INT, win_ctrl_);
@@ -5595,10 +5588,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         // MPI_Get(&stealing_bottom, 1, MPI_INT, tt, 1, 1, MPI_INT, win_ctrl_);
                         // MPI_Get(&origin_top, 1, MPI_INT, tt, 2, 1, MPI_INT, win_ctrl_);
                         // MPI_Win_flush_local(tt, win_ctrl_);
-                        if (stealing_bottom - stealing_top > 1&&stealing_bottom-origin_top>SUB) {
-                            // cerr<<"stealing rank "<<tt<<endl;
-                            int dec = -1;
-                            MPI_Fetch_and_op(&dec, &stealing_bottom, MPI_INT, tt, 1, MPI_SUM, win_ctrl_);
+                        if (stealing_bottom - stealing_top > 1 && stealing_bottom - origin_top > SUB) {
+                            cerr<<"stealing rank "<<tt<<endl;
+                            // 从头部偷任务，但保留第一块（origin_top）不偷
+                            int inc = -1;
+                            MPI_Fetch_and_op(&inc, &stealing_bottom, MPI_INT, tt, 1, MPI_SUM, win_ctrl_);
                             MPI_Win_flush(tt, win_ctrl_);
                             Task t;
                             MPI_Get(&t, sizeof(Task), MPI_BYTE, tt, stealing_bottom, sizeof(Task), MPI_BYTE,
@@ -5606,18 +5600,24 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             MPI_Win_flush_local(tt, win_tasks_);
                             
                             const int cnt = t.r - t.l + 1;
-                            std::vector<SeqMeta> metas(cnt);
+                            if (cnt <= 0) {
+                                continue;
+                            }
+                            metas_buf.resize((size_t) cnt);
 
-                            MPI_Get(metas.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l,
+                            MPI_Get(metas_buf.data(), (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, tt, /*disp = 元素下标*/ t.l,
                                     (int) (cnt * sizeof(SeqMeta)), MPI_BYTE, win_meta_);
 
                             MPI_Win_flush_local(tt, win_meta_);
 
                             size_t total_bytes = 0;
-                            for (const auto &m : metas) total_bytes += (size_t) m.data_len;
-                            std::vector<uint8_t> slab(total_bytes);
-                            size_t cursor = metas[0].data_off;
-                            MPI_Get(slab.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint) cursor, total_bytes, MPI_BYTE,
+                            for (const auto &m : metas_buf) total_bytes += (size_t) m.data_len;
+                            if (total_bytes == 0) {
+                                continue;
+                            }
+                            slab_buf.resize(total_bytes);
+                            size_t cursor = metas_buf[0].data_off;
+                            MPI_Get(slab_buf.data(), total_bytes, MPI_BYTE, tt, (MPI_Aint) cursor, total_bytes, MPI_BYTE,
                                     win_pool_d_);
                             MPI_Win_flush_local(tt, win_pool_d_);
 // #pragma omp parallel num_threads(T)
@@ -5660,7 +5660,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 #pragma omp for schedule(dynamic, 1) 
                                 for (int ttt = 0; ttt < cnt; ttt++)
                                 {
-                                    auto &m = metas[ttt];
+                                    auto &m = metas_buf[ttt];
 
                                     if ((m.state & IS_REDUNDANT) || (m.state & IS_REP))
                                         continue;
@@ -5670,7 +5670,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                         local_buf.resize(m.data_len + 1);
                                     }
                                     size_t slab_offset = m.data_off - cursor;
-                                    memcpy(local_buf.data(), slab.data() + slab_offset, m.data_len);
+                                    memcpy(local_buf.data(), slab_buf.data() + slab_offset, m.data_len);
                                     local_buf[m.data_len] = '\0';
                                     seq.data = local_buf.data();
                                     seq.size = m.size;
@@ -5688,7 +5688,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                         m.cluster_id = seq.cluster_id;
                                         m.identity = seq.identity;
                                         m.distance = seq.distance;
-                                        for (int tttt = 0; tttt < 4; ++tttt) seq.coverage[tttt] = m.coverage[tttt];
+                                        for (int tttt = 0; tttt < 4; ++tttt) m.coverage[tttt] = seq.coverage[tttt];
                                     }
                                 }
                             } // end parallel
@@ -5697,7 +5697,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             // MPI_Get(&task_flag, 1, MPI_INT, tt, stealing_bottom, 1, MPI_INT, win_tasks_flag_);
                             // MPI_Win_flush_local(tt, win_tasks_flag_);
                             // if (task_flag == 0) {
-                                MPI_Put(metas.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta),
+                                MPI_Put(metas_buf.data(), cnt * sizeof(SeqMeta), MPI_BYTE, tt, t.l, cnt * sizeof(SeqMeta),
                                         MPI_BYTE, win_meta_);
                                 MPI_Win_flush(tt, win_meta_);
                                 // int finished_val = 1;
