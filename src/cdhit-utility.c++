@@ -66,6 +66,10 @@ char txt_option_g[] =
 \twill cluster it into the most similar cluster that meet the threshold\n \
 \t(accurate but slow mode)\n \
 \tbut either 1 or 0 won't change the representatives of final clusters\n";
+char txt_option_fo[] =
+"\t1 or 0, default 0\n \
+\tif set to 1, even if two sequences have the same length,\n \
+\tthey are still compared strictly in input file order\n";
 char txt_option_b[] = "\tband_width of alignment, default 20\n";
 char txt_option_M[] = "\tmemory limit (in MB) for the program, default 800; 0 for unlimitted;\n";
 char txt_option_n[] = "\tword_length, default 5, see user's guide for choosing it\n";
@@ -203,6 +207,7 @@ int print_usage_mpi (char *arg) {
   cout << "   -U" << txt_option_U;
   cout << "   -i" << txt_option_i_mpi;
   cout << "   -g" << txt_option_g;
+  cout << "   -fo"<< txt_option_fo;
   cout << "   -h\tprint this help\n\n";
   exit(1);
 } // END print_usage

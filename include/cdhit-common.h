@@ -307,6 +307,7 @@ struct Options {
     size_t max_memory;        // -M: 400,000,000 in bytes
     int min_length;           // -l: 10 bases
     bool cluster_best;        // -g: 0, the first; 1, the best
+    bool strict_file_order;   // -fo: 0, allow reorder; 1, strictly follow input file order
     bool global_identity;     // -G:
     bool store_disk;          // -B:
     int band_width;           // -b: 20
@@ -380,6 +381,7 @@ struct Options {
         max_memory = 0;
         min_length = 10;
         cluster_best = false;
+        strict_file_order = false;
         global_identity = true;
         store_disk = false;
         band_width = 20;

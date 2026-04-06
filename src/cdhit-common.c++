@@ -376,6 +376,8 @@ bool Options::SetOptionCommon(const char *flag, const char *value) {
         print = intval;
     else if (strcmp(flag, "-g") == 0)
         cluster_best = intval;
+    else if (strcmp(flag, "-fo") == 0)
+        strict_file_order = intval;
     else if (strcmp(flag, "-G") == 0)
         global_identity = intval;
     else if (strcmp(flag, "-aL") == 0)
@@ -638,6 +640,7 @@ void Options::Print() {
     printf("NAA_top_limit = %i\n", NAA_top_limit);
     printf("min_length = %i\n", min_length);
     printf("cluster_best = %i\n", cluster_best);
+    printf("strict_file_order = %i\n", strict_file_order);
     printf("global_identity = %i\n", global_identity);
     printf("cluster_thd = %g\n", cluster_thd);
     printf("diff_cutoff = %g\n", diff_cutoff);
@@ -3821,6 +3824,14 @@ void SequenceDB::decode_WordTable(WordTable &table, int start, Slot &s, const Op
 
             table.sequences[i] = seq;
         }
+
+        if (options.strict_file_order) {
+            #pragma omp parallel for num_threads(T)
+            for (int i = my_chunks[start].first; i <= my_chunks[start].second; ++i) {
+                Sequence *seq = sequences[i];
+                seq->index = i - table_start_id;
+            }
+        }
     }
     else
     {
@@ -5520,15 +5531,12 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
                                 for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j) {
                                     int k = (j - my_chunks[idx].first) * 2;
-                                    // Sequence *seq = sequences[j];
                                     auto &m = meta_[j];
-                                    if (m.state & IS_REDUNDANT) {
-                                        rep_chunk_buf[k] = (int)m.state;
-                                        rep_chunk_buf[k + 1] = -1;
-                                    } else {
-                                        rep_chunk_buf[k] = 0;
-                                        rep_chunk_buf[k + 1] = -1;
-                                    }
+                                    if (options.cluster_best)
+                                        rep_chunk_buf[k] = (m.identity > 0) ? (int) IS_REDUNDANT : 0;
+                                    else
+                                        rep_chunk_buf[k] = (m.state & IS_REDUNDANT) ? (int) m.state : 0;
+                                    rep_chunk_buf[k + 1] = -1;
                                 }
                                 MPI_Send(rep_chunk_buf.data(), size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
                             }
@@ -5682,7 +5690,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                     int tid = omp_get_thread_num();
                                     CheckOne_stealing(&seq, word_table, params[tid], buffers[tid], options);
                                     seq.data = nullptr;
-                                    if (seq.state & IS_REDUNDANT)
+                                    if (options.cluster_best ? (seq.identity > 0) : (seq.state & IS_REDUNDANT))
                                     {
                                         m.state = seq.state;
                                         m.cluster_id = seq.cluster_id;
@@ -5751,17 +5759,14 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             if (chunks_id[idx] == soure_chunk + 1) {
                                 int size = my_chunks[idx].second - my_chunks[idx].first + 1;
                                 rep_chunk_buf.resize((size_t) size * 2); // 只在容量不够时才会扩容
-
                                 for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j) {
                                     int k = (j - my_chunks[idx].first) * 2;
                                     Sequence *seq = sequences[j];
-                                    if (seq->state & IS_REDUNDANT) {
-                                        rep_chunk_buf[k] = (int) seq->state;
-                                        rep_chunk_buf[k + 1] = -1;
-                                    } else {
-                                        rep_chunk_buf[k] = 0;
-                                        rep_chunk_buf[k + 1] = -1;
-                                    }
+                                    if (options.cluster_best)
+                                        rep_chunk_buf[k] = (seq->identity > 0) ? (int) IS_REDUNDANT : 0;
+                                    else
+                                        rep_chunk_buf[k] = (seq->state & IS_REDUNDANT) ? (int) seq->state : 0;
+                                    rep_chunk_buf[k + 1] = -1;
                                 }
 
                                 MPI_Send(rep_chunk_buf.data(), size * 2, MPI_INT, source, 0, MPI_COMM_WORLD);
@@ -6189,6 +6194,9 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
         // cerr<<"error   "<<rep->data<<endl;
         len2 = rep->size;
         if (len2 > len_upper_bound || len2 < len) continue;
+        if(options.strict_file_order){
+            if ((seq->index)&&(seq->index < rep->index)) continue;
+        }
         if (options.has2D && len2 < len_lower_bound) continue;
         if (frag_size) {
             uint32_t *ims = &indexMapping[ic->index];
@@ -6256,6 +6264,7 @@ int SequenceDB::CheckOneAA_worker(Sequence *seq, WordTable &table, WorkingParam 
             if (tiden_pc < options.cluster_thd) continue;
             // if (tiden_pc <= seq->identity) continue; // existing iden_no
             if (tiden_pc <= meta_[id].identity) continue; // existing iden_no
+            // if (tiden_pc < meta_[id].identity || (tiden_pc == meta_[id].identity && rep->cluster_id > meta_[id].cluster_id)) continue; // existing iden_no
         }
         if (aln_cover_flag) {
             if (talign_info[3] - talign_info[2] + 1 < min_aln_lenL) continue;
@@ -6383,6 +6392,9 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
         // cerr<<"error   "<<rep->data<<endl;
         len2 = rep->size;
         if (len2 > len_upper_bound || len2 < len) continue;
+        if(options.strict_file_order){
+            if ((seq->index)&&(seq->index < rep->index)) continue;
+        }
         if (options.has2D && len2 < len_lower_bound) continue;
         if (frag_size) {
             uint32_t *ims = &indexMapping[ic->index];
@@ -6447,6 +6459,7 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
             if (distance >= seq->distance) continue; // existing distance
         } else {
             if (tiden_pc < options.cluster_thd) continue;
+            // if (tiden_pc < seq->identity|| (tiden_pc == seq->identity && rep->cluster_id > seq->cluster_id)) continue; 
             if (tiden_pc <= seq->identity) continue; // existing iden_no
         }
         if (aln_cover_flag) {
@@ -6632,6 +6645,7 @@ int SequenceDB::CheckOneAA_stealing(Sequence *seq, WordTable &table, WorkingPara
             if (distance >= seq->distance) continue; // existing distance
         } else {
             if (tiden_pc < options.cluster_thd) continue;
+            // if (tiden_pc < seq->identity|| (tiden_pc == seq->identity && rep->cluster_id > seq->cluster_id)) continue; 
             if (tiden_pc <= seq->identity) continue; // existing iden_no
         }
         if (aln_cover_flag) {
