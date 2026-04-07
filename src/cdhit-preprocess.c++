@@ -1,25 +1,4 @@
-// =============================================================================
-// CD-HIT
-// http://cd-hit.org/
-// http://bioinformatics.burnham-inst.org/cd-hi
-//
-// program written by
-//                    Weizhong Li
-//                    UCSD, San Diego Supercomputer Center
-//                    La Jolla, CA, 92093
-//                    Email liwz@sdsc.edu
-//                 at
-//                    Adam Godzik's lab
-//                    The Burnham Institute
-//                    La Jolla, CA, 92037
-//                    Email adam@burnham-inst.org
-//
-// Modified by:
-//                    Limin Fu
-//                    Center for Research in Biological Systems (CRBS), UCSD
-//                    La Jolla, CA, 92093
-//                    Email: l2fu@ucsd.edu, fu@daovm.net
-// =============================================================================
+
 
 #include <dirent.h>
 #include <sys/types.h>
@@ -173,7 +152,9 @@ int main(int argc, char* argv[]) {
         cout << " physical cores = " << unique_cores.size() << "\n";
         numa_size = unique_cores.size();
     }
+    #ifdef DEBUG
     cerr<<"core_size "<<core_size<<" numa_size "<<numa_size<<endl;
+    #endif
     size_t min_file_size = 512ull * 1024 * 1024;
 
     auto start = std::chrono::high_resolution_clock::now();

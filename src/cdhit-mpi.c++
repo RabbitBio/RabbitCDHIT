@@ -114,8 +114,10 @@ int main(int argc, char* argv[]) {
     seq_db.ReadJsonInfo("info.json", preprocess_output_dir, options, master);
     if (size != seq_db.total_mpi_num) 
     {
+        #ifdef DEBUG
         cerr<<"size "<<size<<endl;
         cerr<<"seq_db.total_mpi_num "<<seq_db.total_mpi_num<<endl;
+        #endif
 bomb_error("Number of processes does not match");
     }
 
