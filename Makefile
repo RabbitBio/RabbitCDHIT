@@ -11,12 +11,16 @@ ifeq ($(openmp),no)
 else
   CCFLAGS = -fopenmp -D_REENTRANT -mcx16 -std=c++17
 endif
+ifeq ($(debug),yes)
+  CCFLAGS += -DDEBUG
+endif
 ifeq ($(AVX512),yes)
 #   CCFLAGS += -mavx512f -mavx512vl -mavx512bw -mavx512dq -fno-vectorize 
 CCFLAGS += -march=native
 else
    CCFLAGS += -DNO_AVX512 
 endif
+
 #LDFLAGS = -static -lz -o
 #LDFLAGS = /usr/lib/x86_64-linux-gnu/libz.a -o
 
