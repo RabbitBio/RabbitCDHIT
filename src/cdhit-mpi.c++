@@ -41,9 +41,7 @@ int main(int argc, char* argv[]) {
     vector<pair<int, int>>& all_chunks = seq_db.all_chunks;
     vector<pair<int, int>>& my_chunks = seq_db.my_chunks;
     vector<int>& chunks_id = seq_db.chunks_id;
-    int total_chunk = seq_db.total_chunk;
-    float begin_time = current_time();
-    float end_time;
+    auto start = std::chrono::high_resolution_clock::now();
     bool master = true;
     bool worker = false;
 
@@ -129,9 +127,14 @@ bomb_error("Number of processes does not match");
     seq_db.DoClustering_MPI(options, rank, master, worker, worker_rank, db_out.c_str(), worker_comm);
     MPI_Barrier(MPI_COMM_WORLD);
     if (master) {
+        
         cout << "Cluster is Finished" << endl;
         printf("writing new database\n");
         cout << "program completed !" << endl << endl;
+        auto end = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double> elapsed = end - start;
+        std::cout << "Cluster time:    " << elapsed.count() << " second\n";
+
     }
     MPI_Barrier(MPI_COMM_WORLD);
     // cerr<<"this"<<endl;

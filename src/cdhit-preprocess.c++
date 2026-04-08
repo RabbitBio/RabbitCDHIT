@@ -167,7 +167,7 @@ int main(int argc, char* argv[]) {
         preprocess_output_dir += '/';
     }
     cout << "preprocess_output_dir: " << preprocess_output_dir << endl;
-    seq_db.MergeSortedRuns_KWay(run_files, preprocess_output_dir);
+    seq_db.MergeSortedRuns_KWay(run_files, preprocess_output_dir, options.threads);
     auto end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     std::cout << "external sorting cost:    " << elapsed.count() << " second\n";

@@ -2597,7 +2597,7 @@ void SequenceDB::ReadJsonInfo(const std::string &file, const std::string &output
     options.max_entries = max_len * MAX_TABLE_SEQ;
 }
 
-void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix) {
+void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix, int threads) {
     if (run_files.empty()) return;
     int num_procs = total_mpi_num - 1;
     if (num_procs <= 0) {
@@ -2677,7 +2677,8 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
         const size_t groups = (stage_files.size() + kMergeFanIn - 1) / kMergeFanIn;
         std::vector<std::string> next_stage(groups);
         std::atomic<bool> stage_ok{true};
-#pragma omp parallel for schedule(dynamic)
+        int merge_threads = min((int)groups, threads);
+#pragma omp parallel for schedule(dynamic) num_threads(merge_threads)
         for (long long g = 0; g < static_cast<long long>(groups); ++g) {
             if (!stage_ok.load(std::memory_order_relaxed)) continue;
             const size_t base = static_cast<size_t>(g) * kMergeFanIn;

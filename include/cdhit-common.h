@@ -1,29 +1,3 @@
-// =============================================================================
-// CD-HI/CD-HIT
-//
-// Cluster Database at High Identity Threshold
-//
-// CD-HIT clusters protein sequence database at high sequence identity threshold.
-// This program can remove the high sequence redundance efficiently.
-//
-// program written by
-//                    Weizhong Li
-//                    UCSD, San Diego Supercomputer Center
-//                    La Jolla, CA, 92093
-//                    Email liwz@sdsc.edu
-//
-//                 at
-//                    Adam Godzik's lab
-//                    The Burnham Institute
-//                    La Jolla, CA, 92037
-//                    Email adam@burnham-inst.org
-//
-// modified by:
-//                    Limin Fu
-//                    Center for Research in Biological Systems (CRBS), UCSD
-//                    La Jolla, CA, 92093
-//                    Email: l2fu@ucsd.edu, fu@daovm.net
-// =============================================================================
 
 #include <ctype.h>
 #include <immintrin.h>
@@ -779,7 +753,7 @@ public:
                                  Options &options);
     char *FindCharOrReadMore(FileContext &ctx, char target, size_t &buffer_pos);
     // 归并
-    void MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix);
+    void MergeSortedRuns_KWay(const std::vector<std::string> &run_files, const std::string &output_prefix, int threads);
     void Pipeline_External_Sort(const char *file, size_t chunk_size_bytes, std::vector<std::string> &run_files,
                                 Options &options, size_t core_num,size_t numa_size);
 
