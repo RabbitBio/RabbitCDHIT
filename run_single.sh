@@ -18,7 +18,8 @@ INPUT=""
 OUTPUT=""
 TOTAL_CORES=$(nproc)                                                      # 整机逻辑核心数
 NUMA_NODES=$(LC_ALL=C lscpu | awk '/^NUMA node\(s\)/{print $3}')          # NUMA 节点数
-THREADS=$((NUMA_NODES > 0 ? TOTAL_CORES / NUMA_NODES : 32))              # 单 NUMA 核心数，探测失败默认 32
+PREPROCESS_T=$((NUMA_NODES > 0 ? TOTAL_CORES / NUMA_NODES : 32))         # preprocess -T：单 NUMA 核心数，探测失败默认 32
+# MPI_T 不在此处设置，必须从 preprocess 生成的 info.json 中读取（见下方）
 CLUSTER_THD=0.9     # 相似度阈值 -c
 EXTRA_PREPROCESS="" # 传给 cdhit-preprocess 的额外参数
 EXTRA_MPI=""        # 传给 cdhit-mpi 的额外参数
@@ -32,7 +33,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         -i)   INPUT="$2";      shift 2 ;;
         -o)   OUTPUT="$2";     shift 2 ;;
-        -T)   THREADS="$2";    shift 2 ;;
+        -T)   PREPROCESS_T="$2"; shift 2 ;;  # 仅控制 preprocess 线程数，mpi -T 固定从 info.json 读取
         -c)   CLUSTER_THD="$2"; shift 2 ;;
         -tmp) TMP_DIR="$2";    shift 2 ;;
         -pre_out) PRE_OUT="$2"; shift 2 ;;
@@ -55,7 +56,7 @@ if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
     echo ""
     echo "  -i        输入 FASTA 文件（支持 .gz）"
     echo "  -o        输出文件前缀"
-    echo "  -T        每 MPI 进程线程数，默认自动取单 NUMA 核心数"
+    echo "  -T        preprocess 线程数，默认自动取单 NUMA 核心数（cdhit-mpi 的 -T 固定从 info.json 读取，不受此参数影响）"
     echo "  -c        相似度阈值，默认 0.9"
     echo "  -tmp      临时文件目录，默认 ./tmp_runs"
     echo "  -pre_out  预处理输出目录，默认 ./preprocess_output"
@@ -72,7 +73,7 @@ echo "========================================"
 echo "Step 1: 预处理"
 echo "  输入:       $INPUT"
 echo "  整机核数(-NT): $TOTAL_CORES"
-echo "  单NUMA核数(-T): $THREADS  (NUMA节点数: $NUMA_NODES)"
+echo "  单NUMA核数(-T): $PREPROCESS_T  (NUMA节点数: $NUMA_NODES)"
 echo "  临时目录:   $TMP_DIR"
 echo "  预处理输出: $PRE_OUT"
 echo "========================================"
@@ -81,7 +82,7 @@ echo "========================================"
     -i "$INPUT" \
     -N 1 \
     -NT "$TOTAL_CORES" \
-    -T  "$THREADS" \
+    -T  "$PREPROCESS_T" \
     -c  "$CLUSTER_THD" \
     -tmp    "$TMP_DIR" \
     -pre_out "$PRE_OUT"
@@ -93,14 +94,15 @@ if [[ ! -f "$INFO_JSON" ]]; then
     exit 1
 fi
 
+# cdhit-mpi 的 -np 和 -T 必须与 info.json 严格一致，不可手动覆盖
 TOTAL_MPI=$(python3 -c "import json; d=json.load(open('${INFO_JSON}')); print(d['info']['total_mpi_num'])")
-MPI_THREADS=$(python3 -c "import json; d=json.load(open('${INFO_JSON}')); print(d['info']['threads_per_rank'])")
+MPI_T=$(python3 -c "import json; d=json.load(open('${INFO_JSON}')); print(d['info']['threads_per_rank'])")
 
 echo ""
 echo "========================================"
 echo "Step 2: 聚类"
-echo "  mpirun -np $TOTAL_MPI"
-echo "  cdhit-mpi -T $MPI_THREADS"
+echo "  mpirun -np $TOTAL_MPI  (from info.json: total_mpi_num)"
+echo "  cdhit-mpi -T $MPI_T    (from info.json: threads_per_rank)"
 echo "  输出前缀: $OUTPUT"
 echo "========================================"
 
@@ -108,7 +110,7 @@ mpirun -np "$TOTAL_MPI" \
     "${SCRIPT_DIR}/cdhit-mpi" \
     -i  "$PRE_OUT" \
     -o  "$OUTPUT"  \
-    -T  "$MPI_THREADS" \
+    -T  "$MPI_T" \
     $EXTRA_MPI
 
 echo ""
