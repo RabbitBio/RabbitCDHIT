@@ -2878,10 +2878,21 @@ void SequenceDB::MergeSortedRuns_KWay(const std::vector<std::string> &run_files,
     fps.clear();
     std::vector<FILE *>().swap(fps);
     pq = std::priority_queue<HeapNode>();
+    if (chunks_num > 0 && (int)chunks_num < total_mpi_num - 1) {
+        std::cout << "Warning: chunks_num (" << chunks_num << ") < total_mpi_num - 1 (" << total_mpi_num - 1
+                  << "), adjusting MPI config to avoid wasted processes.\n";
+        int old_mpi_num = total_mpi_num;
+        total_mpi_num = (int)chunks_num + 1;  // +1 保留 master rank
+        // 按比例扩大每个 rank 的线程数，总线程量不变
+        int total_threads = old_mpi_num * Production_threads;
+        Production_threads = total_threads / total_mpi_num;
+        if (Production_threads < 1) Production_threads = 1;
+        std::cout << "  adjusted total_mpi_num  : " << total_mpi_num << "\n";
+        std::cout << "  adjusted threads_per_rank: " << Production_threads << "\n";
+    }
     WriteToJSON("info.json", output_prefix, "_proc", num_procs);
     std::cout << "Successfully write info.json!\n";
     std::cout << "chunk_num: " << chunks_num << std::endl;
-    if (chunks_num < total_mpi_num) std::cout << "Warring:There is a waste of computing resources  " << std::endl;
 }
 
 void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int rank_size, bool mpi_status,
@@ -3773,7 +3784,7 @@ void SequenceDB::decode_WordTable(WordTable &table, int start, Slot &s, const Op
     // MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
     table.sequences.resize(len);
-    if (chunks_id[start] == s.info[0])
+    if (!chunks_id.empty() && chunks_id[start] == s.info[0])
     {
         int table_start_id = my_chunks[start].first;
 #pragma omp parallel for num_threads(T)

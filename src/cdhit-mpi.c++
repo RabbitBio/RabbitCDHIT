@@ -1,25 +1,4 @@
-// =============================================================================
-// CD-HIT
-// http://cd-hit.org/
-// http://bioinformatics.burnham-inst.org/cd-hi
-//
-// program written by
-//                    Weizhong Li
-//                    UCSD, San Diego Supercomputer Center
-//                    La Jolla, CA, 92093
-//                    Email liwz@sdsc.edu
-//                 at
-//                    Adam Godzik's lab
-//                    The Burnham Institute
-//                    La Jolla, CA, 92037
-//                    Email adam@burnham-inst.org
-//
-// Modified by:
-//                    Limin Fu
-//                    Center for Research in Biological Systems (CRBS), UCSD
-//                    La Jolla, CA, 92093
-//                    Email: l2fu@ucsd.edu, fu@daovm.net
-// =============================================================================
+
 
 #include <mpi.h>
 
