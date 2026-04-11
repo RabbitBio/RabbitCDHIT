@@ -4708,13 +4708,13 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
     // size_t max_items = opts.max_entries;
     // size_t max_seqs = opts.max_sequences;
 
-    long *info_buf;
-    long *cluster_id_buf;
-    long *seqs_suffix_buf;
-    long *indexCount_buf;
-    long long *prefix_buf;
-    long long indexCount_buf_size;
-    long prefix_size;
+    long *info_buf = nullptr;
+    long *cluster_id_buf = nullptr;
+    long *seqs_suffix_buf = nullptr;
+    long *indexCount_buf = nullptr;
+    long long *prefix_buf = nullptr;
+    long long indexCount_buf_size = 0;
+    long prefix_size = 0;
     int record_last = 0;
     int record = 0;
     const int NUM_LOCKS = 262144;

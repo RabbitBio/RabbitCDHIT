@@ -11,7 +11,7 @@ ifeq ($(openmp),no)
 else
   CCFLAGS = -fopenmp -D_REENTRANT -mcx16 -std=c++17
 endif
-ifeq ($(debug),yes)
+ifeq ($(cerr),yes)
   CCFLAGS += -DDEBUG
 endif
 ifeq ($(AVX512),yes)
@@ -69,7 +69,7 @@ endif
 # make debug=yes
 # make openmp=yes debug=yes
 ifeq ($(debug),yes)
-CCFLAGS += -ggdb
+CCFLAGS += -ggdb 
 else
 CCFLAGS += -Ofast
 endif
