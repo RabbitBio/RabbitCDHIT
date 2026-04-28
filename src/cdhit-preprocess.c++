@@ -53,7 +53,7 @@ static vector<int> parse_cpulist(const string& s) {
 }
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char* argv[]) {
-    sleep(0);
+    // sleep(0);
     string db_in;
     string db_out;
     std::vector<std::string> run_files;

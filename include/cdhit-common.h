@@ -322,6 +322,8 @@ struct Options {
     bool useDistance;
     bool backupFile;
     bool stealing;
+    bool memory_control;
+    bool memory_control_explicit; // true if user explicitly passed -memory_control 0/1
 
     string input;
     string input_pe;
@@ -343,6 +345,8 @@ struct Options {
         isEST = false;
         is454 = false;
         stealing = false;
+        memory_control = false;
+        memory_control_explicit = false;
         preprocess_dir = "preprocess_output";
         NAA = 5;
         NodeNum = 0;
@@ -703,6 +707,17 @@ public:
     std::vector<std::vector<INTs>> total_encodes_no;
     std::vector<SeqMeta> meta_;
     std::vector<uint8_t> pool_data_;
+    // byte offsets of each sequence record in the worker's _proc{rank-1}.fa file,
+    // populated only when memory_control=true; enables O(1) fseek instead of O(N) skip.
+    std::vector<long> mc_seq_offsets_;
+
+    // Node topology (set during preprocessing, written to info.json).
+    // num_nodes        : number of physical compute nodes
+    // workers_per_node : MPI worker processes per node (share the same RAM)
+    // These are used at runtime to estimate per-node memory pressure for
+    // auto_detect_memory_control.
+    int num_nodes;
+    int workers_per_node;
 
     // 所有窗口句柄
     MPI_Win win_tasks_ = MPI_WIN_NULL;
@@ -728,6 +743,8 @@ public:
         min_len = 0;
         max_idf = 0;
         max_len = 0;
+        num_nodes = 0;
+        workers_per_node = 0;
     }
 
     ~SequenceDB() { Clear(); }

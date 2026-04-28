@@ -4,11 +4,62 @@
 
 #include <fstream>
 #include <numeric>
+#include <sys/stat.h>
 
 #include "cdhit-common.h"
 
 Options options;
 SequenceDB seq_db;
+
+// ---------------------------------------------------------------------------
+// Auto-detect whether memory_control should be enabled.
+//
+// Reads /proc/meminfo (Linux) to get MemAvailable, then compares the
+// estimated per-worker memory requirement against the per-worker memory
+// budget.  Returns true if memory_control should be turned on.
+//
+//   file_path    : worker's _proc{rank-1}.fa file
+//   num_workers  : total number of worker MPI processes (used as divisor for
+//                  the node's available memory – conservative on multi-node
+//                  runs but always safe)
+//   safety_factor: fraction of MemAvailable considered usable (default 0.80)
+// ---------------------------------------------------------------------------
+static bool auto_detect_memory_control(const std::string &file_path,
+                                        int num_workers,
+                                        double safety_factor = 0.80)
+{
+    // 1. Estimate memory requirement from file size.
+    //    File ≈ raw sequence bytes; add ~50 % for Sequence structs + identifiers.
+    struct stat st;
+    if (stat(file_path.c_str(), &st) != 0)
+        return false;  // can't stat – skip detection
+    long long estimated_bytes = (long long)(st.st_size * 1.5);
+
+    // 2. Query available system memory from /proc/meminfo (Linux).
+    long long avail_bytes = 0;
+#ifdef __linux__
+    FILE *mf = fopen("/proc/meminfo", "r");
+    if (mf) {
+        char key[64];
+        long long val;
+        while (fscanf(mf, "%63s %lld %*s\n", key, &val) >= 2) {
+            if (strcmp(key, "MemAvailable:") == 0) {
+                avail_bytes = val * 1024LL;   // kB → bytes
+                break;
+            }
+        }
+        fclose(mf);
+    }
+#endif
+    if (avail_bytes == 0)
+        return false;  // can't determine available memory – skip detection
+
+    // 3. Each worker gets an equal share of the node's available memory.
+    long long per_worker_avail =
+        (long long)(avail_bytes * safety_factor) / max(num_workers, 1);
+
+    return estimated_bytes > per_worker_avail;
+}
 
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char* argv[]) {
@@ -99,6 +150,41 @@ bomb_error("Number of processes does not match");
     }
 
     if (!master) {
+        // Auto-detect whether memory is tight enough to warrant memory_control.
+        // Always runs unless the user explicitly passed -memory_control <0|1>.
+        // If memory is tight AND -stealing is active the program aborts, because
+        // the two modes are hard mutual exclusive.
+        if (!options.memory_control_explicit) {
+            std::string proc_file = preprocess_output_dir + "_proc"
+                                    + std::to_string(rank - 1) + ".fa";
+            // Use workers_per_node from info.json so the divisor matches the
+            // number of processes actually sharing this node's RAM.  Fall back
+            // to total workers if the field is absent (older info.json).
+            int num_workers = (seq_db.workers_per_node > 0)
+                                  ? seq_db.workers_per_node
+                                  : (size - 1);
+            if (auto_detect_memory_control(proc_file, num_workers)) {
+                if (options.stealing) {
+                    fprintf(stderr,
+                            "[rank %d] ERROR: memory is insufficient for the current "
+                            "workload but -stealing is active. "
+                            "-memory_control and -stealing are mutually exclusive. "
+                            "Either disable -stealing or pass -memory_control 0 to "
+                            "skip this check.\n", rank);
+                    MPI_Abort(MPI_COMM_WORLD, 1);
+                }
+                options.memory_control = true;
+                if (rank == 1)
+                    fprintf(stderr,
+                            "[INFO] memory_control auto-enabled: estimated per-worker "
+                            "requirement exceeds available memory budget "
+                            "(nodes=%d, workers_per_node=%d). "
+                            "Use -memory_control 0 to suppress this check.\n",
+                            seq_db.num_nodes, num_workers);
+            }
+        }
+        // Hard mutual-exclusion guard: Validate() catches the explicit case;
+        // the auto-detect block above catches the implicit case.
         seq_db.read_sorted_files(preprocess_output_dir, rank, size, false, worker_comm, options);
         MPI_Barrier(worker_comm);
     }

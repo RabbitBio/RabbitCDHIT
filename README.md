@@ -48,10 +48,10 @@ The script automatically detects the machine's CPU topology (`nproc`, `lscpu`) a
 | `-c`   | `0.9`        | Sequence identity threshold       |
 
 
-Any additional `cdhit-mpi` options (`-g`, `-fo`, `-stealing`) can be appended directly:
+Any additional `cdhit-mpi` options (`-g`, `-fo`, `-memory_control`) can be appended directly:
 
 ```bash
-bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -stealing 1
+bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -memory_control 1
 ```
 
 ---
@@ -88,11 +88,6 @@ mpirun -np <total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o
 
 > `**mpirun -np` and `cdhit-mpi -T` MUST match `info.json`, otherwise the run may fail.**
 
-Work-stealing example:
-
-```bash
-mpirun -np <total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o DB_output -T <threads_per_rank> -stealing 1
-```
 
 ---
 
