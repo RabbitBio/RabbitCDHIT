@@ -2915,81 +2915,103 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
     int chunk_id = (rank - 1);
     long long now_bytes = 0;
     long now_num = 0;
-    gzFile fp = gzopen(file.c_str(), "r");
-    kseq_t *seq = kseq_init(fp);
-    int len;
-    Sequence one;
-    char *id_ptr = new char[max_idf + 1];
-    char *data_ptr = new char[max_len + 1];
-    while ((len = kseq_read(seq)) >= 0) {
-        memcpy(id_ptr, seq->name.s, seq->name.l);
-        id_ptr[seq->name.l] = 0;
-        one.identifier = id_ptr;
-
-        if (!options.memory_control)
-        {
-            memcpy(data_ptr, seq->seq.s, seq->seq.l);
-            data_ptr[seq->seq.l] = 0;
-            one.data = data_ptr;
-        }
-        else
-        {
-            one.data = nullptr;
-        }
-
-        one.size = len;
-        one.master_flag = 0;
-        sequences.Append(new Sequence(one));
-        now_bytes += len;
-        now_num++;
-        if ((now_bytes > chunk_bytes) || (rank == 1 && chunks_id.size() == 0 && sequences.size() >= first_chunk_size) ||
+    // 分块逻辑两条路径共用
+    auto maybe_flush_chunk = [&]() {
+        if ((now_bytes > chunk_bytes) ||
+            (rank == 1 && chunks_id.size() == 0 && sequences.size() >= (size_t)first_chunk_size) ||
             (now_num >= chunk_size)) {
-            my_chunks.push_back(make_pair(start_my_id, sequences.size() - 1));
+            my_chunks.push_back({start_my_id, (int)sequences.size() - 1});
             #ifdef DEBUG
             cerr << "chunk_id    " << chunk_id << endl;
             #endif
             chunks_id.push_back(chunk_id);
-            chunk_id = (rank_size - 1) + chunk_id;
+            chunk_id += (rank_size - 1);
             start_my_id = sequences.size();
             now_bytes = 0;
             now_num = 0;
         }
+    };
+
+    if (options.memory_control) {
+        // memory_control 路径：FILE* + fgets 单遍，同时建偏移表。
+        // 偏移表记录的是每条序列的【数据行】起始位置（header 已跳过），
+        // 后续 read_one_chunk 可直接 seek 到数据行，无需再读 identifier。
+        FILE *fp_mc = fopen(file.c_str(), "r");
+        if (!fp_mc) {
+            fprintf(stderr, "Cannot open %s\n", file.c_str());
+            MPI_Abort(MPI_COMM_WORLD, 1);
+        }
+        std::vector<char> hdr_buf(max_idf + 4);
+        std::vector<char> seq_buf(max_len + 4);
+        mc_seq_offsets_.clear();
+        char *id_ptr = new char[max_idf + 1];
+        Sequence one;
+        while (true) {
+            if (!fgets(hdr_buf.data(), (int)hdr_buf.size(), fp_mc)) break;
+            if (hdr_buf[0] != '>') continue;
+
+            size_t hlen = strlen(hdr_buf.data());
+            if (hlen > 0 && hdr_buf[hlen - 1] == '\n') hdr_buf[--hlen] = '\0';
+            size_t id_len = (hlen > 0) ? hlen - 1 : 0;
+            if (id_len > (size_t)max_idf) id_len = max_idf;
+            memcpy(id_ptr, hdr_buf.data() + 1, id_len);
+            id_ptr[id_len] = '\0';
+
+            // header 已读完，当前位置即序列数据行起始——记录此偏移。
+            long seq_pos = ftell(fp_mc);
+            if (!fgets(seq_buf.data(), (int)seq_buf.size(), fp_mc)) break;
+            size_t slen = strlen(seq_buf.data());
+            if (slen > 0 && seq_buf[slen - 1] == '\n') --slen;
+
+            mc_seq_offsets_.push_back(seq_pos);
+            one.identifier  = id_ptr;
+            one.data        = nullptr;
+            one.size        = (int)slen;
+            one.master_flag = 0;
+            sequences.Append(new Sequence(one));
+            now_bytes += slen;
+            now_num++;
+            maybe_flush_chunk();
+        }
+        one.identifier = nullptr;
+        one.data = nullptr;
+        delete[] id_ptr;
+        fclose(fp_mc);
+    } else {
+        // 普通路径：gzFile + kseq，全量加载序列数据（支持 gzip 输入）。
+        gzFile fp = gzopen(file.c_str(), "r");
+        kseq_t *seq = kseq_init(fp);
+        int len;
+        Sequence one;
+        char *id_ptr   = new char[max_idf + 1];
+        char *data_ptr = new char[max_len + 1];
+        while ((len = kseq_read(seq)) >= 0) {
+            memcpy(id_ptr, seq->name.s, seq->name.l);
+            id_ptr[seq->name.l] = 0;
+            one.identifier = id_ptr;
+            memcpy(data_ptr, seq->seq.s, seq->seq.l);
+            data_ptr[seq->seq.l] = 0;
+            one.data = data_ptr;
+            one.size = len;
+            one.master_flag = 0;
+            sequences.Append(new Sequence(one));
+            now_bytes += len;
+            now_num++;
+            maybe_flush_chunk();
+        }
+        one.identifier = nullptr;
+        one.data = nullptr;
+        delete[] id_ptr;
+        delete[] data_ptr;
+        kseq_destroy(seq);
+        gzclose(fp);
     }
-    one.identifier = nullptr;
-    one.data = nullptr;
-    delete[] id_ptr;
-    delete[] data_ptr;
     if (now_bytes > 0) {
-        my_chunks.push_back(make_pair(start_my_id, sequences.size() - 1));
+        my_chunks.push_back({start_my_id, (int)sequences.size() - 1});
         chunks_id.push_back(chunk_id);
         #ifdef DEBUG
         cerr << "chunk_id    " << chunk_id << endl;
         #endif
-    }
-    kseq_destroy(seq);
-    gzclose(fp);
-
-    // Build per-sequence byte-offset table for O(1) fseek in memory_control path.
-    // The proc file is plain (uncompressed) FASTA: each record is exactly 2 lines
-    // (">header\n" and "seq\n"), so we scan once with a plain FILE* and record the
-    // byte offset of the '>' line for every sequence.
-    if (options.memory_control) {
-        FILE *fp2 = fopen(file.c_str(), "r");
-        if (!fp2) {
-            fprintf(stderr, "Cannot open %s for offset indexing\n", file.c_str());
-            MPI_Abort(MPI_COMM_WORLD, 1);
-        }
-        std::vector<char> lbuf(max_idf + max_len + 8);
-        mc_seq_offsets_.clear();
-        mc_seq_offsets_.reserve(sequences.size());
-        while (true) {
-            long pos = ftell(fp2);
-            if (!fgets(lbuf.data(), (int)lbuf.size(), fp2)) break;
-            if (lbuf[0] != '>') continue;          // skip unexpected non-header lines
-            mc_seq_offsets_.push_back(pos);
-            fgets(lbuf.data(), (int)lbuf.size(), fp2); // consume sequence line
-        }
-        fclose(fp2);
     }
 
 if(!options.memory_control){
@@ -5752,53 +5774,32 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                     MPI_Abort(MPI_COMM_WORLD, 1);
                 }
 
-                // 复用初始加载时建好的偏移表，O(1) 跳到第一个需要处理的序列
-                int reader_pos = 0;
-                if (remain_chunks > 0)
-                {
-                    int first_pos = my_chunks[start].first;
-                    if (fseek(fp_plain, mc_seq_offsets_[first_pos], SEEK_SET) != 0)
-                    {
-                        fprintf(stderr,
-                                "fseek failed for %s at seq %d\n",
-                                my_file.c_str(), first_pos);
-                        fclose(fp_plain);
-                        MPI_Abort(MPI_COMM_WORLD, 1);
-                    }
-                    reader_pos = first_pos;
-                }
-
-                // 用于 fgets 的行缓冲区（header + sequence 各一份）
-                std::vector<char> mc_hdr_buf(max_idf + 4);
+                // mc_seq_offsets_ 存的是每条序列【数据行】的起始偏移。
+                // posix_fadvise 已把整块数据预热到 page cache，
+                // 一次 seek 到块首数据行，然后顺序读：
+                //   fgets(seq) → 到下一条 header → fgets(skip header) → 到下一条 seq → …
+                // 避免每条序列单独 fseek，减少 syscall 数量。
                 std::vector<char> mc_seq_buf(max_len + 4);
+                std::vector<char> mc_hdr_skip(max_idf + 4); // 仅用于跳过 header 行
 
                 auto read_one_chunk = [&](int idx)
                 {
                     int L = my_chunks[idx].first;
                     int R = my_chunks[idx].second;
 
-                    if (reader_pos != L)
+                    // 一次 seek 到块首序列数据行
+                    if (fseek(fp_plain, mc_seq_offsets_[L], SEEK_SET) != 0)
                     {
                         fprintf(stderr,
-                                "Reader position mismatch: reader_pos=%d, chunk L=%d, idx=%d\n",
-                                reader_pos, L, idx);
+                                "fseek failed at seq %d, file=%s\n",
+                                L, my_file.c_str());
                         fclose(fp_plain);
                         MPI_Abort(MPI_COMM_WORLD, 1);
                     }
 
                     for (int j = L; j <= R; ++j)
                     {
-                        // 读 header 行（跳过，identifier 已在初始加载时记录）
-                        if (!fgets(mc_hdr_buf.data(), (int)mc_hdr_buf.size(), fp_plain))
-                        {
-                            fprintf(stderr,
-                                    "Unexpected EOF reading header at j=%d, file=%s\n",
-                                    j, my_file.c_str());
-                            fclose(fp_plain);
-                            MPI_Abort(MPI_COMM_WORLD, 1);
-                        }
-
-                        // 读 sequence 行
+                        // 读序列数据行（page cache 命中，无磁盘 I/O）
                         if (!fgets(mc_seq_buf.data(), (int)mc_seq_buf.size(), fp_plain))
                         {
                             fprintf(stderr,
@@ -5809,16 +5810,20 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         }
 
                         Sequence *s = sequences[j];
-                        int seq_len = s->size; // 与初始加载保持一致，避免 strlen
+                        // IS_REDUNDANT / IS_REP 的序列在计算循环里会直接 Clear() 跳过，
+                        // 不需要 data，省去 new[] + memcpy。
+                        if (!(s->state & IS_REDUNDANT) && !(s->state & IS_REP))
+                        {
+                            int seq_len = s->size;
+                            char *data_ptr = new char[seq_len + 1];
+                            memcpy(data_ptr, mc_seq_buf.data(), seq_len);
+                            data_ptr[seq_len] = '\0';
+                            s->data = data_ptr;
+                        }
 
-                        char *data_ptr = new char[seq_len + 1];
-                        memcpy(data_ptr, mc_seq_buf.data(), seq_len);
-                        data_ptr[seq_len] = '\0';
-
-                        s->data = data_ptr;
-                        // s->ConvertBases();
-
-                        ++reader_pos;
+                        // 跳过下一条记录的 header 行（最后一条不需要）
+                        if (j < R)
+                            fgets(mc_hdr_skip.data(), (int)mc_hdr_skip.size(), fp_plain);
                     }
                 };
 
@@ -5844,6 +5849,19 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         {
                             if (i + 1 < remain_chunks)
                             {
+                                // 在真正读取前，用 posix_fadvise 通知 OS 预取
+                                // 下一块所有序列数据行的页面到 page cache，
+                                // 使后续 fgets 命中 cache 而非阻塞等磁盘。
+                                int next_L = my_chunks[next_idx].first;
+                                int next_R = my_chunks[next_idx].second;
+                                long fa_off = mc_seq_offsets_[next_L];
+                                long fa_len = mc_seq_offsets_[next_R]
+                                              + sequences[next_R]->size + 1  // seq行 + '\n'
+                                              - fa_off;
+#ifdef __linux__
+                                posix_fadvise(fileno(fp_plain), fa_off, fa_len,
+                                              POSIX_FADV_WILLNEED);
+#endif
                                 read_one_chunk(next_idx);
                             }
                         }
@@ -5854,10 +5872,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                             Sequence *seq = sequences[j];
                             
                             if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
-                            {
-                                seq->Clear();
-                                continue;
-                            }
+                            continue;
                             seq->ConvertBases();
                             if (tid == 0 && !over_flag)
                             {
