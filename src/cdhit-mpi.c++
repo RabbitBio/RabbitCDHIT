@@ -63,7 +63,7 @@ static bool auto_detect_memory_control(const std::string &file_path,
 
 ////////////////////////////////////  MAIN /////////////////////////////////////
 int main(int argc, char* argv[]) {
-    // sleep(0);
+    sleep(0);
     string db_in;
     string db_out;
     vector<SequenceMeta> meta_table;
@@ -163,7 +163,15 @@ bomb_error("Number of processes does not match");
             int num_workers = (seq_db.workers_per_node > 0)
                                   ? seq_db.workers_per_node
                                   : (size - 1);
-            if (auto_detect_memory_control(proc_file, num_workers)) {
+            int local_need = auto_detect_memory_control(proc_file, num_workers) ? 1 : 0;
+
+            // 各 worker 文件大小和节点可用内存不同，独立判断可能不一致。
+            // 用 MPI_Allreduce(OR) 同步：只要有一个 worker 内存不足，
+            // 所有 worker 统一启用 memory_control，避免同节点估算互相干扰。
+            int global_need = 0;
+            MPI_Allreduce(&local_need, &global_need, 1, MPI_INT, MPI_LOR, worker_comm);
+
+            if (global_need) {
                 if (options.stealing) {
                     fprintf(stderr,
                             "[rank %d] ERROR: memory is insufficient for the current "
