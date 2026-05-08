@@ -2,7 +2,20 @@
 
 RabbitCD-HIT is a scalable greedy incremental clustering tool designed for massive protein sequences. It supports running on distributed clusters to efficiently process massive protein sequence datasets. RabbitCD-HIT combines inter-node MPI parallelism with intra-node multithreading to achieve superior speed and scalability while maintaining full compatibility with the CD-HIT output format.
 
-## 1) Build
+## (1) Dependencies
+
+RabbitCD-HIT requires the following system dependencies:
+
+- **MPI**: required for distributed parallel execution and for compiling `cdhit-mpi`.
+  - Intel MPI is recommended when using `mpiicpx`.
+  - OpenMPI or MPICH can also be used through `mpicxx`.
+- **TBB (Threading Building Blocks)**: required for intra-node multithreading.
+
+Please make sure that an MPI implementation and TBB are installed and available in your build environment before compiling RabbitCD-HIT.
+
+---
+
+## (2) Build
 
 ```bash
 git clone --recursive https://github.com/RabbitBio/RabbitCDHIT.git
@@ -10,11 +23,13 @@ cd RabbitCDHIT
 make
 ```
 
-By default, the project uses `mpiicpx` as the MPI C++ compiler.  
-If `mpiicpx` is not available on your machine, edit `CC` in `Makefile` and switch it to `mpicxx`, then rebuild.  
+By default, the project uses `mpiicpx` as the MPI C++ compiler.
+
+If `mpiicpx` is not available on your machine, edit `CC` in `Makefile` and switch it to `mpicxx`, then rebuild.
+
 When using `mpicxx`, also change `-Ofast` to `-O2` in `Makefile` to avoid potential correctness issues.
 
-If TBB (Threading Building Blocks) is not found during build, set `TBB_ROOT` in `Makefile` to point to your TBB installation:
+If TBB is not found during build, set `TBB_ROOT` in `Makefile` to point to your TBB installation:
 
 ```makefile
 TBB_ROOT = /path/to/your/tbb
@@ -28,7 +43,7 @@ make AVX512=yes
 
 ---
 
-## 2) Single-node quick start
+## (3) Single-node quick start
 
 For single-node runs, use the provided `run_single.sh` script to complete both stages in one command:
 
@@ -56,12 +71,12 @@ bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -memory_control 1
 
 ---
 
-## 3) Manual workflow
+## (4) Manual workflow
 
 > **When running on a cluster (multi-node), this manual workflow must be used.**  
 > The two stages below **must be run in order**.
 
-### 3.1) Preprocess stage
+### 4.1 Preprocess stage
 
 ```bash
 ./cdhit-preprocess -i DB.fa -N 1 -NT 128 -T 64 -tmp /absolute/path/to/tmp_runs -pre_out /absolute/path/to/preprocess_output
@@ -78,7 +93,7 @@ bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -memory_control 1
 | `-pre_out` | Preprocess output directory                                           |
 
 
-### 3.2) Clustering stage
+### 4.2 Clustering stage
 
 Read `total_mpi_num` and `threads_per_rank` from the generated `info.json`, then run:
 
@@ -88,10 +103,9 @@ mpirun -np <total_mpi_num> ./cdhit-mpi -i /absolute/path/to/preprocess_output -o
 
 > `**mpirun -np` and `cdhit-mpi -T` MUST match `info.json`, otherwise the run may fail.**
 
-
 ---
 
-## 4) Output files
+## (5) Output files
 
 - `*.txt`: representative sequence names and sequences
 - `*.clstr`: cluster membership information
