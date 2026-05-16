@@ -38,7 +38,10 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 // #include <tbb/blocked_range.h>
+#ifndef NO_TBB
 #include <tbb/global_control.h>
+#endif
+
 // #include <tbb/parallel_for.h>
 #include <unistd.h>
 

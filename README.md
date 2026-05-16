@@ -4,18 +4,28 @@ RabbitCD-HIT is a scalable greedy incremental clustering tool designed for massi
 
 ## (1) Dependencies
 
-RabbitCD-HIT requires the following system dependencies:
+RabbitCD-HIT requires an MPI implementation for distributed parallel execution.
 
-- **MPI**: required for distributed parallel execution and for compiling `cdhit-mpi`.
+### Required dependency
+
+- **MPI**: required for compiling and running `cdhit-mpi`.
   - Intel MPI is recommended when using `mpiicpx`.
   - OpenMPI or MPICH can also be used through `mpicxx`.
-- **TBB (Threading Building Blocks)**: required for intra-node multithreading.
 
-Please make sure that an MPI implementation and TBB are installed and available in your build environment before compiling RabbitCD-HIT.
+### Optional dependency
+
+- **TBB (Threading Building Blocks)**: optional.
+  - TBB can be enabled to accelerate some intra-node operations, such as parallel sorting.
+  - By default, RabbitCD-HIT is built **without TBB**.
+  - To enable TBB support, both `tbb=yes` and `TBB_ROOT` must be specified during compilation.
+
+Please make sure that an MPI implementation is installed and available in your build environment before compiling RabbitCD-HIT.
 
 ---
 
 ## (2) Build
+
+Clone the repository and build RabbitCD-HIT with the default configuration:
 
 ```bash
 git clone --recursive https://github.com/RabbitBio/RabbitCDHIT.git
@@ -25,15 +35,35 @@ make
 
 By default, the project uses `mpiicpx` as the MPI C++ compiler.
 
-If `mpiicpx` is not available on your machine, edit `CC` in `Makefile` and switch it to `mpicxx`, then rebuild.
+If `mpiicpx` is not available on your machine, you can build with `mpicxx`:
 
-When using `mpicxx`, also change `-Ofast` to `-O2` in `Makefile` to avoid potential correctness issues.
-
-If TBB is not found during build, set `TBB_ROOT` in `Makefile` to point to your TBB installation:
-
-```makefile
-TBB_ROOT = /path/to/your/tbb
+```bash
+make CC=mpicxx
 ```
+
+When using `mpicxx`, it is recommended to use `-O2` instead of aggressive optimization flags such as `-Ofast`, which may cause potential correctness issues on some platforms.
+
+---
+
+### Build with TBB
+
+TBB support is disabled by default. To enable TBB, the TBB installation path must be specified explicitly through `TBB_ROOT`:
+
+```bash
+make tbb=yes TBB_ROOT=/path/to/your/tbb
+```
+
+For example, when using Intel oneAPI TBB:
+
+```bash
+make tbb=yes TBB_ROOT=/opt/intel/oneapi/tbb/latest
+```
+
+Using only `make tbb=yes` without specifying `TBB_ROOT` is not supported.
+
+---
+
+### Build with AVX512
 
 If your CPU supports AVX512, compile with:
 
@@ -41,7 +71,25 @@ If your CPU supports AVX512, compile with:
 make AVX512=yes
 ```
 
+AVX512 support can also be combined with other build options:
+
+```bash
+make AVX512=yes tbb=yes TBB_ROOT=/opt/intel/oneapi/tbb/latest
+```
+
+or:
+
+```bash
+make CC=mpicxx AVX512=yes
+```
+
 ---
+
+### Clean build files
+
+```bash
+make clean
+```
 
 ## (3) Single-node quick start
 

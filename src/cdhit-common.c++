@@ -4560,20 +4560,49 @@ void WritePartitionToMmap(const std::vector<MasterSeqInfo> &all_infos, const Par
 }
 
 void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Options &options) {
-    tbb::global_control(tbb::global_control::max_allowed_parallelism, options.threads);
+    
+    // tbb::global_control(tbb::global_control::max_allowed_parallelism, options.threads);
     int num_threads = options.threads;
     omp_set_num_threads(num_threads);
     double written_mb = 0.0;
     double written_time_naive = 0.0;
     double written_time_mmap = 0.0;
 
-    // cout << "--------------------------------" << endl;
-    // cout << "[1/6] Sorting and writing result..." << endl;
-    // ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
+    #ifndef NO_TBB
 
-    ips2ra::parallel::sort(all_infos.begin(), all_infos.end(),
-                           [](const MasterSeqInfo &info) { return info.cluster_id; });
-    // cout << "--------------------------------" << endl;
+        {
+            // Keep global_control alive during TBB parallel sort.
+            tbb::global_control tbb_control(
+                tbb::global_control::max_allowed_parallelism,
+                num_threads);
+
+            ips2ra::parallel::sort(
+                all_infos.begin(),
+                all_infos.end(),
+                [](const MasterSeqInfo &info)
+                {
+                    return info.cluster_id;
+                });
+        }
+
+    #else
+        cerr<<"no tbb "<<endl;
+        std::sort(
+            all_infos.begin(),
+            all_infos.end(),
+            [](const MasterSeqInfo &a, const MasterSeqInfo &b)
+            {
+                return a.cluster_id < b.cluster_id;
+            });
+
+    #endif
+    // // cout << "--------------------------------" << endl;
+    // // cout << "[1/6] Sorting and writing result..." << endl;
+    // // ips2ra::sort(all_infos.begin(), all_infos.end(), [](const MasterSeqInfo &info) { return info.cluster_id; });
+
+    // ips2ra::parallel::sort(all_infos.begin(), all_infos.end(),
+    //                        [](const MasterSeqInfo &info) { return info.cluster_id; });
+    // // cout << "--------------------------------" << endl;
 
     // Naive methods
     auto start_time = std::chrono::high_resolution_clock::now();

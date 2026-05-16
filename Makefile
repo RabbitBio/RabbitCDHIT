@@ -1,6 +1,6 @@
 CC = g++ -Wall -ggdb
 CC = g++ -pg
-CC = mpiicpx
+CC = mpicxx
 
 # default with OpenMP
 # with OpenMP
@@ -25,29 +25,48 @@ endif
 #LDFLAGS = /usr/lib/x86_64-linux-gnu/libz.a -o
 
 
-# TBB 配置 - 可以通过环境变量 TBB_ROOT 指定，或使用默认路径
-TBB_ROOT ?= /opt/intel/oneapi/tbb/latest
-TBB_LIB_DIR = $(TBB_ROOT)/lib/intel64/gcc4.8
-TBB_INCLUDE_DIR = $(TBB_ROOT)/include
+# TBB support
+# Default: disabled
+# Usage:
+#   make                                      # disable TBB by default
+#   make tbb=yes TBB_ROOT=/path/to/tbb        # enable TBB with custom path
 
-# 检查 TBB 是否存在，如果不存在则使用系统默认
-ifeq ($(wildcard $(TBB_LIB_DIR)/libtbb.so),)
-  # TBB 不在默认路径，尝试其他可能的位置
-  TBB_LIB_DIR = $(shell if [ -d "$(TBB_ROOT)/lib/intel64" ]; then echo "$(TBB_ROOT)/lib/intel64"; \
-                            elif [ -d "$(TBB_ROOT)/lib" ]; then echo "$(TBB_ROOT)/lib"; \
-                            else echo ""; fi)
-endif
+ifeq ($(tbb),yes)
 
-# 添加 TBB 路径
-ifneq ($(TBB_LIB_DIR),)
-  LDFLAGS += -L$(TBB_LIB_DIR)
-endif
-ifneq ($(TBB_INCLUDE_DIR),)
+  ifeq ($(strip $(TBB_ROOT)),)
+    $(error TBB is enabled, but TBB_ROOT is not specified. Please use: make tbb=yes TBB_ROOT=/path/to/tbb)
+  endif
+
+  TBB_INCLUDE_DIR := $(TBB_ROOT)/include
+
+  TBB_LIB_DIR := $(shell \
+    if [ -d "$(TBB_ROOT)/lib/intel64/gcc4.8" ]; then echo "$(TBB_ROOT)/lib/intel64/gcc4.8"; \
+    elif [ -d "$(TBB_ROOT)/lib/intel64" ]; then echo "$(TBB_ROOT)/lib/intel64"; \
+    elif [ -d "$(TBB_ROOT)/lib64" ]; then echo "$(TBB_ROOT)/lib64"; \
+    elif [ -d "$(TBB_ROOT)/lib" ]; then echo "$(TBB_ROOT)/lib"; \
+    else echo ""; fi)
+
+  ifeq ($(strip $(TBB_LIB_DIR)),)
+    $(error Cannot find TBB library directory under TBB_ROOT=$(TBB_ROOT))
+  endif
+
+  ifeq ($(wildcard $(TBB_INCLUDE_DIR)/tbb),)
+    $(error Cannot find TBB headers under $(TBB_INCLUDE_DIR))
+  endif
+
+  CCFLAGS += -DUSE_TBB
   CCFLAGS += -I$(TBB_INCLUDE_DIR)
-endif
 
-# Intel oneAPI TBB 需要链接 tbb 和 tbbmalloc
-LIBS = -ltbb -ltbbmalloc -latomic
+  LDFLAGS += -L$(TBB_LIB_DIR)
+  LDFLAGS += -Wl,-rpath,$(TBB_LIB_DIR)
+
+  LIBS += -ltbb -ltbbmalloc -latomic
+
+else
+
+  CCFLAGS += -DNO_TBB
+
+endif
 
 
 # default with zlib
