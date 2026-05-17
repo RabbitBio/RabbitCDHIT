@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
                 -stealing|-g|-fo|-G|-b|-n|-t|-s|-S|-aL|-AL|-aS|-AS|-A|-uL|-uS|-U|-d|-p|-sc|-sf|-bak)
                     EXTRA_MPI="$EXTRA_MPI $1 $2"; shift 2 ;;
                 *)
-                    echo "未知参数: $1" >&2; exit 1 ;;
+                    echo "Unknown argument: $1" >&2; exit 1 ;;
             esac
             ;;
     esac
@@ -54,20 +54,20 @@ done
 
 # ── 参数检查 ──────────────────────────────────────────────────
 if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
-    echo "用法: bash $0 -i <input.fa> -o <output> [-T 线程数] [-c 相似度] [其他选项]"
+    echo "Usage: bash $0 -i <input.fa> -o <output> [-T threads] [-c identity] [other options]"
     echo ""
-    echo "  -i        输入 FASTA 文件（支持 .gz）"
-    echo "  -o        输出文件前缀"
-    echo "  -T        preprocess 线程数，默认自动取单 NUMA 核心数（cdhit-mpi 的 -T 固定从 info.json 读取，不受此参数影响）"
-    echo "  -c        相似度阈值，默认 0.9"
-    echo "  -tmp      临时文件目录，默认 ./tmp_runs"
-    echo "  -pre_out  预处理输出目录，默认 ./preprocess_output"
-    echo "  -memory_control <0|1>  内存控制模式："
-    echo "              不传    自动检测（默认）：内存不足时自动开启"
-    echo "              1       强制开启：按需从磁盘加载序列，降低峰值内存"
-    echo "              0       强制关闭：禁用自动检测，所有序列常驻内存"
-    echo "            注意：-memory_control 1 与 -stealing 不可同时使用"
-    echo "  其他 cdhit-mpi 参数（-g, -fo, -stealing, -G, -b, -n, -t, -s, -S ...）直接附加即可"
+    echo "  -i        Input FASTA file (.gz supported)"
+    echo "  -o        Output file prefix"
+    echo "  -T        Number of threads for preprocessing. By default, it is automatically set to the number of cores per NUMA node. The -T value for cdhit-mpi is read from info.json and is not affected by this option."
+    echo "  -c        Sequence identity threshold. Default: 0.9"
+    echo "  -tmp      Temporary directory. Default: ./tmp_runs"
+    echo "  -pre_out  Preprocessing output directory. Default: ./preprocess_output"
+    echo "  -memory_control <0|1>  Memory control mode:"
+    echo "              not set  Auto-detection mode (default): enabled automatically when memory is insufficient"
+    echo "              1        Force enabled: load sequences from disk on demand to reduce peak memory usage"
+    echo "              0        Force disabled: disable auto-detection and keep all sequences resident in memory"
+    echo "            Note: -memory_control 1 cannot be used together with -stealing"
+    echo "  Other cdhit-mpi options (-g, -fo, -stealing, -G, -b, -n, -t, -s, -S ...) can be appended directly"
     exit 1
 fi
 
@@ -77,12 +77,12 @@ PRE_OUT="$(realpath "$PRE_OUT")"
 
 # ── Step 1: 预处理 ────────────────────────────────────────────
 echo "========================================"
-echo "Step 1: 预处理"
-echo "  输入:       $INPUT"
-echo "  整机核数(-NT): $TOTAL_CORES"
-echo "  单NUMA核数(-T): $PREPROCESS_T  (NUMA节点数: $NUMA_NODES)"
-echo "  临时目录:   $TMP_DIR"
-echo "  预处理输出: $PRE_OUT"
+echo "Step 1: Preprocessing"
+echo "  Input:                 $INPUT"
+echo "  Total cores (-NT):      $TOTAL_CORES"
+echo "  Cores per NUMA (-T):    $PREPROCESS_T  (NUMA nodes: $NUMA_NODES)"
+echo "  Temporary directory:    $TMP_DIR"
+echo "  Preprocessing output:   $PRE_OUT"
 echo "========================================"
 
 "${SCRIPT_DIR}/cdhit-preprocess" \
@@ -97,7 +97,7 @@ echo "========================================"
 # ── 从 info.json 读取 MPI 参数 ────────────────────────────────
 INFO_JSON="${PRE_OUT}/info.json"
 if [[ ! -f "$INFO_JSON" ]]; then
-    echo "错误: 找不到 ${INFO_JSON}，预处理可能失败" >&2
+    echo "Error: ${INFO_JSON} was not found. Preprocessing may have failed." >&2
     exit 1
 fi
 
@@ -107,7 +107,7 @@ MPI_T=$(python3 -c "import json; d=json.load(open('${INFO_JSON}')); print(d['inf
 
 echo ""
 echo "========================================"
-echo "Step 2: 聚类"
+echo "Step 2: Clustering"
 echo "  mpirun -np $TOTAL_MPI  (from info.json: total_mpi_num)"
 echo "  cdhit-mpi -T $MPI_T    (from info.json: threads_per_rank)"
 if [[ -n "$MEMORY_CONTROL" ]]; then
@@ -115,7 +115,7 @@ if [[ -n "$MEMORY_CONTROL" ]]; then
 else
     echo "  -memory_control      (auto-detect)"
 fi
-echo "  输出前缀: $OUTPUT"
+echo "  Output prefix: $OUTPUT"
 echo "========================================"
 
 # 若用户指定了 memory_control，拼入 MPI 参数
@@ -134,7 +134,7 @@ mpirun -np "$TOTAL_MPI" \
 
 echo ""
 echo "========================================"
-echo "完成！输出文件:"
-echo "  ${OUTPUT}      (代表序列)"
-echo "  ${OUTPUT}.clstr（聚类信息）"
+echo "Done. Output files:"
+echo "  ${OUTPUT}        (representative sequences)"
+echo "  ${OUTPUT}.clstr  (clustering information)"
 echo "========================================"

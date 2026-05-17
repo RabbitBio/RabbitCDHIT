@@ -4570,7 +4570,7 @@ void SequenceDB::SortAndWriteResult(vector<MasterSeqInfo> &all_infos, const Opti
 
     #ifndef NO_TBB
 
-        {
+        {   cerr<<"using tbb "<<endl;
             // Keep global_control alive during TBB parallel sort.
             tbb::global_control tbb_control(
                 tbb::global_control::max_allowed_parallelism,
