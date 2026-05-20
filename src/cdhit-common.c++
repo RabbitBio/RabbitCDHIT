@@ -5811,10 +5811,30 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 std::vector<char> mc_seq_buf(max_len + 4);
                 std::vector<char> mc_hdr_skip(max_idf + 4); // 仅用于跳过 header 行
 
-                auto read_one_chunk = [&](int idx)
+                // ── slab 分配器 ──────────────────────────────────────────────
+                // 用两个预分配缓冲区代替逐序列的 new char[]/delete[]，彻底消除
+                // 因 64 线程跨 arena 释放导致的 glibc ptmalloc 堆碎片。
+                // slab[0]/slab[1] 在 cur/next chunk 之间交替复用：
+                //   slab[cur_slab]     ← 当前 chunk 的序列数据（正在计算）
+                //   slab[cur_slab ^ 1] ← 下一 chunk 的序列数据（omp single 预读）
+                // 每个 slab 第一次 resize 后堆大小稳定，不再增长。
+                std::array<std::vector<char>, 2> slab;
+                int cur_slab = 0;
+
+                auto read_one_chunk = [&](int idx, int which_slab)
                 {
                     int L = my_chunks[idx].first;
                     int R = my_chunks[idx].second;
+
+                    // 预计算本 chunk 中有效序列的总字节数，一次性 resize slab
+                    size_t total_bytes = 0;
+                    for (int j = L; j <= R; ++j)
+                    {
+                        const Sequence *s = sequences[j];
+                        if (!(s->state & IS_REDUNDANT) && !(s->state & IS_REP))
+                            total_bytes += (size_t)s->size + 1;
+                    }
+                    slab[which_slab].resize(total_bytes);
 
                     // 一次 seek 到块首序列数据行
                     if (fseek(fp_plain, mc_seq_offsets_[L], SEEK_SET) != 0)
@@ -5826,6 +5846,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         MPI_Abort(MPI_COMM_WORLD, 1);
                     }
 
+                    size_t offset = 0;
                     for (int j = L; j <= R; ++j)
                     {
                         // 读序列数据行（page cache 命中，无磁盘 I/O）
@@ -5839,15 +5860,15 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         }
 
                         Sequence *s = sequences[j];
-                        // IS_REDUNDANT / IS_REP 的序列在计算循环里会直接 Clear() 跳过，
-                        // 不需要 data，省去 new[] + memcpy。
+                        // IS_REDUNDANT / IS_REP 的序列在计算循环里直接跳过，不需要 data
                         if (!(s->state & IS_REDUNDANT) && !(s->state & IS_REP))
                         {
                             int seq_len = s->size;
-                            char *data_ptr = new char[seq_len + 1];
+                            char *data_ptr = slab[which_slab].data() + offset;
                             memcpy(data_ptr, mc_seq_buf.data(), seq_len);
                             data_ptr[seq_len] = '\0';
-                            s->data = data_ptr;
+                            s->data = data_ptr; // 指向 slab，无需 delete[]
+                            offset += (size_t)seq_len + 1;
                         }
 
                         // 跳过下一条记录的 header 行（最后一条不需要）
@@ -5863,7 +5884,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 if (remain_chunks > 0)
                 {
                     int first_idx = start;
-                    read_one_chunk(first_idx);
+                    read_one_chunk(first_idx, cur_slab);
                 }
 
 #pragma omp parallel num_threads(T)
@@ -5891,7 +5912,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                 posix_fadvise(fileno(fp_plain), fa_off, fa_len,
                                               POSIX_FADV_WILLNEED);
 #endif
-                                read_one_chunk(next_idx);
+                                read_one_chunk(next_idx, cur_slab ^ 1);
                             }
                         }
 
@@ -5935,13 +5956,21 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
 
                             CheckOne(seq, word_table, params[tid], buffers[tid], options);
 
-                            seq->Clear();
+                            // slab 所有权：data 指针指向 slab[cur_slab]，不需要 delete[]
+                            seq->data    = nullptr;
+                            seq->bufsize = 0;
                         }
 
 #pragma omp barrier
 
 #pragma omp master
                         {
+                            // slab 翻转：omp for 已将 slab[cur_slab] 的指针全部置 nullptr，
+                            // omp single nowait 已将下一 chunk 数据写入 slab[cur_slab^1]，
+                            // 两者均在上方 barrier 之前完成，此处翻转对第二个 barrier 后
+                            // 所有线程可见。
+                            cur_slab ^= 1;
+
                             if (chunks_id[idx] == soure_chunk + 1)
                             {
                                 int size = my_chunks[idx].second - my_chunks[idx].first + 1;
@@ -6609,7 +6638,10 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
     if (flag == 1) { // if similar to old one delete it
 
         if (!options.cluster_best) {
-            seq->Clear();
+            // In memory_control mode seq->data points into a slab (not heap),
+            // so deleting it here would crash.  The MC omp-for nulls seq->data
+            // after CheckOne returns, which is sufficient.
+            if (!options.memory_control) seq->Clear();
             seq->state |= IS_REDUNDANT;
         }
     }
