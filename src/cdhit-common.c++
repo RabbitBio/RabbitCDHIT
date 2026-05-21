@@ -5809,7 +5809,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 //   fgets(seq) → 到下一条 header → fgets(skip header) → 到下一条 seq → …
                 // 避免每条序列单独 fseek，减少 syscall 数量。
                 std::vector<char> mc_seq_buf(max_len + 4);
-                std::vector<char> mc_hdr_skip(max_idf + 4); // 仅用于跳过 header 行
+                // mc_hdr_skip 已废弃：现在用 mc_seq_offsets_ 直接 fseek 跳过 header，
+                // 不再用 fgets 跳行（fgets 只读 max_idf+4 字节，若 header 有描述字段
+                // 会截断，下一条 fgets 把 header 残余当成序列数据 → ConvertBases 崩溃）。
 
                 // ── slab 分配器 ──────────────────────────────────────────────
                 // 用两个预分配缓冲区代替逐序列的 new char[]/delete[]，彻底消除
@@ -5825,15 +5827,14 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 {
                     int L = my_chunks[idx].first;
                     int R = my_chunks[idx].second;
+                    int n = R - L + 1;
 
-                    // 预计算本 chunk 中有效序列的总字节数，一次性 resize slab
+                    // 不区分冗余/代表/普通序列，全部读入 slab。
+                    // 避免 Pass1/Pass2 之间因并发状态变化导致的 TOCTOU，
+                    // 也不需要 active 快照向量，逻辑更简单。
                     size_t total_bytes = 0;
-                    for (int j = L; j <= R; ++j)
-                    {
-                        const Sequence *s = sequences[j];
-                        if (!(s->state & IS_REDUNDANT) && !(s->state & IS_REP))
-                            total_bytes += (size_t)s->size + 1;
-                    }
+                    for (int i = 0; i < n; ++i)
+                        total_bytes += (size_t)sequences[L + i]->size + 1;
                     slab[which_slab].resize(total_bytes);
 
                     // 一次 seek 到块首序列数据行
@@ -5846,10 +5847,11 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         MPI_Abort(MPI_COMM_WORLD, 1);
                     }
 
+                    // 顺序读入全部序列数据行，统一写入 slab
                     size_t offset = 0;
-                    for (int j = L; j <= R; ++j)
+                    for (int i = 0; i < n; ++i)
                     {
-                        // 读序列数据行（page cache 命中，无磁盘 I/O）
+                        int j = L + i;
                         if (!fgets(mc_seq_buf.data(), (int)mc_seq_buf.size(), fp_plain))
                         {
                             fprintf(stderr,
@@ -5860,20 +5862,29 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         }
 
                         Sequence *s = sequences[j];
-                        // IS_REDUNDANT / IS_REP 的序列在计算循环里直接跳过，不需要 data
-                        if (!(s->state & IS_REDUNDANT) && !(s->state & IS_REP))
-                        {
-                            int seq_len = s->size;
-                            char *data_ptr = slab[which_slab].data() + offset;
-                            memcpy(data_ptr, mc_seq_buf.data(), seq_len);
-                            data_ptr[seq_len] = '\0';
-                            s->data = data_ptr; // 指向 slab，无需 delete[]
-                            offset += (size_t)seq_len + 1;
-                        }
+                        int seq_len = s->size;
+                        char *data_ptr = slab[which_slab].data() + offset;
+                        memcpy(data_ptr, mc_seq_buf.data(), seq_len);
+                        data_ptr[seq_len] = '\0';
+                        s->data    = data_ptr; // 指向 slab，无需 delete[]
+                        s->bufsize = 0;
+                        offset += (size_t)seq_len + 1;
 
-                        // 跳过下一条记录的 header 行（最后一条不需要）
-                        if (j < R)
-                            fgets(mc_hdr_skip.data(), (int)mc_hdr_skip.size(), fp_plain);
+                        // 直接 fseek 到下一条序列的数据行，
+                        // 彻底跳过 header（无论 header 有多长），
+                        // 避免 fgets(mc_hdr_skip) 因缓冲区不足截断 header 后
+                        // 把 header 残余内容当序列数据读入 slab。
+                        if (i < n - 1)
+                        {
+                            if (fseek(fp_plain, mc_seq_offsets_[L + i + 1], SEEK_SET) != 0)
+                            {
+                                fprintf(stderr,
+                                        "fseek to seq %d failed, file=%s\n",
+                                        L + i + 1, my_file.c_str());
+                                fclose(fp_plain);
+                                MPI_Abort(MPI_COMM_WORLD, 1);
+                            }
+                        }
                     }
                 };
 
@@ -5920,9 +5931,16 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                         for (int j = my_chunks[idx].first; j <= my_chunks[idx].second; ++j)
                         {
                             Sequence *seq = sequences[j];
-                            
+
+                            // IS_REDUNDANT/IS_REP 序列也是从 slab 读入的，
+                            // 立即清零防止 slab 释放后出现悬空指针。
                             if ((seq->state & IS_REDUNDANT) || (seq->state & IS_REP))
-                            continue;
+                            {
+                                seq->data    = nullptr;
+                                seq->bufsize = 0;
+                                continue;
+                            }
+
                             seq->ConvertBases();
                             if (tid == 0 && !over_flag)
                             {
@@ -6113,6 +6131,9 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 cerr << "total build time " << total_time << endl;
                 cerr << "total wait time " << total_wait_time << endl;
 #endif
+// #pragma omp parallel for schedule(static)
+//                 for (int _ic = 0; _ic < word_table.NAAN; ++_ic)
+//                     word_table.indexCounts[_ic].Clear();
                 double tb1 = get_time();
                 int C = (int)sequences.size();
                 vector<RedundantSeqInfoHeader> info_headers(C);
@@ -7010,7 +7031,7 @@ int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param
     }
     if ((flag == 1) || (flag == -1)) { // if similar to old one delete it
         if (!options.cluster_best) {
-            seq->Clear();
+            if (!options.memory_control) seq->Clear();
             seq->state |= IS_REDUNDANT;
         }
         if (flag == -1)
