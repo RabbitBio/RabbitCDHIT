@@ -5940,7 +5940,27 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                                 seq->bufsize = 0;
                                 continue;
                             }
+                            if (seq->data == nullptr)
+                            {
+                                fprintf(stderr, "ERROR: data is nullptr before ConvertBases, j=%d\n", j);
+                                MPI_Abort(MPI_COMM_WORLD, 1);
+                            }
 
+                            unsigned char c0 = (unsigned char)seq->data[0];
+                            if (c0 < 'A' || c0 > 'Z')
+                            {
+                                fprintf(stderr,
+                                        "ERROR: data already converted or invalid before ConvertBases: "
+                                        "rank=%d j=%d size=%d first_char=%d data=%p state=%d\n",
+                                        my_rank, j, seq->size, (int)c0, (void*)seq->data, seq->state);
+
+                                fprintf(stderr, "prefix:");
+                                for (int k = 0; k < min(seq->size, 32); ++k)
+                                    fprintf(stderr, " %d", (unsigned char)seq->data[k]);
+                                fprintf(stderr, "\n");
+
+                                MPI_Abort(MPI_COMM_WORLD, 1);
+                            }
                             seq->ConvertBases();
                             if (tid == 0 && !over_flag)
                             {
@@ -6132,8 +6152,8 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 cerr << "total wait time " << total_wait_time << endl;
 #endif
 // #pragma omp parallel for schedule(static)
-//                 for (int _ic = 0; _ic < word_table.NAAN; ++_ic)
-//                     word_table.indexCounts[_ic].Clear();
+                // for (int _ic = 0; _ic < word_table.NAAN; ++_ic)
+                //     word_table.indexCounts[_ic].Clear();
                 double tb1 = get_time();
                 int C = (int)sequences.size();
                 vector<RedundantSeqInfoHeader> info_headers(C);
