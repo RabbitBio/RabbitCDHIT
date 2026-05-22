@@ -159,17 +159,12 @@ char txt_option_sf[] =
 \tif set to 1, output sequences by decreasing cluster size\n \
 \tthis can be very slow if the input is in .gz format\n";
 
-char txt_option_memory_control[] =
-"\t1 or 0, default: auto-detected\n \
-\tcontrol whether worker processes load sequence data on demand instead of\n \
-\tkeeping it all in RAM (memory-saving mode for large datasets):\n \
-\t  1 - enable: sequences are read from disk per chunk and freed after use;\n \
+char txt_option_load_all[] =
+"\t1 or 0, default 0\n \
+\t  0 (default) - double-buffered streaming: sequences are read from disk\n \
+\t      per chunk and freed after use; saves memory for large datasets;\n \
 \t      cannot be combined with -stealing\n \
-\t  0 - disable: all sequences stay in RAM (faster, needs more memory);\n \
-\t      also suppresses the automatic memory check\n \
-\tif not specified, the program estimates per-worker memory requirement from\n \
-\tthe worker's input file size and MemAvailable (/proc/meminfo), and enables\n \
-\tthis mode automatically when memory may be insufficient\n";
+\t  1 - load all: all sequence data is loaded into RAM before clustering\n";
 
 char txt_option_mask[] = "\tmasking letters (e.g. -mask NX, to mask out both 'N' and 'X')\n";
 char txt_option_match[] = "\tmatching score, default 2 (1 for T-U and N-N)\n";
@@ -220,7 +215,7 @@ int print_usage_mpi (char *arg) {
   cout << "   -i" << txt_option_i_mpi;
   cout << "   -g" << txt_option_g;
   cout << "   -fo"<< txt_option_fo;
-  cout << "   -memory_control" << txt_option_memory_control;
+  cout << "   -load_all" << txt_option_load_all;
   cout << "   -h\tprint this help\n\n";
   exit(1);
 } // END print_usage

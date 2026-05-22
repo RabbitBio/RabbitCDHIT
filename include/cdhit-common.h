@@ -325,8 +325,7 @@ struct Options {
     bool useDistance;
     bool backupFile;
     bool stealing;
-    bool memory_control;
-    bool memory_control_explicit; // true if user explicitly passed -memory_control 0/1
+    bool load_all; // true: load all sequence data into memory; false (default): double-buffered streaming
 
     string input;
     string input_pe;
@@ -348,8 +347,7 @@ struct Options {
         isEST = false;
         is454 = false;
         stealing = false;
-        memory_control = false;
-        memory_control_explicit = false;
+        load_all = false;
         preprocess_dir = "preprocess_output";
         NAA = 5;
         NodeNum = 0;

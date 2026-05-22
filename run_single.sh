@@ -21,7 +21,7 @@ NUMA_NODES=$(LC_ALL=C lscpu | awk '/^NUMA node\(s\)/{print $3}')          # NUMA
 PREPROCESS_T=$((NUMA_NODES > 0 ? TOTAL_CORES / NUMA_NODES : 32))         # preprocess -T：单 NUMA 核心数，探测失败默认 32
 # MPI_T 不在此处设置，必须从 preprocess 生成的 info.json 中读取（见下方）
 CLUSTER_THD=0.9     # 相似度阈值 -c
-MEMORY_CONTROL=""   # memory_control: "" = 自动检测, "1" = 强制开启, "0" = 强制关闭
+LOAD_ALL=""         # load_all: "" = 双缓冲流式（默认）, "1" = 全量加载到内存
 EXTRA_PREPROCESS="" # 传给 cdhit-preprocess 的额外参数
 EXTRA_MPI=""        # 传给 cdhit-mpi 的额外参数
 
@@ -38,7 +38,7 @@ while [[ $# -gt 0 ]]; do
         -c)   CLUSTER_THD="$2"; shift 2 ;;
         -tmp) TMP_DIR="$2";    shift 2 ;;
         -pre_out) PRE_OUT="$2"; shift 2 ;;
-        -memory_control) MEMORY_CONTROL="$2"; shift 2 ;;
+        -load_all) LOAD_ALL="$2"; shift 2 ;;
         *)
             # 其余参数根据前缀分发给对应阶段
             # 以 -stealing / -g / -fo / -G 等开头的给 mpi
@@ -62,11 +62,11 @@ if [[ -z "$INPUT" || -z "$OUTPUT" ]]; then
     echo "  -c        Sequence identity threshold. Default: 0.9"
     echo "  -tmp      Temporary directory. Default: ./tmp_runs"
     echo "  -pre_out  Preprocessing output directory. Default: ./preprocess_output"
-    echo "  -memory_control <0|1>  Memory control mode:"
-    echo "              not set  Auto-detection mode (default): enabled automatically when memory is insufficient"
-    echo "              1        Force enabled: load sequences from disk on demand to reduce peak memory usage"
-    echo "              0        Force disabled: disable auto-detection and keep all sequences resident in memory"
-    echo "            Note: -memory_control 1 cannot be used together with -stealing"
+    echo "  -load_all <0|1>  Sequence loading mode:"
+    echo "              not set / 0  Double-buffered streaming (default): sequences are read from disk"
+    echo "                           per chunk and freed after use; saves memory for large datasets"
+    echo "              1            Load all: keep all sequences resident in RAM"
+    echo "            Note: -load_all 0 (streaming) cannot be combined with -stealing"
     echo "  Other cdhit-mpi options (-g, -fo, -stealing, -G, -b, -n, -t, -s, -S ...) can be appended directly"
     exit 1
 fi
@@ -110,18 +110,18 @@ echo "========================================"
 echo "Step 2: Clustering"
 echo "  mpirun -np $TOTAL_MPI  (from info.json: total_mpi_num)"
 echo "  cdhit-mpi -T $MPI_T    (from info.json: threads_per_rank)"
-if [[ -n "$MEMORY_CONTROL" ]]; then
-    echo "  -memory_control $MEMORY_CONTROL"
+if [[ -n "$LOAD_ALL" ]]; then
+    echo "  -load_all $LOAD_ALL"
 else
-    echo "  -memory_control      (auto-detect)"
+    echo "  -load_all            (default: 0, double-buffered streaming)"
 fi
 echo "  Output prefix: $OUTPUT"
 echo "========================================"
 
-# 若用户指定了 memory_control，拼入 MPI 参数
+# 若用户显式指定了 load_all，拼入 MPI 参数
 MC_ARG=""
-if [[ -n "$MEMORY_CONTROL" ]]; then
-    MC_ARG="-memory_control $MEMORY_CONTROL"
+if [[ -n "$LOAD_ALL" ]]; then
+    MC_ARG="-load_all $LOAD_ALL"
 fi
 
 mpirun -np "$TOTAL_MPI" \

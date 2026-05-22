@@ -313,10 +313,8 @@ bool Options::SetOptionCommon(const char *flag, const char *value) {
         preprocess_dir = value;
     else if (strcmp(flag, "-stealing") == 0)
         stealing = true;
-    else if (strcmp(flag, "-memory_control") == 0) {
-        memory_control = (atoi(value) != 0);
-        memory_control_explicit = true;
-    }
+    else if (strcmp(flag, "-load_all") == 0)
+        load_all = (atoi(value) != 0);
     else if (strcmp(flag, "-M") == 0)
         max_memory = atoll(value) * 1000000;
     else if (strcmp(flag, "-l") == 0)
@@ -526,7 +524,7 @@ bool Options::SetOptions(int argc, char *argv[], int rank, bool twod, bool est) 
 
 void Options::Validate() {
     if (useIdentity and useDistance) bomb_error("can not use both identity cutoff and distance cutoff");
-    if (memory_control && stealing) bomb_error("-memory_control 1 and -stealing cannot be used together");
+    if (!load_all && stealing) bomb_error("-stealing requires -load_all 1 (double-buffered streaming and work-stealing cannot be combined)");
     if (useDistance) {
         if ((distance_thd > 1.0) || (distance_thd < 0.0)) bomb_error("invalid distance threshold");
     } else if (isEST) {
@@ -2932,8 +2930,8 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
         }
     };
 
-    if (options.memory_control) {
-        // memory_control 路径：FILE* + fgets 单遍，同时建偏移表。
+    if (!options.load_all) {
+        // 双缓冲流式路径（默认）：FILE* + fgets 单遍，同时建偏移表。
         // 偏移表记录的是每条序列的【数据行】起始位置（header 已跳过），
         // 后续 read_one_chunk 可直接 seek 到数据行，无需再读 identifier。
         FILE *fp_mc = fopen(file.c_str(), "r");
@@ -3014,7 +3012,7 @@ void SequenceDB::read_sorted_files(const std::string &temp_dir, int rank, int ra
         #endif
     }
 
-if(!options.memory_control){
+if(options.load_all){
     #pragma omp parallel for num_threads(options.threads)
     for (int i = 0; i < sequences.size(); i++) {
         Sequence *seq = sequences[i];
@@ -5783,10 +5781,10 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 progress_running = false;
                 progress.join();
             }
-            else if (options.memory_control)
+            else if (!options.load_all)
             {
                 /*
-                 * memory_control 版本：
+                 * 双缓冲流式版本（默认）：
                  * 1. 不常驻保存 sequences[j]->data
                  * 2. 用预建的 mc_seq_offsets_ 表通过 fseek O(1) 定位到 start 位置，
                  *    避免之前每轮从文件头顺序跳过的 O(N) 代价
@@ -6679,10 +6677,10 @@ int SequenceDB::CheckOneAA(Sequence *seq, WordTable &table, WorkingParam &param,
     if (flag == 1) { // if similar to old one delete it
 
         if (!options.cluster_best) {
-            // In memory_control mode seq->data points into a slab (not heap),
-            // so deleting it here would crash.  The MC omp-for nulls seq->data
+            // In double-buffered streaming mode (!load_all) seq->data points into a slab
+            // (not heap), so deleting it here would crash.  The omp-for nulls seq->data
             // after CheckOne returns, which is sufficient.
-            if (!options.memory_control) seq->Clear();
+            if (options.load_all) seq->Clear();
             seq->state |= IS_REDUNDANT;
         }
     }
@@ -7051,7 +7049,9 @@ int SequenceDB::CheckOneEST(Sequence *seq, WordTable &table, WorkingParam &param
     }
     if ((flag == 1) || (flag == -1)) { // if similar to old one delete it
         if (!options.cluster_best) {
-            if (!options.memory_control) seq->Clear();
+            // In the stealing path seq->data always points to a local buffer
+            // (not a heap allocation), so Clear() must NOT be called here.
+            // The caller (stealing loop) sets seq.data = nullptr after return.
             seq->state |= IS_REDUNDANT;
         }
         if (flag == -1)

@@ -111,11 +111,17 @@ The script automatically detects the machine's CPU topology (`nproc`, `lscpu`) a
 | `-c`   | `0.9`        | Sequence identity threshold       |
 
 
-Any additional `cdhit-mpi` options (`-g`, `-fo`, `-memory_control`) can be appended directly:
+Any additional `cdhit-mpi` options can be appended directly:
 
 ```bash
-bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -memory_control 1
+bash run_single.sh -i DB.fa -o result -c 0.9 -g 1 -fo 1 -load_all 1
 ```
+
+| Option      | Default | Description |
+| ----------- | ------- | ----------- |
+| `-g`        | `0`     | `1`: accurate mode — assign to the most similar cluster. `0`: fast mode — assign to the first qualifying cluster. |
+| `-fo`       | `0`     | `1`: enforce strict input file order when comparing sequences of equal length. |
+| `-load_all` | `0`     | `0` (default): double-buffered streaming, minimises peak memory. `1`: load all sequences into RAM. |
 
 ---
 
