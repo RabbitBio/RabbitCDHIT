@@ -90,7 +90,6 @@ echo "========================================"
     -N 1 \
     -NT "$TOTAL_CORES" \
     -T  "$PREPROCESS_T" \
-    -c  "$CLUSTER_THD" \
     -tmp    "$TMP_DIR" \
     -pre_out "$PRE_OUT"
 
@@ -129,6 +128,7 @@ mpirun -np "$TOTAL_MPI" \
     -i  "$PRE_OUT" \
     -o  "$OUTPUT"  \
     -T  "$MPI_T" \
+    -c  "$CLUSTER_THD" \
     $MC_ARG \
     $EXTRA_MPI
 
