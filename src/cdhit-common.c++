@@ -3852,7 +3852,7 @@ void SequenceDB::decode_WordTable(WordTable &table, int start, Slot &s, const Op
     // MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
 
     table.sequences.resize(len);
-    if (!chunks_id.empty() && chunks_id[start] == s.info[0])
+    if (start < (int)chunks_id.size() && chunks_id[start] == s.info[0])
     {
         int table_start_id = my_chunks[start].first;
 #pragma omp parallel for num_threads(T)
@@ -5551,7 +5551,15 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                  << endl;
             #endif
             total_time += t142 - t141;
-            int remain_chunks = my_chunks.size() - start;
+            if (start < 0 || start > (int)my_chunks.size() || chunks_id.size() != my_chunks.size())
+            {
+                fprintf(stderr,
+                        "ERROR: invalid worker chunk cursor: rank=%d source=%d start=%d "
+                        "chunks=%zu chunk_ids=%zu\n",
+                        my_rank, soure_chunk, start, my_chunks.size(), chunks_id.size());
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+            int remain_chunks = (int)my_chunks.size() - start;
 
             double t14 = get_time();
             if (options.stealing)
@@ -6213,7 +6221,7 @@ void SequenceDB::DoClustering_MPI(const Options &options, int my_rank, bool mast
                 #endif
                 break;
             }
-            if (chunks_id[start] == soure_chunk) {
+            if (start < (int)chunks_id.size() && chunks_id[start] == soure_chunk) {
                 start++;
             }
             if (options.stealing) {
