@@ -2390,6 +2390,22 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
                 }
                 int len = kseq_read(seq);
                 if (len < 0) break;
+
+                // Normalize and validate before the sequence is counted or written to
+                // the preprocessed FASTA files. The buffer remains owned by kseq.
+                Sequence input_view;
+                input_view.data = seq->seq.s;
+                input_view.size = len;
+                int invalid_chars = input_view.Format();
+                len = input_view.size;
+                seq->seq.l = len;
+                input_view.data = nullptr;
+                if (invalid_chars) {
+                    fprintf(stderr, "Warning: from file \"%s\",\n", file);
+                    fprintf(stderr, "Discarding invalid sequence!\n");
+                    fprintf(stderr, ">%s\n%s\n\n", seq->name.s ? seq->name.s : "", seq->seq.s ? seq->seq.s : "");
+                    continue;
+                }
                 if (len <= option_l) continue;
                 std::string data = seq->seq.s ? seq->seq.s : "";
                 std::string idf = seq->name.s ? seq->name.s : "";
