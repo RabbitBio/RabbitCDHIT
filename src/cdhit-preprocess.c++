@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
 
     if (options.input.size() == 0) bomb_error("no input file");
     if (options.NodeNum == 0) bomb_error("no NodeNum");
-    if (options.threads_per_node == 0) bomb_error("no threads_per_node");
+    if (options.threads_per_node < 2) bomb_error("-NT must be at least 2");
     const char *RUN_DIR = "output";
     if (mkdir(RUN_DIR, 0755) != 0 && errno != EEXIST)
     {

@@ -2532,6 +2532,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     for (int t = 4; t <= MPI_max; t = t * 2) {
         Production_threads = options.threads_per_node / t;
         Consumption_threads = total_threads - Production_threads;
+        if (Production_threads < 1 || Consumption_threads < 1)
+            break;
         Production_rate = chunk_size / Production_threads;
         Consumption_rate = (total_num / 2) / Consumption_threads;
         #ifdef DEBUG
@@ -2545,6 +2547,8 @@ void SequenceDB::Pipeline_External_Sort(const char *file, size_t chunk_size_byte
     }
 
     Production_threads = options.threads_per_node / mpi_size;
+    if (Production_threads < 1)
+        Production_threads = 1;
     if (Production_threads > core_num || (options.NodeNum > 4 && core_num == numa_size)) {
     // if (Production_threads > core_num ) {
         Production_threads = core_num;
