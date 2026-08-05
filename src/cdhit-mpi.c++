@@ -64,13 +64,11 @@ int main(int argc, char* argv[]) {
     // if (tmp_prefix.back() != '/') {
     //     tmp_prefix += '/';
     // }
-    if (!options.output.empty() && options.output[0] == '/') {
-        options.output = options.output.substr(1);
-    }
     // options.output = tmp_prefix + options.output;
     // ------------------------------------------------------------
 
     if (options.output.size() == 0) bomb_error("no output file");
+    if (options.output.back() == '/') bomb_error("-o must be a file prefix, not a directory");
     // Modify by MGL: remove the rank directory
     // Place both the representative sequence file and the specific cluster file in the root directory of output.
     // if (master) {
